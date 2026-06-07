@@ -150,6 +150,33 @@ CREATE TABLE MapPOIs (
 );
 
 -- ============================================================
+-- 4.2. EXHIBITIONS & EVENTS
+-- ============================================================
+
+CREATE TABLE Exhibitions (
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    MuseumId        INT             NOT NULL,
+    ThumbnailUrl    NVARCHAR(500)   NULL,
+    StartDate       DATETIME2       NULL,
+    EndDate         DATETIME2       NULL,
+    Status          NVARCHAR(20)    NOT NULL DEFAULT 'Active' 
+                    CHECK (Status IN ('Active', 'Inactive', 'Ended')),
+    CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
+    UpdatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
+    CONSTRAINT FK_Exhibitions_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id)
+);
+
+CREATE TABLE ExhibitionTranslations (
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    ExhibitionId    INT             NOT NULL,
+    LanguageCode    VARCHAR(10)     NOT NULL,
+    Name            NVARCHAR(200)   NOT NULL,
+    Description     NVARCHAR(MAX)   NULL,
+    CONSTRAINT FK_ExhibTrans_Exhibition FOREIGN KEY (ExhibitionId) REFERENCES Exhibitions(Id) ON DELETE CASCADE,
+    CONSTRAINT UQ_ExhibTrans UNIQUE (ExhibitionId, LanguageCode)
+);
+
+-- ============================================================
 -- 5. CATEGORIES / COLLECTIONS
 -- ============================================================
 
@@ -175,6 +202,25 @@ CREATE TABLE CategoryTranslations (
     Description     NVARCHAR(500)   NULL,
     CONSTRAINT FK_CatTrans_Category FOREIGN KEY (CategoryId) REFERENCES Categories(Id) ON DELETE CASCADE,
     CONSTRAINT UQ_CatTrans UNIQUE (CategoryId, LanguageCode)
+);
+
+-- ============================================================
+-- 5.1. PERSONALIZATION METADATA (Themes, Age Groups)
+-- ============================================================
+
+CREATE TABLE Themes (
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    ThemeName       NVARCHAR(100)   NOT NULL,
+    Description     NVARCHAR(255)   NULL,
+    CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE()
+);
+
+CREATE TABLE AgeGroups (
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    GroupName       NVARCHAR(50)    NOT NULL, -- 'Trẻ em', 'Học sinh', 'Người lớn'
+    MinAge          INT             NULL,
+    MaxAge          INT             NULL,
+    CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE()
 );
 
 -- ============================================================
@@ -207,6 +253,28 @@ CREATE TABLE Exhibits (
     CONSTRAINT FK_Exhibits_Map FOREIGN KEY (MapId) REFERENCES MuseumMaps(Id),
     CONSTRAINT FK_Exhibits_CreatedBy FOREIGN KEY (CreatedBy) REFERENCES Users(Id),
     CONSTRAINT FK_Exhibits_UpdatedBy FOREIGN KEY (UpdatedBy) REFERENCES Users(Id)
+);
+
+-- Link Exhibits to Metadata
+CREATE TABLE ExhibitMetadata (
+    ExhibitId       INT NOT NULL,
+    ThemeId         INT NULL,
+    AgeGroupId      INT NULL,
+    Era             NVARCHAR(100)   NULL, -- e.g., 'Lý', 'Trần', 'Lê'
+    HistoricalEvent NVARCHAR(200)   NULL, -- e.g., 'Chiến dịch Điện Biên Phủ'
+    CONSTRAINT PK_ExhibitMetadata PRIMARY KEY (ExhibitId),
+    CONSTRAINT FK_ExhibMeta_Exhib FOREIGN KEY (ExhibitId) REFERENCES Exhibits(Id) ON DELETE CASCADE,
+    CONSTRAINT FK_ExhibMeta_Theme FOREIGN KEY (ThemeId) REFERENCES Themes(Id),
+    CONSTRAINT FK_ExhibMeta_Age FOREIGN KEY (AgeGroupId) REFERENCES AgeGroups(Id)
+);
+
+-- Link Exhibits to Exhibitions
+CREATE TABLE ExhibitionExhibits (
+    ExhibitionId    INT NOT NULL,
+    ExhibitId       INT NOT NULL,
+    CONSTRAINT PK_ExhibitionExhibits PRIMARY KEY (ExhibitionId, ExhibitId),
+    CONSTRAINT FK_ExhibEx_Exhibition FOREIGN KEY (ExhibitionId) REFERENCES Exhibitions(Id) ON DELETE CASCADE,
+    CONSTRAINT FK_ExhibEx_Exhibit FOREIGN KEY (ExhibitId) REFERENCES Exhibits(Id) ON DELETE CASCADE
 );
 
 -- ============================================================
@@ -268,12 +336,16 @@ CREATE TABLE TourRoutes (
     MuseumId        INT             NOT NULL,
     EstimatedMinutes INT            NULL,
     ThumbnailUrl    NVARCHAR(500)   NULL,
+    AgeGroupId      INT             NULL,  -- Personalization
+    ThemeId         INT             NULL,  -- Personalization
     IsDefault       BIT             NOT NULL DEFAULT 0,
     Status          NVARCHAR(20)    NOT NULL DEFAULT 'Active'
                     CHECK (Status IN ('Active', 'Inactive')),
     CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
     UpdatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
-    CONSTRAINT FK_TourRoutes_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id)
+    CONSTRAINT FK_TourRoutes_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id),
+    CONSTRAINT FK_TourRoutes_AgeGroup FOREIGN KEY (AgeGroupId) REFERENCES AgeGroups(Id),
+    CONSTRAINT FK_TourRoutes_Theme FOREIGN KEY (ThemeId) REFERENCES Themes(Id)
 );
 
 CREATE TABLE TourRouteTranslations (
@@ -315,7 +387,84 @@ CREATE TABLE Visitors (
 );
 
 -- ============================================================
--- 12. BOOKMARKS
+-- 12. PAYMENT METHODS
+-- ============================================================
+
+CREATE TABLE PaymentMethods (
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    Name            NVARCHAR(50)    NOT NULL UNIQUE, -- 'VNPAY', 'MOMO', 'CASH'
+    DisplayName     NVARCHAR(100)   NOT NULL,        -- 'VNPay Payment Gateway'
+    Description     NVARCHAR(255)   NULL,
+    IconUrl         NVARCHAR(500)   NULL,
+    IsActive        BIT             NOT NULL DEFAULT 1,
+    CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
+    UpdatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE()
+);
+
+-- ============================================================
+-- 13. TRANSACTIONS & TICKETING
+-- ============================================================
+
+CREATE TABLE Transactions (
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    VisitorId       INT             NOT NULL,
+    PaymentMethodId INT             NOT NULL,
+    OrderCode       NVARCHAR(50)    NOT NULL UNIQUE,
+    TotalAmount     DECIMAL(18,2)   NOT NULL,
+    Currency        NVARCHAR(10)    NOT NULL DEFAULT 'VND',
+    PaymentStatus   NVARCHAR(20)    NOT NULL DEFAULT 'Pending'
+                    CHECK (PaymentStatus IN ('Pending', 'Completed', 'Failed', 'Refunded', 'Cancelled')),
+    GatewayTransactionId NVARCHAR(100) NULL,
+    PaymentDate     DATETIME2       NULL,
+    Description     NVARCHAR(500)   NULL,
+    CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
+    UpdatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
+    CONSTRAINT FK_Transactions_Visitor FOREIGN KEY (VisitorId) REFERENCES Visitors(Id),
+    CONSTRAINT FK_Transactions_Method FOREIGN KEY (PaymentMethodId) REFERENCES PaymentMethods(Id)
+);
+
+CREATE TABLE TicketTypes (
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    MuseumId        INT             NOT NULL,
+    ExhibitionId    INT             NULL, -- If NULL, it's a general museum admission ticket
+    Name            NVARCHAR(100)   NOT NULL,
+    Price           DECIMAL(18,2)   NOT NULL DEFAULT 0,
+    Description     NVARCHAR(500)   NULL,
+    IsActive        BIT             NOT NULL DEFAULT 1,
+    CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
+    UpdatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
+    CONSTRAINT FK_TicketTypes_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id),
+    CONSTRAINT FK_TicketTypes_Exhibition FOREIGN KEY (ExhibitionId) REFERENCES Exhibitions(Id)
+);
+
+CREATE TABLE Tickets (
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    VisitorId       INT             NOT NULL,
+    TicketTypeId    INT             NOT NULL,
+    TransactionId   INT             NULL,
+    TicketCode      NVARCHAR(100)   UNIQUE NOT NULL,
+    PurchaseDate    DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
+    ValidDate       DATETIME2       NULL,
+    Status          NVARCHAR(20)    NOT NULL DEFAULT 'Pending'
+                    CHECK (Status IN ('Pending', 'Paid', 'Used', 'Cancelled', 'Expired')),
+    CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
+    UpdatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
+    CONSTRAINT FK_Tickets_Visitor FOREIGN KEY (VisitorId) REFERENCES Visitors(Id),
+    CONSTRAINT FK_Tickets_Type FOREIGN KEY (TicketTypeId) REFERENCES TicketTypes(Id),
+    CONSTRAINT FK_Tickets_Transaction FOREIGN KEY (TransactionId) REFERENCES Transactions(Id)
+);
+
+CREATE TABLE PaymentLogs (
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    TransactionId   INT             NOT NULL,
+    RawResponse     NVARCHAR(MAX)   NULL, -- JSON response from gateway
+    LogMessage      NVARCHAR(500)   NULL,
+    CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
+    CONSTRAINT FK_PaymentLogs_Transaction FOREIGN KEY (TransactionId) REFERENCES Transactions(Id)
+);
+
+-- ============================================================
+-- 14. BOOKMARKS
 -- ============================================================
 
 CREATE TABLE Bookmarks (
@@ -329,7 +478,7 @@ CREATE TABLE Bookmarks (
 );
 
 -- ============================================================
--- 13. VISITED EXHIBITS (Track visited exhibits per visitor)
+-- 15. VISITED EXHIBITS (Track visited exhibits per visitor)
 -- ============================================================
 
 CREATE TABLE VisitedExhibits (
@@ -347,7 +496,7 @@ CREATE INDEX IX_VisitedExhibits_Visitor ON VisitedExhibits(VisitorId);
 CREATE INDEX IX_VisitedExhibits_Exhibit ON VisitedExhibits(ExhibitId);
 
 -- ============================================================
--- 14. ANALYTICS LOGS
+-- 16. ANALYTICS LOGS
 -- ============================================================
 
 CREATE TABLE AnalyticsLogs (
@@ -382,7 +531,7 @@ CREATE INDEX IX_Analytics_ActionType ON AnalyticsLogs(ActionType);
 CREATE INDEX IX_Analytics_EventTimestamp ON AnalyticsLogs(EventTimestamp);
 
 -- ============================================================
--- 15. CONTENT VERSIONS
+-- 17. CONTENT VERSIONS
 -- ============================================================
 
 CREATE TABLE ContentVersions (
@@ -404,7 +553,7 @@ CREATE TABLE ContentVersions (
 );
 
 -- ============================================================
--- 16. CONTENT CHANGE LOG (track individual content changes)
+-- 18. CONTENT CHANGE LOG (track individual content changes)
 -- ============================================================
 
 CREATE TABLE ContentChangeLogs (
@@ -423,7 +572,7 @@ CREATE TABLE ContentChangeLogs (
 );
 
 -- ============================================================
--- 17. OFFLINE PACKAGES
+-- 19. OFFLINE PACKAGES
 -- ============================================================
 
 CREATE TABLE OfflinePackages (
@@ -446,7 +595,7 @@ CREATE TABLE OfflinePackages (
 );
 
 -- ============================================================
--- 18. PACKAGE DOWNLOADS (track offline package downloads)
+-- 20. PACKAGE DOWNLOADS (track offline package downloads)
 -- ============================================================
 
 CREATE TABLE PackageDownloads (
@@ -460,7 +609,7 @@ CREATE TABLE PackageDownloads (
 );
 
 -- ============================================================
--- 19. SYSTEM CONFIGURATIONS
+-- 21. SYSTEM CONFIGURATIONS
 -- ============================================================
 
 CREATE TABLE SystemConfigurations (
@@ -474,7 +623,7 @@ CREATE TABLE SystemConfigurations (
 );
 
 -- ============================================================
--- 20. AUDIT LOGS (System audit trail)
+-- 22. AUDIT LOGS (System audit trail)
 -- ============================================================
 
 CREATE TABLE AuditLogs (
@@ -496,7 +645,7 @@ CREATE INDEX IX_AuditLogs_EntityType ON AuditLogs(EntityType);
 CREATE INDEX IX_AuditLogs_CreatedAt ON AuditLogs(CreatedAt);
 
 -- ============================================================
--- 21. REFRESH TOKENS (for JWT auth)
+-- 23. REFRESH TOKENS (for JWT auth)
 -- ============================================================
 
 CREATE TABLE RefreshTokens (
@@ -527,6 +676,12 @@ INSERT INTO Languages (LanguageCode, LanguageName, NativeName, IsActive) VALUES
     ('vi', 'Vietnamese', N'Tiếng Việt', 1),
     ('en', 'English',    N'English',     1);
 
+-- Default Payment Methods
+INSERT INTO PaymentMethods (Name, DisplayName, Description) VALUES
+    ('VNPAY', N'Cổng thanh toán VNPay', N'Thanh toán qua ứng dụng ngân hàng, ví điện tử'),
+    ('MOMO',  N'Ví điện tử MoMo',       N'Thanh toán qua ứng dụng MoMo'),
+    ('CASH',  N'Tiền mặt',              N'Thanh toán trực tiếp tại quầy');
+
 -- Default Permissions
 INSERT INTO Permissions (PermissionName, Description, Module) VALUES
     -- Exhibit
@@ -552,16 +707,19 @@ INSERT INTO Permissions (PermissionName, Description, Module) VALUES
     ('museum.manage',     N'Quản lý bảo tàng',           'Museum'),
     -- Content Version
     ('content.version',   N'Quản lý content version',     'Content'),
-    ('package.manage',    N'Quản lý offline package',      'Content');
+    ('package.manage',    N'Quản lý offline package',      'Content'),
+    -- Ticketing & Payment
+    ('ticket.manage',     N'Quản lý vé',                 'Finance'),
+    ('payment.view',      N'Xem lịch sử giao dịch',       'Finance');
 
 -- SystemAdmin gets all permissions
 INSERT INTO RolePermissions (RoleId, PermissionId)
 SELECT 1, Id FROM Permissions;
 
--- MuseumManager gets analytics + read
+-- MuseumManager gets analytics + read + finance
 INSERT INTO RolePermissions (RoleId, PermissionId)
 SELECT 2, Id FROM Permissions
-WHERE PermissionName IN ('exhibit.read', 'analytics.view', 'analytics.export');
+WHERE PermissionName IN ('exhibit.read', 'analytics.view', 'analytics.export', 'ticket.manage', 'payment.view');
 
 -- ContentManager gets exhibit + media + qr + content
 INSERT INTO RolePermissions (RoleId, PermissionId)
@@ -582,5 +740,5 @@ INSERT INTO SystemConfigurations (ConfigKey, ConfigValue, Description) VALUES
     ('analytics_sync_interval', '300',      N'Khoảng thời gian sync analytics (giây)'),
     ('package_compression',     'gzip',     N'Phương thức nén package');
 
-PRINT 'Database schema created successfully!';
+PRINT 'Database schema updated successfully with Events, Ticketing, Personalization and Payment!';
 GO
