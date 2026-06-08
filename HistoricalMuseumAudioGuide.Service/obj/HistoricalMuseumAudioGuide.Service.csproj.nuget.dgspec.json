@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "D:\\SU26SE165_MuseumAudioGuide\\HistoricalMuseumAudioGuide.Service\\HistoricalMuseumAudioGuide.Service.csproj": {}
+    "D:\\MuseumAR\\museumar-backend\\HistoricalMuseumAudioGuide.Service\\HistoricalMuseumAudioGuide.Service.csproj": {}
   },
   "projects": {
-    "D:\\SU26SE165_MuseumAudioGuide\\HistoricalMuseumAudioGuide.Repository\\HistoricalMuseumAudioGuide.Repository.csproj": {
+    "D:\\MuseumAR\\museumar-backend\\HistoricalMuseumAudioGuide.Repository\\HistoricalMuseumAudioGuide.Repository.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\SU26SE165_MuseumAudioGuide\\HistoricalMuseumAudioGuide.Repository\\HistoricalMuseumAudioGuide.Repository.csproj",
+        "projectUniqueName": "D:\\MuseumAR\\museumar-backend\\HistoricalMuseumAudioGuide.Repository\\HistoricalMuseumAudioGuide.Repository.csproj",
         "projectName": "HistoricalMuseumAudioGuide.Repository",
-        "projectPath": "D:\\SU26SE165_MuseumAudioGuide\\HistoricalMuseumAudioGuide.Repository\\HistoricalMuseumAudioGuide.Repository.csproj",
-        "packagesPath": "C:\\Users\\Admin\\.nuget\\packages\\",
-        "outputPath": "D:\\SU26SE165_MuseumAudioGuide\\HistoricalMuseumAudioGuide.Repository\\obj\\",
+        "projectPath": "D:\\MuseumAR\\museumar-backend\\HistoricalMuseumAudioGuide.Repository\\HistoricalMuseumAudioGuide.Repository.csproj",
+        "packagesPath": "C:\\Users\\Gia Bao\\.nuget\\packages\\",
+        "outputPath": "D:\\MuseumAR\\museumar-backend\\HistoricalMuseumAudioGuide.Repository\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\Admin\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\Gia Bao\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -46,12 +46,28 @@
           "auditLevel": "low",
           "auditMode": "all"
         },
-        "SdkAnalysisLevel": "10.0.200"
+        "SdkAnalysisLevel": "10.0.300"
       },
       "frameworks": {
         "net10.0": {
           "framework": "net10.0",
           "targetAlias": "net10.0",
+          "dependencies": {
+            "AutoMapper": {
+              "target": "Package",
+              "version": "[12.0.1, )"
+            },
+            "Microsoft.EntityFrameworkCore.Design": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[10.0.8, )"
+            },
+            "Microsoft.EntityFrameworkCore.SqlServer": {
+              "target": "Package",
+              "version": "[10.0.8, )"
+            }
+          },
           "imports": [
             "net461",
             "net462",
@@ -68,7 +84,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.202/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.300/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.CSharp": "(,4.7.32767]",
             "Microsoft.VisualBasic": "(,10.4.32767]",
@@ -346,20 +362,20 @@
         }
       }
     },
-    "D:\\SU26SE165_MuseumAudioGuide\\HistoricalMuseumAudioGuide.Service\\HistoricalMuseumAudioGuide.Service.csproj": {
+    "D:\\MuseumAR\\museumar-backend\\HistoricalMuseumAudioGuide.Service\\HistoricalMuseumAudioGuide.Service.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\SU26SE165_MuseumAudioGuide\\HistoricalMuseumAudioGuide.Service\\HistoricalMuseumAudioGuide.Service.csproj",
+        "projectUniqueName": "D:\\MuseumAR\\museumar-backend\\HistoricalMuseumAudioGuide.Service\\HistoricalMuseumAudioGuide.Service.csproj",
         "projectName": "HistoricalMuseumAudioGuide.Service",
-        "projectPath": "D:\\SU26SE165_MuseumAudioGuide\\HistoricalMuseumAudioGuide.Service\\HistoricalMuseumAudioGuide.Service.csproj",
-        "packagesPath": "C:\\Users\\Admin\\.nuget\\packages\\",
-        "outputPath": "D:\\SU26SE165_MuseumAudioGuide\\HistoricalMuseumAudioGuide.Service\\obj\\",
+        "projectPath": "D:\\MuseumAR\\museumar-backend\\HistoricalMuseumAudioGuide.Service\\HistoricalMuseumAudioGuide.Service.csproj",
+        "packagesPath": "C:\\Users\\Gia Bao\\.nuget\\packages\\",
+        "outputPath": "D:\\MuseumAR\\museumar-backend\\HistoricalMuseumAudioGuide.Service\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\Admin\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\Gia Bao\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -376,8 +392,8 @@
             "framework": "net10.0",
             "targetAlias": "net10.0",
             "projectReferences": {
-              "D:\\SU26SE165_MuseumAudioGuide\\HistoricalMuseumAudioGuide.Repository\\HistoricalMuseumAudioGuide.Repository.csproj": {
-                "projectPath": "D:\\SU26SE165_MuseumAudioGuide\\HistoricalMuseumAudioGuide.Repository\\HistoricalMuseumAudioGuide.Repository.csproj"
+              "D:\\MuseumAR\\museumar-backend\\HistoricalMuseumAudioGuide.Repository\\HistoricalMuseumAudioGuide.Repository.csproj": {
+                "projectPath": "D:\\MuseumAR\\museumar-backend\\HistoricalMuseumAudioGuide.Repository\\HistoricalMuseumAudioGuide.Repository.csproj"
               }
             }
           }
@@ -392,12 +408,26 @@
           "auditLevel": "low",
           "auditMode": "all"
         },
-        "SdkAnalysisLevel": "10.0.200"
+        "SdkAnalysisLevel": "10.0.300"
       },
       "frameworks": {
         "net10.0": {
           "framework": "net10.0",
           "targetAlias": "net10.0",
+          "dependencies": {
+            "AutoMapper": {
+              "target": "Package",
+              "version": "[12.0.1, )"
+            },
+            "AutoMapper.Extensions.Microsoft.DependencyInjection": {
+              "target": "Package",
+              "version": "[12.0.1, )"
+            },
+            "Microsoft.AspNetCore.Mvc.Core": {
+              "target": "Package",
+              "version": "[2.3.10, )"
+            }
+          },
           "imports": [
             "net461",
             "net462",
@@ -414,7 +444,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.202/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.300/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.CSharp": "(,4.7.32767]",
             "Microsoft.VisualBasic": "(,10.4.32767]",
