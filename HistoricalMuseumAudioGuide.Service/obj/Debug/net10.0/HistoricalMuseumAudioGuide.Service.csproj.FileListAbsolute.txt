@@ -1,0 +1,16 @@
+D:\MuseumAR\MuseumAR-Backend\HistoricalMuseumAudioGuide.Service\bin\Debug\net10.0\HistoricalMuseumAudioGuide.Service.deps.json
+D:\MuseumAR\MuseumAR-Backend\HistoricalMuseumAudioGuide.Service\bin\Debug\net10.0\HistoricalMuseumAudioGuide.Service.dll
+D:\MuseumAR\MuseumAR-Backend\HistoricalMuseumAudioGuide.Service\bin\Debug\net10.0\HistoricalMuseumAudioGuide.Service.pdb
+D:\MuseumAR\MuseumAR-Backend\HistoricalMuseumAudioGuide.Service\bin\Debug\net10.0\HistoricalMuseumAudioGuide.Repository.dll
+D:\MuseumAR\MuseumAR-Backend\HistoricalMuseumAudioGuide.Service\bin\Debug\net10.0\HistoricalMuseumAudioGuide.Repository.pdb
+D:\MuseumAR\MuseumAR-Backend\HistoricalMuseumAudioGuide.Service\obj\Debug\net10.0\HistoricalMuseumAudioGuide.Service.csproj.AssemblyReference.cache
+D:\MuseumAR\MuseumAR-Backend\HistoricalMuseumAudioGuide.Service\obj\Debug\net10.0\HistoricalMuseumAudioGuide.Service.GeneratedMSBuildEditorConfig.editorconfig
+D:\MuseumAR\MuseumAR-Backend\HistoricalMuseumAudioGuide.Service\obj\Debug\net10.0\HistoricalMuseumAudioGuide.Service.AssemblyInfoInputs.cache
+D:\MuseumAR\MuseumAR-Backend\HistoricalMuseumAudioGuide.Service\obj\Debug\net10.0\HistoricalMuseumAudioGuide.Service.AssemblyInfo.cs
+D:\MuseumAR\MuseumAR-Backend\HistoricalMuseumAudioGuide.Service\obj\Debug\net10.0\HistoricalMuseumAudioGuide.Service.csproj.CoreCompileInputs.cache
+D:\MuseumAR\MuseumAR-Backend\HistoricalMuseumAudioGuide.Service\obj\Debug\net10.0\HistoricalMuseumAudioGuide.Service.sourcelink.json
+D:\MuseumAR\MuseumAR-Backend\HistoricalMuseumAudioGuide.Service\obj\Debug\net10.0\Historic.6DE600A2.Up2Date
+D:\MuseumAR\MuseumAR-Backend\HistoricalMuseumAudioGuide.Service\obj\Debug\net10.0\HistoricalMuseumAudioGuide.Service.dll
+D:\MuseumAR\MuseumAR-Backend\HistoricalMuseumAudioGuide.Service\obj\Debug\net10.0\refint\HistoricalMuseumAudioGuide.Service.dll
+D:\MuseumAR\MuseumAR-Backend\HistoricalMuseumAudioGuide.Service\obj\Debug\net10.0\HistoricalMuseumAudioGuide.Service.pdb
+D:\MuseumAR\MuseumAR-Backend\HistoricalMuseumAudioGuide.Service\obj\Debug\net10.0\ref\HistoricalMuseumAudioGuide.Service.dll
