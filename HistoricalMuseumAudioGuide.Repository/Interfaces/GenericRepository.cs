@@ -14,6 +14,7 @@ namespace HistoricalMuseumAudioGuide.Repository.Interfaces
         Task<IEnumerable<T>> GetAllAsync();
         Task<T?> GetByIdAsync(object id);
         Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate);
+        Task<T?> GetFirstOrDefaultAsync(Expression<Func<T, bool>> predicate, string includeProperties = "");
         Task AddAsync(T entity);
         void Update(T entity);
         void Delete(T entity);
@@ -44,6 +45,20 @@ namespace HistoricalMuseumAudioGuide.Repository.Interfaces
         public async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate)
         {
             return await _dbSet.Where(predicate).ToListAsync();
+        }
+
+        public async Task<T?> GetFirstOrDefaultAsync(Expression<Func<T, bool>> predicate, string includeProperties = "")
+        {
+            IQueryable<T> query = _dbSet;
+            if (predicate != null)
+            {
+                query = query.Where(predicate);
+            }
+            foreach (var includeProperty in includeProperties.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                query = query.Include(includeProperty.Trim());
+            }
+            return await query.FirstOrDefaultAsync();
         }
 
         public async Task AddAsync(T entity)

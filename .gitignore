@@ -1,0 +1,19 @@
+## Visual Studio / VS Code
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## Build outputs (bin and obj)
+[Bb]in/
+[Oo]bj/
+
+## Environment and Secrets
+.env
+.env.*
+
+## Local Logs
+build_log.txt
+*.log

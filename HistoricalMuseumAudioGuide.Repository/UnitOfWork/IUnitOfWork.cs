@@ -2,6 +2,14 @@ using HistoricalMuseumAudioGuide.Repository.Entities;
 using HistoricalMuseumAudioGuide.Repository.Interfaces;
 using HistoricalMuseumAudioGuide.Repository.Repositories.Museum;
 using HistoricalMuseumAudioGuide.Repository.Repositories.Exhibit;
+using HistoricalMuseumAudioGuide.Repository.Repositories.Category;
+using HistoricalMuseumAudioGuide.Repository.Repositories.ExhibitTranslation;
+using HistoricalMuseumAudioGuide.Repository.Repositories.ContentVersion;
+using HistoricalMuseumAudioGuide.Repository.Repositories.User;
+using HistoricalMuseumAudioGuide.Repository.Repositories.Role;
+using HistoricalMuseumAudioGuide.Repository.Repositories.ExhibitArasset;
+using HistoricalMuseumAudioGuide.Repository.Repositories.ExhibitImage;
+using HistoricalMuseumAudioGuide.Repository.Repositories.OfflinePackage;
 using System;
 using System.Threading.Tasks;
 
@@ -11,9 +19,15 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
     {
         IMuseumRepository Museums { get; }
         IExhibitRepository Exhibits { get; }
+        ICategoryRepository Categories { get; }
+        IExhibitTranslationRepository ExhibitTranslations { get; }
+        IContentVersionRepository ContentVersions { get; }
+        IUserRepository Users { get; }
         IGenericRepository<Exhibition> Exhibitions { get; }
-        IGenericRepository<User> Users { get; }
-        IGenericRepository<Role> Roles { get; }
+        IRoleRepository Roles { get; }
+        IExhibitArassetRepository ExhibitArassets { get; }
+        IExhibitImageRepository ExhibitImages { get; }
+        IOfflinePackageRepository OfflinePackages { get; }
         
         Task<int> CompleteAsync();
     }
