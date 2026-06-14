@@ -2,7 +2,7 @@ using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Museum;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibit;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibition;
 using HistoricalMuseumAudioGuide.Service.Services;
-using HistoricalMuseumAudioGuide.Service.Services.Admin.Admin;
+using HistoricalMuseumAudioGuide.Service.Services.Admin;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Threading.Tasks;

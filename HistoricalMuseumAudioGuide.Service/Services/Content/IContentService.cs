@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Http;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace HistoricalMuseumAudioGuide.Service.Services.Admin.Content
+namespace HistoricalMuseumAudioGuide.Service.Services.Content
 {
     public interface IContentService
     {

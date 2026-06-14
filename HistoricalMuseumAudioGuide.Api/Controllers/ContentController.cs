@@ -3,7 +3,7 @@ using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibit;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.ARAsset;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.OfflinePackage;
 using HistoricalMuseumAudioGuide.Service.Services;
-using HistoricalMuseumAudioGuide.Service.Services.Admin.Content;
+using HistoricalMuseumAudioGuide.Service.Services.Content;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 

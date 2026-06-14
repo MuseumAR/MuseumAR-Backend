@@ -4,13 +4,14 @@ using HistoricalMuseumAudioGuide.Repository.Data.DTOs.ARAsset;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.OfflinePackage;
 using HistoricalMuseumAudioGuide.Repository.Entities;
 using HistoricalMuseumAudioGuide.Repository.UnitOfWork;
+using HistoricalMuseumAudioGuide.Service.Services.Media;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace HistoricalMuseumAudioGuide.Service.Services.Admin.Content
+namespace HistoricalMuseumAudioGuide.Service.Services.Content
 {
     public class ContentService : IContentService
     {
