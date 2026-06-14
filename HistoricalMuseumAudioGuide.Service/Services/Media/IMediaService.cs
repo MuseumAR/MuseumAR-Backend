@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using System.Threading.Tasks;
 
-namespace HistoricalMuseumAudioGuide.Service.Services.Admin.Content;
+namespace HistoricalMuseumAudioGuide.Service.Services.Media;
 
 public interface IMediaService
 {

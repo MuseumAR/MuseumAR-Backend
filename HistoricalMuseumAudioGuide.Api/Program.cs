@@ -1,8 +1,9 @@
 using HistoricalMuseumAudioGuide.Repository.Data.Context;
 using HistoricalMuseumAudioGuide.Repository.Interfaces;
 using HistoricalMuseumAudioGuide.Repository.UnitOfWork;
-using HistoricalMuseumAudioGuide.Service.Services.Admin.Admin;
-using HistoricalMuseumAudioGuide.Service.Services.Admin.Content;
+using HistoricalMuseumAudioGuide.Service.Services.Admin;
+using HistoricalMuseumAudioGuide.Service.Services.Content;
+using HistoricalMuseumAudioGuide.Service.Services.Media;
 using HistoricalMuseumAudioGuide.Service.Services.Auth;
 using HistoricalMuseumAudioGuide.Repository.Mappings;
 using HistoricalMuseumAudioGuide.Service.Services;

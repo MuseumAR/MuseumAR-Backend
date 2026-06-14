@@ -8,7 +8,7 @@ using HistoricalMuseumAudioGuide.Repository.UnitOfWork;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace HistoricalMuseumAudioGuide.Service.Services.Admin.Admin
+namespace HistoricalMuseumAudioGuide.Service.Services.Admin
 {
     public class AdminService : IAdminService
     {
