@@ -64,6 +64,8 @@ CREATE TABLE Users (
     MuseumId        INT             NULL,  -- FK added after Museums table
     Status          NVARCHAR(20)    NOT NULL DEFAULT 'Active'
                     CHECK (Status IN ('Active', 'Inactive', 'Suspended')),
+    PasswordResetToken NVARCHAR(100) NULL,
+    ResetTokenExpiresAt DATETIME2   NULL,
     LastLoginAt     DATETIME2       NULL,
     CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
     UpdatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),

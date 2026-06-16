@@ -10,6 +10,9 @@ using HistoricalMuseumAudioGuide.Repository.Repositories.Role;
 using HistoricalMuseumAudioGuide.Repository.Repositories.ExhibitArasset;
 using HistoricalMuseumAudioGuide.Repository.Repositories.ExhibitImage;
 using HistoricalMuseumAudioGuide.Repository.Repositories.OfflinePackage;
+using HistoricalMuseumAudioGuide.Repository.Repositories.TicketType;
+using HistoricalMuseumAudioGuide.Repository.Repositories.Ticket;
+using HistoricalMuseumAudioGuide.Repository.Repositories.Transaction;
 using System;
 using System.Threading.Tasks;
 
@@ -28,6 +31,9 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         IExhibitArassetRepository ExhibitArassets { get; }
         IExhibitImageRepository ExhibitImages { get; }
         IOfflinePackageRepository OfflinePackages { get; }
+        ITicketTypeRepository TicketTypes { get; }
+        ITicketRepository Tickets { get; }
+        ITransactionRepository Transactions { get; }
         
         Task<int> CompleteAsync();
     }

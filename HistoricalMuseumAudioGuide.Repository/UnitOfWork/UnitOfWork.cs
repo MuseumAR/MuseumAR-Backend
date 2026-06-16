@@ -11,6 +11,9 @@ using HistoricalMuseumAudioGuide.Repository.Repositories.Role;
 using HistoricalMuseumAudioGuide.Repository.Repositories.ExhibitArasset;
 using HistoricalMuseumAudioGuide.Repository.Repositories.ExhibitImage;
 using HistoricalMuseumAudioGuide.Repository.Repositories.OfflinePackage;
+using HistoricalMuseumAudioGuide.Repository.Repositories.TicketType;
+using HistoricalMuseumAudioGuide.Repository.Repositories.Ticket;
+using HistoricalMuseumAudioGuide.Repository.Repositories.Transaction;
 using System.Threading.Tasks;
 
 namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
@@ -33,6 +36,9 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
             ExhibitArassets = new ExhibitArassetRepository(_context);
             ExhibitImages = new ExhibitImageRepository(_context);
             OfflinePackages = new OfflinePackageRepository(_context);
+            TicketTypes = new TicketTypeRepository(_context);
+            Tickets = new TicketRepository(_context);
+            Transactions = new TransactionRepository(_context);
         }
 
         public IMuseumRepository Museums { get; private set; }
@@ -46,6 +52,9 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         public IExhibitArassetRepository ExhibitArassets { get; private set; }
         public IExhibitImageRepository ExhibitImages { get; private set; }
         public IOfflinePackageRepository OfflinePackages { get; private set; }
+        public ITicketTypeRepository TicketTypes { get; private set; }
+        public ITicketRepository Tickets { get; private set; }
+        public ITransactionRepository Transactions { get; private set; }
 
         public async Task<int> CompleteAsync()
         {

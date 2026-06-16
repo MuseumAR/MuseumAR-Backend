@@ -5,6 +5,7 @@ using HistoricalMuseumAudioGuide.Service.Services.Admin;
 using HistoricalMuseumAudioGuide.Service.Services.Content;
 using HistoricalMuseumAudioGuide.Service.Services.Media;
 using HistoricalMuseumAudioGuide.Service.Services.Auth;
+using HistoricalMuseumAudioGuide.Service.Services.Ticketing;
 using HistoricalMuseumAudioGuide.Repository.Mappings;
 using HistoricalMuseumAudioGuide.Service.Services;
 using Microsoft.EntityFrameworkCore;
@@ -36,6 +37,7 @@ builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IContentService, ContentService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IMediaService, MediaService>();
+builder.Services.AddScoped<ITicketingService, TicketingService>();
 
 // Configure JWT Authentication
 var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") ?? builder.Configuration["Jwt:Secret"];
