@@ -5,6 +5,7 @@ using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibit;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibition;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.ARAsset;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.OfflinePackage;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Ticketing;
 
 namespace HistoricalMuseumAudioGuide.Repository.Mappings
 {
@@ -27,6 +28,11 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
 
             // Offline Package
             CreateMap<OfflinePackage, OfflinePackageDto>();
+
+            // Ticketing
+            CreateMap<TicketType, TicketTypeDto>();
+            CreateMap<Ticket, TicketDto>()
+                .ForMember(dest => dest.TicketTypeName, opt => opt.MapFrom(src => src.TicketType.Name));
         }
     }
 }
