@@ -1,18 +1,19 @@
 using HistoricalMuseumAudioGuide.Repository.Entities;
 using HistoricalMuseumAudioGuide.Repository.Interfaces;
-using HistoricalMuseumAudioGuide.Repository.Repositories.Museum;
-using HistoricalMuseumAudioGuide.Repository.Repositories.Exhibit;
+using HistoricalMuseumAudioGuide.Repository.Repositories.Analytics;
 using HistoricalMuseumAudioGuide.Repository.Repositories.Category;
-using HistoricalMuseumAudioGuide.Repository.Repositories.ExhibitTranslation;
 using HistoricalMuseumAudioGuide.Repository.Repositories.ContentVersion;
-using HistoricalMuseumAudioGuide.Repository.Repositories.User;
-using HistoricalMuseumAudioGuide.Repository.Repositories.Role;
+using HistoricalMuseumAudioGuide.Repository.Repositories.Exhibit;
 using HistoricalMuseumAudioGuide.Repository.Repositories.ExhibitArasset;
 using HistoricalMuseumAudioGuide.Repository.Repositories.ExhibitImage;
+using HistoricalMuseumAudioGuide.Repository.Repositories.ExhibitTranslation;
+using HistoricalMuseumAudioGuide.Repository.Repositories.Museum;
 using HistoricalMuseumAudioGuide.Repository.Repositories.OfflinePackage;
-using HistoricalMuseumAudioGuide.Repository.Repositories.TicketType;
+using HistoricalMuseumAudioGuide.Repository.Repositories.Role;
 using HistoricalMuseumAudioGuide.Repository.Repositories.Ticket;
+using HistoricalMuseumAudioGuide.Repository.Repositories.TicketType;
 using HistoricalMuseumAudioGuide.Repository.Repositories.Transaction;
+using HistoricalMuseumAudioGuide.Repository.Repositories.User;
 using System;
 using System.Threading.Tasks;
 
@@ -20,6 +21,7 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
 {
     public interface IUnitOfWork : IDisposable
     {
+        IAnalyticsRepository Analytics { get; }
         IMuseumRepository Museums { get; }
         IExhibitRepository Exhibits { get; }
         ICategoryRepository Categories { get; }
