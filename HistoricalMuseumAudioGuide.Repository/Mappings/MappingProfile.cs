@@ -6,6 +6,10 @@ using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibition;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.ARAsset;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.OfflinePackage;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Ticketing;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Visitor;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.MuseumMap;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.TourRoute;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.SystemConfig;
 
 namespace HistoricalMuseumAudioGuide.Repository.Mappings
 {
@@ -33,6 +37,21 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
             CreateMap<TicketType, TicketTypeDto>();
             CreateMap<Ticket, TicketDto>()
                 .ForMember(dest => dest.TicketTypeName, opt => opt.MapFrom(src => src.TicketType.Name));
+
+            // Visitor
+            CreateMap<Bookmark, BookmarkDto>();
+            CreateMap<CreateBookmarkDto, Bookmark>();
+            CreateMap<VisitedExhibit, VisitedExhibitDto>();
+            CreateMap<CreateVisitedExhibitDto, VisitedExhibit>();
+
+            // Maps & Routes
+            CreateMap<MuseumMap, MuseumMapDto>().ReverseMap();
+            CreateMap<CreateMuseumMapDto, MuseumMap>();
+            CreateMap<TourRoute, TourRouteDto>().ReverseMap();
+            CreateMap<CreateTourRouteDto, TourRoute>();
+
+            // System Config
+            CreateMap<SystemConfiguration, SystemConfigDto>();
         }
     }
 }
