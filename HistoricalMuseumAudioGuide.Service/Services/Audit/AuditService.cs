@@ -14,14 +14,14 @@ public class AuditService : IAuditService
         _unitOfWork = unitOfWork;
     }
 
-    public async Task LogActionAsync(int? userId, string action, string entityType, string? details, string? ipAddress, string? userAgent)
+    public async Task LogActionAsync(int? userId, string action, string entityType, string? newValues, string? ipAddress, string? userAgent)
     {
         var log = new AuditLog
         {
             UserId = userId,
             Action = action,
             EntityType = entityType,
-            Details = details,
+            NewValues = newValues,
             IpAddress = ipAddress,
             UserAgent = userAgent,
             CreatedAt = DateTime.UtcNow

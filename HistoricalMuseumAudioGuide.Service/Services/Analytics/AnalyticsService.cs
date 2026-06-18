@@ -1,3 +1,4 @@
+using AutoMapper;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Analytics;
 using HistoricalMuseumAudioGuide.Repository.Entities;
 using HistoricalMuseumAudioGuide.Repository.UnitOfWork;
@@ -11,26 +12,20 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Analytics;
 public class AnalyticsService : IAnalyticsService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IMapper _mapper;
 
-    public AnalyticsService(IUnitOfWork unitOfWork)
+    public AnalyticsService(IUnitOfWork unitOfWork, IMapper mapper)
     {
         _unitOfWork = unitOfWork;
+        _mapper = mapper;
     }
 
     public async Task<ResponseModel> RecordActionAsync(int? visitorId, CreateAnalyticsLogDto dto)
     {
-        var log = new AnalyticsLog
-        {
-            MuseumId = dto.MuseumId,
-            ExhibitId = dto.ExhibitId,
-            VisitorId = visitorId,
-            ActionType = dto.ActionType,
-            LanguageUsed = dto.LanguageUsed,
-            DeviceType = dto.DeviceType,
-            SearchQuery = dto.SearchQuery,
-            EventTimestamp = DateTime.UtcNow,
-            CreatedAt = DateTime.UtcNow
-        };
+        var log = _mapper.Map<AnalyticsLog>(dto);
+        log.VisitorId = visitorId;
+        log.EventTimestamp = DateTime.UtcNow;
+        log.CreatedAt = DateTime.UtcNow;
 
         await _unitOfWork.AnalyticsLogs.AddAsync(log);
         await _unitOfWork.CompleteAsync();

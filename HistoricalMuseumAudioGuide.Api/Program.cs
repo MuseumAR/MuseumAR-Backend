@@ -16,7 +16,8 @@ using System.Text;
 using HistoricalMuseumAudioGuide.Service.Services.Analytics;
 using HistoricalMuseumAudioGuide.Service.Services.Audit;
 using HistoricalMuseumAudioGuide.Service.Services.SystemConfig;
-using HistoricalMuseumAudioGuide.Repository.Mappings;
+using DotNetEnv;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
