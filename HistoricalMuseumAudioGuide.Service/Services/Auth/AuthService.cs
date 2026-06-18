@@ -18,11 +18,13 @@ public class AuthService : IAuthService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IConfiguration _configuration;
+    private readonly IAuditService _auditService;
 
-    public AuthService(IUnitOfWork unitOfWork, IConfiguration configuration)
+    public AuthService(IUnitOfWork unitOfWork, IConfiguration configuration, IAuditService auditService)
     {
         _unitOfWork = unitOfWork;
         _configuration = configuration;
+        _auditService = auditService;
     }
 
     public async Task<ResponseModel> LoginAsync(LoginRequestDto request)
@@ -92,6 +94,15 @@ public class AuthService : IAuthService
         await _unitOfWork.Users.AddAsync(user);
         await _unitOfWork.CompleteAsync();
 
+        await _auditService.LogActionAsync(
+            userId: user.Id, 
+            action: "AssignRole", 
+            entityType: "User", 
+            details: $"Assigned role 'Visitor' to new user {user.Email}", 
+            ipAddress: "System", // Ideally get from HttpContext
+            userAgent: "System"
+        );
+
         return ResponseModel.Success("User registered successfully.", user.Id);
     }
 
@@ -158,6 +169,11 @@ public class AuthService : IAuthService
         {
             var clientId = Environment.GetEnvironmentVariable("GOOGLE_CLIENT_ID") ?? _configuration["Google:ClientId"];
             
+            if (string.IsNullOrEmpty(clientId))
+            {
+                return ResponseModel.Error("System Error: Google Client ID is not configured.");
+            }
+
             var settings = new GoogleJsonWebSignature.ValidationSettings()
             {
                 Audience = new List<string>() { clientId }
@@ -239,13 +255,14 @@ public class AuthService : IAuthService
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Email, user.Email),
             new Claim(ClaimTypes.Name, user.FullName),
-            new Claim(ClaimTypes.Role, user.Role.RoleName)
+            new Claim(ClaimTypes.Role, user.Role?.RoleName ?? "Visitor")
         };
 
         // 2. Add MuseumId to claims if user belongs to a museum
         if (user.MuseumId.HasValue)
         {
-            claims.Add(new Claim("MuseumId", user.MuseumId.Value.ToString()));
+            var museumIdStr = user.MuseumId.Value.ToString();
+            claims.Add(new Claim("MuseumId", museumIdStr));
         }
 
         // 3. Create Key and Credentials
