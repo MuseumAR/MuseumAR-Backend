@@ -41,23 +41,15 @@ public class SystemConfigService : ISystemConfigService
         if (config == null)
         {
             // Create if not exists
-            config = new SystemConfiguration
-            {
-                ConfigKey = key,
-                ConfigValue = dto.ConfigValue,
-                Description = dto.Description,
-                UpdatedBy = updatedBy,
-                UpdatedAt = DateTime.UtcNow
-            };
+            config = _mapper.Map<SystemConfiguration>(dto);
+            config.ConfigKey = key;
+            config.UpdatedBy = updatedBy;
+            config.UpdatedAt = DateTime.UtcNow;
             await _unitOfWork.SystemConfigurations.AddAsync(config);
         }
         else
         {
-            config.ConfigValue = dto.ConfigValue;
-            if (!string.IsNullOrEmpty(dto.Description))
-            {
-                config.Description = dto.Description;
-            }
+            _mapper.Map(dto, config);
             config.UpdatedBy = updatedBy;
             config.UpdatedAt = DateTime.UtcNow;
             _unitOfWork.SystemConfigurations.Update(config);

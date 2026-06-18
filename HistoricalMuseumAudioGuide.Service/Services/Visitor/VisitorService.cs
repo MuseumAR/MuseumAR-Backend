@@ -61,12 +61,9 @@ public class VisitorService : IVisitorService
             return ResponseModel.Conflict("Exhibit already bookmarked.");
         }
 
-        var bookmark = new Bookmark
-        {
-            VisitorId = visitorId,
-            ExhibitId = dto.ExhibitId,
-            CreatedAt = DateTime.UtcNow
-        };
+        var bookmark = _mapper.Map<Bookmark>(dto);
+        bookmark.VisitorId = visitorId;
+        bookmark.CreatedAt = DateTime.UtcNow;
 
         await _unitOfWork.Bookmarks.AddAsync(bookmark);
         await _unitOfWork.CompleteAsync();
@@ -98,13 +95,10 @@ public class VisitorService : IVisitorService
         var exhibit = await _unitOfWork.Exhibits.GetByIdAsync(dto.ExhibitId);
         if (exhibit == null) return ResponseModel.NotFound("Exhibit not found");
 
-        var visited = new VisitedExhibit
-        {
-            VisitorId = visitorId,
-            ExhibitId = dto.ExhibitId,
-            MuseumId = exhibit.MuseumId,
-            VisitedAt = DateTime.UtcNow
-        };
+        var visited = _mapper.Map<VisitedExhibit>(dto);
+        visited.VisitorId = visitorId;
+        visited.MuseumId = exhibit.MuseumId;
+        visited.VisitedAt = DateTime.UtcNow;
 
         await _unitOfWork.VisitedExhibits.AddAsync(visited);
         await _unitOfWork.CompleteAsync();

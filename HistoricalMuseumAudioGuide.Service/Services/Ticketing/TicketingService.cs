@@ -44,17 +44,15 @@ public class TicketingService : ITicketingService
         string orderCode = DateTime.UtcNow.Ticks.ToString();
 
         // 1 represents VNPay payment method in our DB, ideally get it dynamically.
-        var transaction = new Transaction
-        {
-            VisitorId = visitorId,
-            PaymentMethodId = 1, 
-            OrderCode = orderCode,
-            TotalAmount = totalAmount,
-            Currency = "VND",
-            PaymentStatus = "Pending",
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
+        var transaction = _mapper.Map<Transaction>(request);
+        transaction.VisitorId = visitorId;
+        transaction.PaymentMethodId = 1; 
+        transaction.OrderCode = orderCode;
+        transaction.TotalAmount = totalAmount;
+        transaction.Currency = "VND";
+        transaction.PaymentStatus = "Pending";
+        transaction.CreatedAt = DateTime.UtcNow;
+        transaction.UpdatedAt = DateTime.UtcNow;
 
         // Pre-create tickets in Pending state
         for (int i = 0; i < request.Quantity; i++)
