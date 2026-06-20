@@ -3,6 +3,7 @@ using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibit;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibition;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.MuseumMap;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.TourRoute;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Ticketing;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.SystemConfig;
 using HistoricalMuseumAudioGuide.Service.Services;
 using HistoricalMuseumAudioGuide.Service.Services.Admin;
@@ -96,6 +97,22 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         }
 
         // --- System Configuration Management ---
+
+        // --- Ticket Type Management ---
+
+        [HttpGet("ticket-types")]
+        public async Task<IActionResult> GetAllTicketTypes()
+        {
+            var response = await _adminService.GetAllTicketTypesAsync();
+            return ResponseParser.Result(response);
+        }
+
+        [HttpPost("ticket-types")]
+        public async Task<IActionResult> CreateTicketType(CreateTicketTypeDto createTicketTypeDto)
+        {
+            var response = await _adminService.CreateTicketTypeAsync(createTicketTypeDto);
+            return ResponseParser.Result(response);
+        }
 
         [HttpGet("configs")]
         public async Task<IActionResult> GetAllConfigs()

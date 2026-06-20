@@ -6,6 +6,7 @@ using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibit;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibition;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.MuseumMap;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.TourRoute;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Ticketing;
 using HistoricalMuseumAudioGuide.Repository.UnitOfWork;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -132,6 +133,24 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Admin
             await _unitOfWork.CompleteAsync();
             var dto = _mapper.Map<TourRouteDto>(route);
             return ResponseModel.Success("Tour route created successfully", dto);
+        }
+
+        public async Task<ResponseModel> GetAllTicketTypesAsync()
+        {
+            var ticketTypes = await _unitOfWork.TicketTypes.GetAllAsync();
+            var dtos = _mapper.Map<IEnumerable<TicketTypeDto>>(ticketTypes);
+            return ResponseModel.Success("Ticket types retrieved successfully", dtos);
+        }
+
+        public async Task<ResponseModel> CreateTicketTypeAsync(CreateTicketTypeDto ticketTypeDto)
+        {
+            var ticketType = _mapper.Map<TicketType>(ticketTypeDto);
+            ticketType.CreatedAt = System.DateTime.UtcNow;
+            ticketType.UpdatedAt = System.DateTime.UtcNow;
+            await _unitOfWork.TicketTypes.AddAsync(ticketType);
+            await _unitOfWork.CompleteAsync();
+            var dto = _mapper.Map<TicketTypeDto>(ticketType);
+            return ResponseModel.Success("Ticket type created successfully", dto);
         }
     }
 }
