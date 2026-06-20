@@ -3,6 +3,7 @@ using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibit;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibition;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.MuseumMap;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.TourRoute;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Ticketing;
 using HistoricalMuseumAudioGuide.Service.Services;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -33,5 +34,9 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Admin
         // Tour Route Management
         Task<ResponseModel> GetTourRoutesAsync(int museumId);
         Task<ResponseModel> CreateTourRouteAsync(CreateTourRouteDto routeDto);
+
+        // Ticket Type Management
+        Task<ResponseModel> GetAllTicketTypesAsync();
+        Task<ResponseModel> CreateTicketTypeAsync(CreateTicketTypeDto ticketTypeDto);
     }
 }

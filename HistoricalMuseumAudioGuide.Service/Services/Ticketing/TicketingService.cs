@@ -92,7 +92,7 @@ public class TicketingService : ITicketingService
 
         foreach (var ticket in transaction.Tickets)
         {
-            ticket.Status = "Active";
+            ticket.Status = "Paid";
         }
 
         _unitOfWork.Transactions.Update(transaction);
@@ -130,7 +130,7 @@ public class TicketingService : ITicketingService
 
             foreach (var ticket in transaction.Tickets)
             {
-                ticket.Status = "Active";
+                ticket.Status = "Paid";
             }
         }
         else
@@ -160,7 +160,7 @@ public class TicketingService : ITicketingService
     {
         var tickets = await _unitOfWork.Tickets.GetTicketsByVisitorIdAsync(visitorId);
         // Only return Active tickets to the user
-        var activeTickets = tickets.Where(t => t.Status == "Active");
+        var activeTickets = tickets.Where(t => t.Status == "Paid");
         var dtos = _mapper.Map<IEnumerable<TicketDto>>(activeTickets);
         
         return ResponseModel.Success("Get tickets successfully", dtos);
