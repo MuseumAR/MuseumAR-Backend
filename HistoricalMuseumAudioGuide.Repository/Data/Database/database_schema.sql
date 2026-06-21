@@ -671,7 +671,8 @@ CREATE INDEX IX_RefreshTokens_Token ON RefreshTokens(Token);
 INSERT INTO Roles (RoleName, Description) VALUES
     ('SystemAdmin',      N'Quản trị hệ thống'),
     ('MuseumManager',    N'Quản lý bảo tàng - xem analytics'),
-    ('ContentManager',   N'Quản lý nội dung hiện vật');
+    ('ContentManager',   N'Quản lý nội dung hiện vật'),
+    ('Visitor', N'Khách vãng lai');
 
 -- Default Languages
 INSERT INTO Languages (LanguageCode, LanguageName, NativeName, IsActive) VALUES

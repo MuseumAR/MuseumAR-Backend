@@ -1,12 +1,45 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "C:\\My_Project\\SEP\\MuseumAR-Backend\\",
+<<<<<<< Updated upstream
   "Documents": [],
+=======
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{00536067-93B7-9CAD-B7EC-0EA16FB868FA}|HistoricalMuseumAudioGuide.Service\\HistoricalMuseumAudioGuide.Service.csproj|c:\\my_project\\sep\\museumar-backend\\historicalmuseumaudioguide.service\\services\\auth\\authservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{00536067-93B7-9CAD-B7EC-0EA16FB868FA}|HistoricalMuseumAudioGuide.Service\\HistoricalMuseumAudioGuide.Service.csproj|solutionrelative:historicalmuseumaudioguide.service\\services\\auth\\authservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+>>>>>>> Stashed changes
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
       "VerticalTabListWidth": 256,
+<<<<<<< Updated upstream
       "DocumentGroups": []
+=======
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "AuthService.cs",
+              "DocumentMoniker": "C:\\My_Project\\SEP\\MuseumAR-Backend\\HistoricalMuseumAudioGuide.Service\\Services\\Auth\\AuthService.cs",
+              "RelativeDocumentMoniker": "HistoricalMuseumAudioGuide.Service\\Services\\Auth\\AuthService.cs",
+              "ToolTip": "C:\\My_Project\\SEP\\MuseumAR-Backend\\HistoricalMuseumAudioGuide.Service\\Services\\Auth\\AuthService.cs",
+              "RelativeToolTip": "HistoricalMuseumAudioGuide.Service\\Services\\Auth\\AuthService.cs",
+              "ViewState": "AgIAAAgBAAAAAAAAAAAQwBoBAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-06-20T16:34:13.437Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+>>>>>>> Stashed changes
     }
   ]
 }
