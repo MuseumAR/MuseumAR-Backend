@@ -4,6 +4,9 @@ using HistoricalMuseumAudioGuide.Repository.Interfaces;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Museum;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibit;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibition;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.MuseumMap;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.TourRoute;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Ticketing;
 using HistoricalMuseumAudioGuide.Repository.UnitOfWork;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -96,6 +99,58 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Admin
             await _unitOfWork.CompleteAsync();
             var dto = _mapper.Map<ExhibitionDto>(exhibition);
             return ResponseModel.Success("Exhibition created successfully", dto);
+        }
+
+        public async Task<ResponseModel> GetMuseumMapsAsync(int museumId)
+        {
+            var maps = await _unitOfWork.MuseumMaps.FindAsync(m => m.MuseumId == museumId);
+            var dtos = _mapper.Map<IEnumerable<MuseumMapDto>>(maps);
+            return ResponseModel.Success("Maps retrieved successfully", dtos);
+        }
+
+        public async Task<ResponseModel> CreateMuseumMapAsync(CreateMuseumMapDto mapDto)
+        {
+            var map = _mapper.Map<MuseumMap>(mapDto);
+            map.CreatedAt = System.DateTime.UtcNow;
+            await _unitOfWork.MuseumMaps.AddAsync(map);
+            await _unitOfWork.CompleteAsync();
+            var dto = _mapper.Map<MuseumMapDto>(map);
+            return ResponseModel.Success("Map created successfully", dto);
+        }
+
+        public async Task<ResponseModel> GetTourRoutesAsync(int museumId)
+        {
+            var routes = await _unitOfWork.TourRoutes.FindAsync(r => r.MuseumId == museumId);
+            var dtos = _mapper.Map<IEnumerable<TourRouteDto>>(routes);
+            return ResponseModel.Success("Tour routes retrieved successfully", dtos);
+        }
+
+        public async Task<ResponseModel> CreateTourRouteAsync(CreateTourRouteDto routeDto)
+        {
+            var route = _mapper.Map<TourRoute>(routeDto);
+            route.CreatedAt = System.DateTime.UtcNow;
+            await _unitOfWork.TourRoutes.AddAsync(route);
+            await _unitOfWork.CompleteAsync();
+            var dto = _mapper.Map<TourRouteDto>(route);
+            return ResponseModel.Success("Tour route created successfully", dto);
+        }
+
+        public async Task<ResponseModel> GetAllTicketTypesAsync()
+        {
+            var ticketTypes = await _unitOfWork.TicketTypes.GetAllAsync();
+            var dtos = _mapper.Map<IEnumerable<TicketTypeDto>>(ticketTypes);
+            return ResponseModel.Success("Ticket types retrieved successfully", dtos);
+        }
+
+        public async Task<ResponseModel> CreateTicketTypeAsync(CreateTicketTypeDto ticketTypeDto)
+        {
+            var ticketType = _mapper.Map<TicketType>(ticketTypeDto);
+            ticketType.CreatedAt = System.DateTime.UtcNow;
+            ticketType.UpdatedAt = System.DateTime.UtcNow;
+            await _unitOfWork.TicketTypes.AddAsync(ticketType);
+            await _unitOfWork.CompleteAsync();
+            var dto = _mapper.Map<TicketTypeDto>(ticketType);
+            return ResponseModel.Success("Ticket type created successfully", dto);
         }
     }
 }

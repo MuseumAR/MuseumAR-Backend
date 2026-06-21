@@ -14,6 +14,7 @@ using HistoricalMuseumAudioGuide.Repository.Repositories.Ticket;
 using HistoricalMuseumAudioGuide.Repository.Repositories.TicketType;
 using HistoricalMuseumAudioGuide.Repository.Repositories.Transaction;
 using HistoricalMuseumAudioGuide.Repository.Repositories.User;
+using HistoricalMuseumAudioGuide.Repository.Repositories.Visitor;
 using System;
 using System.Threading.Tasks;
 
@@ -28,6 +29,7 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         IExhibitTranslationRepository ExhibitTranslations { get; }
         IContentVersionRepository ContentVersions { get; }
         IUserRepository Users { get; }
+        IVisitorRepository Visitors { get; }
         IGenericRepository<Exhibition> Exhibitions { get; }
         IRoleRepository Roles { get; }
         IExhibitArassetRepository ExhibitArassets { get; }
@@ -36,6 +38,13 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         ITicketTypeRepository TicketTypes { get; }
         ITicketRepository Tickets { get; }
         ITransactionRepository Transactions { get; }
+        IGenericRepository<Bookmark> Bookmarks { get; }
+        IGenericRepository<VisitedExhibit> VisitedExhibits { get; }
+        IGenericRepository<MuseumMap> MuseumMaps { get; }
+        IGenericRepository<TourRoute> TourRoutes { get; }
+        IGenericRepository<AnalyticsLog> AnalyticsLogs { get; }
+        IGenericRepository<AuditLog> AuditLogs { get; }
+        IGenericRepository<SystemConfiguration> SystemConfigurations { get; }
         
         Task<int> CompleteAsync();
     }

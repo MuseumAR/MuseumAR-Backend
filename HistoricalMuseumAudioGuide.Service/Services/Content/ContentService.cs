@@ -2,6 +2,8 @@ using AutoMapper;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibit;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.ARAsset;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.OfflinePackage;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Category;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.ContentVersion;
 using HistoricalMuseumAudioGuide.Repository.Entities;
 using HistoricalMuseumAudioGuide.Repository.UnitOfWork;
 using HistoricalMuseumAudioGuide.Service.Services.Media;
@@ -196,13 +198,15 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
         public async Task<ResponseModel> GetCategoriesByMuseumIdAsync(int museumId)
         {
             var categories = await _unitOfWork.Categories.FindAsync(c => c.MuseumId == museumId);
-            return ResponseModel.Success("Get categories successful", categories);
+            var dtos = _mapper.Map<IEnumerable<CategoryDto>>(categories);
+            return ResponseModel.Success("Get categories successful", dtos);
         }
 
         public async Task<ResponseModel> GetContentVersionsAsync(int museumId)
         {
             var versions = await _unitOfWork.ContentVersions.FindAsync(v => v.MuseumId == museumId);
-            return ResponseModel.Success("Get content versions successful", versions);
+            var dtos = _mapper.Map<IEnumerable<ContentVersionDto>>(versions);
+            return ResponseModel.Success("Get content versions successful", dtos);
         }
 
         public async Task<ResponseModel> CreateNewContentVersionAsync(int museumId, string versionNumber, string description)

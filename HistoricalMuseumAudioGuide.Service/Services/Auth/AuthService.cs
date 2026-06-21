@@ -1,6 +1,8 @@
+using AutoMapper;
 using Google.Apis.Auth;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Auth;
 using HistoricalMuseumAudioGuide.Repository.UnitOfWork;
+using HistoricalMuseumAudioGuide.Service.Services.Audit;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using HistoricalMuseumAudioGuide.Repository.Entities;
@@ -18,11 +20,15 @@ public class AuthService : IAuthService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IConfiguration _configuration;
+    private readonly IAuditService _auditService;
+    private readonly IMapper _mapper;
 
-    public AuthService(IUnitOfWork unitOfWork, IConfiguration configuration)
+    public AuthService(IUnitOfWork unitOfWork, IConfiguration configuration, IAuditService auditService, IMapper mapper)
     {
         _unitOfWork = unitOfWork;
         _configuration = configuration;
+        _auditService = auditService;
+        _mapper = mapper;
     }
 
     public async Task<ResponseModel> LoginAsync(LoginRequestDto request)
@@ -50,14 +56,8 @@ public class AuthService : IAuthService
         // Generate Token
         var token = GenerateJwtToken(user);
 
-        var responseDto = new LoginResponseDto
-        {
-            UserId = user.Id,
-            FullName = user.FullName,
-            Email = user.Email,
-            RoleName = user.Role.RoleName,
-            AccessToken = token
-        };
+        var responseDto = _mapper.Map<LoginResponseDto>(user);
+        responseDto.AccessToken = token;
 
         return ResponseModel.Success("Login successful.", responseDto);
     }
@@ -77,20 +77,24 @@ public class AuthService : IAuthService
             return ResponseModel.Error("System Error: Default role 'Visitor' not found.");
         }
 
-        var user = new User
-        {
-            FullName = request.FullName,
-            Email = request.Email,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-            PhoneNumber = request.PhoneNumber,
-            RoleId = visitorRole.Id,
-            Status = "Active",
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
+        var user = _mapper.Map<User>(request);
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+        user.RoleId = visitorRole.Id;
+        user.Status = "Active";
+        user.CreatedAt = DateTime.UtcNow;
+        user.UpdatedAt = DateTime.UtcNow;
 
         await _unitOfWork.Users.AddAsync(user);
         await _unitOfWork.CompleteAsync();
+
+        await _auditService.LogActionAsync(
+            userId: user.Id, 
+            action: "AssignRole", 
+            entityType: "User", 
+            newValues: $"Assigned role 'Visitor' to new user {user.Email}", 
+            ipAddress: "System", // Ideally get from HttpContext
+            userAgent: "System"
+        );
 
         return ResponseModel.Success("User registered successfully.", user.Id);
     }
@@ -158,6 +162,11 @@ public class AuthService : IAuthService
         {
             var clientId = Environment.GetEnvironmentVariable("GOOGLE_CLIENT_ID") ?? _configuration["Google:ClientId"];
             
+            if (string.IsNullOrEmpty(clientId))
+            {
+                return ResponseModel.Error("System Error: Google Client ID is not configured.");
+            }
+
             var settings = new GoogleJsonWebSignature.ValidationSettings()
             {
                 Audience = new List<string>() { clientId }
@@ -210,14 +219,8 @@ public class AuthService : IAuthService
             // Generate Local JWT
             var token = GenerateJwtToken(user);
 
-            var responseDto = new LoginResponseDto
-            {
-                UserId = user.Id,
-                FullName = user.FullName,
-                Email = user.Email,
-                RoleName = user.Role.RoleName,
-                AccessToken = token
-            };
+            var responseDto = _mapper.Map<LoginResponseDto>(user);
+            responseDto.AccessToken = token;
 
             return ResponseModel.Success("Google login successful.", responseDto);
         }
@@ -239,13 +242,14 @@ public class AuthService : IAuthService
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Email, user.Email),
             new Claim(ClaimTypes.Name, user.FullName),
-            new Claim(ClaimTypes.Role, user.Role.RoleName)
+            new Claim(ClaimTypes.Role, user.Role?.RoleName ?? "Visitor")
         };
 
         // 2. Add MuseumId to claims if user belongs to a museum
         if (user.MuseumId.HasValue)
         {
-            claims.Add(new Claim("MuseumId", user.MuseumId.Value.ToString()));
+            var museumIdStr = user.MuseumId.Value.ToString();
+            claims.Add(new Claim("MuseumId", museumIdStr));
         }
 
         // 3. Create Key and Credentials

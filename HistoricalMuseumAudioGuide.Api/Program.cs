@@ -10,9 +10,18 @@ using HistoricalMuseumAudioGuide.Service.Services.Auth;
 using HistoricalMuseumAudioGuide.Service.Services.Content;
 using HistoricalMuseumAudioGuide.Service.Services.Media;
 using HistoricalMuseumAudioGuide.Service.Services.Ticketing;
+using HistoricalMuseumAudioGuide.Service.Services.Visitor;
+using HistoricalMuseumAudioGuide.Repository.Mappings;
+using HistoricalMuseumAudioGuide.Service.Services;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using HistoricalMuseumAudioGuide.Service.Services.Analytics;
+using HistoricalMuseumAudioGuide.Service.Services.Audit;
+using HistoricalMuseumAudioGuide.Service.Services.SystemConfig;
+using DotNetEnv;
 using Scalar.AspNetCore;
 using System.Text;
 
@@ -40,6 +49,10 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IMediaService, MediaService>();
 builder.Services.AddScoped<ITicketingService, TicketingService>();
 builder.Services.AddScoped<IMuseumManagerService, MuseumManagerService>();
+builder.Services.AddScoped<IVisitorService, VisitorService>();
+builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
+builder.Services.AddScoped<IAuditService, AuditService>();
+builder.Services.AddScoped<ISystemConfigService, SystemConfigService>();
 
 // Configure JWT Authentication
 var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") ?? builder.Configuration["Jwt:Secret"];

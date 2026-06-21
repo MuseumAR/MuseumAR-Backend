@@ -44,17 +44,15 @@ public class TicketingService : ITicketingService
         string orderCode = DateTime.UtcNow.Ticks.ToString();
 
         // 1 represents VNPay payment method in our DB, ideally get it dynamically.
-        var transaction = new Transaction
-        {
-            VisitorId = visitorId,
-            PaymentMethodId = 1, 
-            OrderCode = orderCode,
-            TotalAmount = totalAmount,
-            Currency = "VND",
-            PaymentStatus = "Pending",
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
+        var transaction = _mapper.Map<Transaction>(request);
+        transaction.VisitorId = visitorId;
+        transaction.PaymentMethodId = 1; 
+        transaction.OrderCode = orderCode;
+        transaction.TotalAmount = totalAmount;
+        transaction.Currency = "VND";
+        transaction.PaymentStatus = "Pending";
+        transaction.CreatedAt = DateTime.UtcNow;
+        transaction.UpdatedAt = DateTime.UtcNow;
 
         // Pre-create tickets in Pending state
         for (int i = 0; i < request.Quantity; i++)
@@ -94,7 +92,7 @@ public class TicketingService : ITicketingService
 
         foreach (var ticket in transaction.Tickets)
         {
-            ticket.Status = "Active";
+            ticket.Status = "Paid";
         }
 
         _unitOfWork.Transactions.Update(transaction);
@@ -132,7 +130,7 @@ public class TicketingService : ITicketingService
 
             foreach (var ticket in transaction.Tickets)
             {
-                ticket.Status = "Active";
+                ticket.Status = "Paid";
             }
         }
         else
@@ -162,7 +160,7 @@ public class TicketingService : ITicketingService
     {
         var tickets = await _unitOfWork.Tickets.GetTicketsByVisitorIdAsync(visitorId);
         // Only return Active tickets to the user
-        var activeTickets = tickets.Where(t => t.Status == "Active");
+        var activeTickets = tickets.Where(t => t.Status == "Paid");
         var dtos = _mapper.Map<IEnumerable<TicketDto>>(activeTickets);
         
         return ResponseModel.Success("Get tickets successfully", dtos);
