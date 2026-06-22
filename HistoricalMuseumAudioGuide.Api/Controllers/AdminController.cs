@@ -1,8 +1,4 @@
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Museum;
-using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibit;
-using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibition;
-using HistoricalMuseumAudioGuide.Repository.Data.DTOs.MuseumMap;
-using HistoricalMuseumAudioGuide.Repository.Data.DTOs.TourRoute;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Ticketing;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.SystemConfig;
 using HistoricalMuseumAudioGuide.Service.Services;
@@ -42,61 +38,6 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             var response = await _adminService.CreateMuseumAsync(createMuseumDto);
             return ResponseParser.Result(response);
         }
-
-        [HttpGet("museums/{id}/exhibits")]
-        public async Task<IActionResult> GetExhibits(int id)
-        {
-            var response = await _adminService.GetExhibitsByMuseumIdAsync(id);
-            return ResponseParser.Result(response);
-        }
-
-        [HttpGet("museums/{id}/exhibitions")]
-        public async Task<IActionResult> GetExhibitions(int id)
-        {
-            var response = await _adminService.GetExhibitionsByMuseumIdAsync(id);
-            return ResponseParser.Result(response);
-        }
-
-        [HttpPost("exhibitions")]
-        public async Task<IActionResult> CreateExhibition(CreateExhibitionDto createExhibitionDto)
-        {
-            var response = await _adminService.CreateExhibitionAsync(createExhibitionDto);
-            return ResponseParser.Result(response);
-        }
-
-        // --- Maps Management ---
-
-        [HttpGet("museums/{id}/maps")]
-        public async Task<IActionResult> GetMuseumMaps(int id)
-        {
-            var response = await _adminService.GetMuseumMapsAsync(id);
-            return ResponseParser.Result(response);
-        }
-
-        [HttpPost("maps")]
-        public async Task<IActionResult> CreateMuseumMap(CreateMuseumMapDto createMuseumMapDto)
-        {
-            var response = await _adminService.CreateMuseumMapAsync(createMuseumMapDto);
-            return ResponseParser.Result(response);
-        }
-
-        // --- Tour Routes Management ---
-
-        [HttpGet("museums/{id}/routes")]
-        public async Task<IActionResult> GetTourRoutes(int id)
-        {
-            var response = await _adminService.GetTourRoutesAsync(id);
-            return ResponseParser.Result(response);
-        }
-
-        [HttpPost("routes")]
-        public async Task<IActionResult> CreateTourRoute(CreateTourRouteDto createTourRouteDto)
-        {
-            var response = await _adminService.CreateTourRouteAsync(createTourRouteDto);
-            return ResponseParser.Result(response);
-        }
-
-        // --- System Configuration Management ---
 
         // --- Ticket Type Management ---
 

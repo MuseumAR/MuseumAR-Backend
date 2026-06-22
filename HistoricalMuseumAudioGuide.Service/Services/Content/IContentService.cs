@@ -1,6 +1,9 @@
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibit;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.ARAsset;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.OfflinePackage;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibition;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.MuseumMap;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.TourRoute;
 using Microsoft.AspNetCore.Http;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -17,6 +20,18 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
         Task<ResponseModel> DeleteExhibitAsync(int id);
         Task<ResponseModel> PublishExhibitAsync(int id);
         Task<ResponseModel> UnpublishExhibitAsync(int id);
+
+        // Exhibition Management
+        Task<ResponseModel> GetExhibitionsByMuseumIdAsync(int museumId);
+        Task<ResponseModel> CreateExhibitionAsync(CreateExhibitionDto exhibitionDto);
+
+        // Map Management
+        Task<ResponseModel> GetMuseumMapsAsync(int museumId);
+        Task<ResponseModel> CreateMuseumMapAsync(CreateMuseumMapDto mapDto);
+
+        // Tour Route Management
+        Task<ResponseModel> GetTourRoutesAsync(int museumId);
+        Task<ResponseModel> CreateTourRouteAsync(CreateTourRouteDto routeDto);
 
         // Media Management
         Task<ResponseModel> UploadExhibitImageAsync(int exhibitId, IFormFile file, string caption);
