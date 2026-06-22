@@ -6,22 +6,16 @@ using HistoricalMuseumAudioGuide.Repository.UnitOfWork;
 using HistoricalMuseumAudioGuide.Service.Services;
 using HistoricalMuseumAudioGuide.Service.Services.Admin;
 using HistoricalMuseumAudioGuide.Service.Services.Analytics;
+using HistoricalMuseumAudioGuide.Service.Services.Audit;
 using HistoricalMuseumAudioGuide.Service.Services.Auth;
 using HistoricalMuseumAudioGuide.Service.Services.Content;
 using HistoricalMuseumAudioGuide.Service.Services.Media;
+using HistoricalMuseumAudioGuide.Service.Services.SystemConfig;
 using HistoricalMuseumAudioGuide.Service.Services.Ticketing;
 using HistoricalMuseumAudioGuide.Service.Services.Visitor;
-using HistoricalMuseumAudioGuide.Repository.Mappings;
-using HistoricalMuseumAudioGuide.Service.Services;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
-using HistoricalMuseumAudioGuide.Service.Services.Analytics;
-using HistoricalMuseumAudioGuide.Service.Services.Audit;
-using HistoricalMuseumAudioGuide.Service.Services.SystemConfig;
-using DotNetEnv;
 using Scalar.AspNetCore;
 using System.Text;
 
@@ -33,6 +27,23 @@ Env.Load();
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+
+// Configure CORS
+var allowedOriginsEnv = Environment.GetEnvironmentVariable("ALLOWED_ORIGINS");
+var allowedOrigins = !string.IsNullOrEmpty(allowedOriginsEnv)
+    ? allowedOriginsEnv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+    : new[] { "http://localhost:3000", "http://localhost:3001", "http://localhost:5173", "http://localhost:8081", "http://localhost:8082" };
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
 
 // Database
 var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
@@ -89,6 +100,8 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseStaticFiles();
+
+app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();
