@@ -4,6 +4,9 @@ using HistoricalMuseumAudioGuide.Repository.Data.DTOs.ARAsset;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.OfflinePackage;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Category;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.ContentVersion;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibition;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.MuseumMap;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.TourRoute;
 using HistoricalMuseumAudioGuide.Repository.Entities;
 using HistoricalMuseumAudioGuide.Repository.UnitOfWork;
 using HistoricalMuseumAudioGuide.Service.Services.Media;
@@ -27,6 +30,8 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             _mapper = mapper;
             _mediaService = mediaService;
         }
+
+        // --- Exhibit Management ---
 
         public async Task<ResponseModel> GetAllExhibitsAsync(int museumId)
         {
@@ -123,6 +128,62 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             await _unitOfWork.CompleteAsync();
 
             return ResponseModel.Success("Exhibit unpublished successfully");
+        }
+
+        // --- Exhibition Management ---
+
+        public async Task<ResponseModel> GetExhibitionsByMuseumIdAsync(int museumId)
+        {
+            var exhibitions = await _unitOfWork.Exhibitions.FindAsync(e => e.MuseumId == museumId);
+            var dtos = _mapper.Map<IEnumerable<ExhibitionDto>>(exhibitions);
+            return ResponseModel.Success("Exhibitions retrieved successfully", dtos);
+        }
+
+        public async Task<ResponseModel> CreateExhibitionAsync(CreateExhibitionDto createExhibitionDto)
+        {
+            var exhibition = _mapper.Map<Exhibition>(createExhibitionDto);
+            await _unitOfWork.Exhibitions.AddAsync(exhibition);
+            await _unitOfWork.CompleteAsync();
+            var dto = _mapper.Map<ExhibitionDto>(exhibition);
+            return ResponseModel.Success("Exhibition created successfully", dto);
+        }
+
+        // --- Map Management ---
+
+        public async Task<ResponseModel> GetMuseumMapsAsync(int museumId)
+        {
+            var maps = await _unitOfWork.MuseumMaps.FindAsync(m => m.MuseumId == museumId);
+            var dtos = _mapper.Map<IEnumerable<MuseumMapDto>>(maps);
+            return ResponseModel.Success("Maps retrieved successfully", dtos);
+        }
+
+        public async Task<ResponseModel> CreateMuseumMapAsync(CreateMuseumMapDto mapDto)
+        {
+            var map = _mapper.Map<MuseumMap>(mapDto);
+            map.CreatedAt = DateTime.UtcNow;
+            await _unitOfWork.MuseumMaps.AddAsync(map);
+            await _unitOfWork.CompleteAsync();
+            var dto = _mapper.Map<MuseumMapDto>(map);
+            return ResponseModel.Success("Map created successfully", dto);
+        }
+
+        // --- Tour Route Management ---
+
+        public async Task<ResponseModel> GetTourRoutesAsync(int museumId)
+        {
+            var routes = await _unitOfWork.TourRoutes.FindAsync(r => r.MuseumId == museumId);
+            var dtos = _mapper.Map<IEnumerable<TourRouteDto>>(routes);
+            return ResponseModel.Success("Tour routes retrieved successfully", dtos);
+        }
+
+        public async Task<ResponseModel> CreateTourRouteAsync(CreateTourRouteDto routeDto)
+        {
+            var route = _mapper.Map<TourRoute>(routeDto);
+            route.CreatedAt = DateTime.UtcNow;
+            await _unitOfWork.TourRoutes.AddAsync(route);
+            await _unitOfWork.CompleteAsync();
+            var dto = _mapper.Map<TourRouteDto>(route);
+            return ResponseModel.Success("Tour route created successfully", dto);
         }
 
         // --- Media Management ---
