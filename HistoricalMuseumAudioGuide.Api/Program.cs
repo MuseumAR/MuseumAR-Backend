@@ -31,7 +31,11 @@ var builder = WebApplication.CreateBuilder(args);
 Env.Load();
 
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Create(System.Text.Unicode.UnicodeRanges.All);
+    });
 builder.Services.AddOpenApi();
 
 // Database

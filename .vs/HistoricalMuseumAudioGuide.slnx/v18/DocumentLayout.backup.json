@@ -3,12 +3,12 @@
   "WorkspaceRootPath": "C:\\My_Project\\SEP\\MuseumAR-Backend\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{F0DF585F-6A72-F05C-FD0B-A18A8879ABF6}|HistoricalMuseumAudioGuide.Repository\\HistoricalMuseumAudioGuide.Repository.csproj|c:\\my_project\\sep\\museumar-backend\\historicalmuseumaudioguide.repository\\data\\database\\database_schema.sql||{CC5D8DF0-88F4-4BB2-9DBB-B48CEE65C30A}",
-      "RelativeMoniker": "D:0:0:{F0DF585F-6A72-F05C-FD0B-A18A8879ABF6}|HistoricalMuseumAudioGuide.Repository\\HistoricalMuseumAudioGuide.Repository.csproj|solutionrelative:historicalmuseumaudioguide.repository\\data\\database\\database_schema.sql||{CC5D8DF0-88F4-4BB2-9DBB-B48CEE65C30A}"
+      "AbsoluteMoniker": "D:0:0:{11A2D334-5C65-DF2B-159D-5D376375CEBB}|HistoricalMuseumAudioGuide.Api\\HistoricalMuseumAudioGuide.Api.csproj|c:\\my_project\\sep\\museumar-backend\\historicalmuseumaudioguide.api\\.env||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{11A2D334-5C65-DF2B-159D-5D376375CEBB}|HistoricalMuseumAudioGuide.Api\\HistoricalMuseumAudioGuide.Api.csproj|solutionrelative:historicalmuseumaudioguide.api\\.env||{8B382828-6202-11D1-8870-0000F87579D2}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{F0DF585F-6A72-F05C-FD0B-A18A8879ABF6}|HistoricalMuseumAudioGuide.Repository\\HistoricalMuseumAudioGuide.Repository.csproj|c:\\my_project\\sep\\museumar-backend\\historicalmuseumaudioguide.repository\\data\\database\\database_schema.sql||{CC5D8DF0-88F4-4BB2-9DBB-B48CEE65C30A}|CodeFrame",
-      "RelativeMoniker": "D:0:0:{F0DF585F-6A72-F05C-FD0B-A18A8879ABF6}|HistoricalMuseumAudioGuide.Repository\\HistoricalMuseumAudioGuide.Repository.csproj|solutionrelative:historicalmuseumaudioguide.repository\\data\\database\\database_schema.sql||{CC5D8DF0-88F4-4BB2-9DBB-B48CEE65C30A}|CodeFrame"
+      "AbsoluteMoniker": "D:0:0:{F0DF585F-6A72-F05C-FD0B-A18A8879ABF6}|HistoricalMuseumAudioGuide.Repository\\HistoricalMuseumAudioGuide.Repository.csproj|c:\\my_project\\sep\\museumar-backend\\historicalmuseumaudioguide.repository\\data\\database\\database_schema.sql||{CC5D8DF0-88F4-4BB2-9DBB-B48CEE65C30A}",
+      "RelativeMoniker": "D:0:0:{F0DF585F-6A72-F05C-FD0B-A18A8879ABF6}|HistoricalMuseumAudioGuide.Repository\\HistoricalMuseumAudioGuide.Repository.csproj|solutionrelative:historicalmuseumaudioguide.repository\\data\\database\\database_schema.sql||{CC5D8DF0-88F4-4BB2-9DBB-B48CEE65C30A}"
     }
   ],
   "DocumentGroupContainers": [
@@ -23,14 +23,26 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "database_schema.sql ",
+              "Title": ".env",
+              "DocumentMoniker": "C:\\My_Project\\SEP\\MuseumAR-Backend\\HistoricalMuseumAudioGuide.Api\\.env",
+              "RelativeDocumentMoniker": "HistoricalMuseumAudioGuide.Api\\.env",
+              "ToolTip": "C:\\My_Project\\SEP\\MuseumAR-Backend\\HistoricalMuseumAudioGuide.Api\\.env",
+              "RelativeToolTip": "HistoricalMuseumAudioGuide.Api\\.env",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAABRAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2026-06-23T04:24:52.832Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "database_schema.sql",
               "DocumentMoniker": "C:\\My_Project\\SEP\\MuseumAR-Backend\\HistoricalMuseumAudioGuide.Repository\\Data\\Database\\database_schema.sql",
               "RelativeDocumentMoniker": "HistoricalMuseumAudioGuide.Repository\\Data\\Database\\database_schema.sql",
               "ToolTip": "C:\\My_Project\\SEP\\MuseumAR-Backend\\HistoricalMuseumAudioGuide.Repository\\Data\\Database\\database_schema.sql",
               "RelativeToolTip": "HistoricalMuseumAudioGuide.Repository\\Data\\Database\\database_schema.sql",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000826|",
-              "WhenOpened": "2026-06-21T06:34:59.873Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-06-23T04:18:13.552Z"
             }
           ]
         }
