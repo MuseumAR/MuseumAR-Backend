@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using HistoricalMuseumAudioGuide.Repository.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -93,17 +93,18 @@ public partial class MuseumAudioGuideContext : DbContext
     public virtual DbSet<VisitedExhibit> VisitedExhibits { get; set; }
 
     public virtual DbSet<Visitor> Visitors { get; set; }
-protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-{
-    if (!optionsBuilder.IsConfigured)
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
-        if (!string.IsNullOrEmpty(connectionString))
+        if (!optionsBuilder.IsConfigured)
         {
-            optionsBuilder.UseSqlServer(connectionString);
+            var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
+            if (!string.IsNullOrEmpty(connectionString))
+            {
+                optionsBuilder.UseSqlServer(connectionString);
+            }
         }
     }
-}
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -835,6 +836,7 @@ protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
             entity.Property(e => e.Email).HasMaxLength(255);
             entity.Property(e => e.FullName).HasMaxLength(100);
             entity.Property(e => e.PasswordHash).HasMaxLength(500);
+            entity.Property(e => e.PasswordResetToken).HasMaxLength(100);
             entity.Property(e => e.PhoneNumber).HasMaxLength(20);
             entity.Property(e => e.Status)
                 .HasMaxLength(20)
