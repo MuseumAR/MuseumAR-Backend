@@ -23,15 +23,15 @@ public partial class User
 
     public string Status { get; set; } = null!;
 
-    public string? PasswordResetToken { get; set; }
-
-    public DateTime? ResetTokenExpiresAt { get; set; }
-
     public DateTime? LastLoginAt { get; set; }
 
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
+
+    public string? PasswordResetToken { get; set; }
+
+    public DateTime? ResetTokenExpiresAt { get; set; }
 
     public virtual ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
 
