@@ -745,3 +745,187 @@ INSERT INTO SystemConfigurations (ConfigKey, ConfigValue, Description) VALUES
 
 PRINT 'Database schema updated successfully with Events, Ticketing, Personalization and Payment!';
 GO
+
+-- ============================================================
+-- SCRIPT SEED DATA CHO CÁC BẢNG CÒN LẠI (MUSEUM AUDIO GUIDE)
+-- TẤT CẢ TÀI KHOẢN ĐỂ ĐĂNG NHẬP ĐỀU CÓ PASSWORD LÀ 123456
+-- ============================================================
+
+-- 1. SEED DATA CHO MẠNG LƯỚI BẢO TÀNG (MUSEUMS)
+INSERT INTO Museums (Name, Description, Address, City, Province, Country, Latitude, Longitude, ThumbnailUrl, OpeningHours, ContactPhone, ContactEmail, Website, Status)
+VALUES 
+(N'Bảo tàng Lịch sử Quốc gia', N'Nơi lưu giữ các cổ vật lịch sử Việt Nam qua các thời kỳ', N'1 Tràng Tiền, Phan Chu Trinh, Hoàn Kiếm', N'Hà Nội', N'Hà Nội', N'Vietnam', 21.0243, 105.8590, 'https://api.museumar.vn/images/museums/vn_history_thumb.jpg', N'08:00 - 17:00 (Thứ Ba - Chủ Nhật)', '02438252853', 'contact@baotanglichsu.vn', 'https://baotanglichsu.vn', 'Active');
+
+-- Lấy ra Id của Bảo tàng vừa tạo (Giả định Id = 1)
+DECLARE @MuseumId INT = 1;
+
+-- 2. CẤU HÌNH NGÔN NGỮ HỖ TRỢ CHO BẢO TÀNG (MUSEUM LANGUAGES)
+-- Kết nối Bảo tàng 1 với Tiếng Việt (Id=1 là tiếng Việt, mặc định) và Tiếng Anh (Id=2)
+INSERT INTO MuseumLanguages (MuseumId, LanguageId, IsDefault) VALUES 
+(@MuseumId, 1, 1),
+(@MuseumId, 2, 0);
+
+-- 3. BẢN DỊCH ĐA NGÔN NGỮ CHO BẢO TÀNG (MUSEUM TRANSLATIONS)
+INSERT INTO MuseumTranslations (MuseumId, LanguageCode, Name, Description, OpeningHours) VALUES 
+(@MuseumId, 'en', 'National Museum of History', 'The place preserving Vietnamese historical artifacts through various eras.', '08:00 - 17:00 (Tue - Sun)');
+
+-- 4. TÀI KHOẢN MANAGER VÀ CONTENT CHO BẢO TÀNG (USERS)
+-- TẤT CẢ PASSWORD ĐỀU LÀ 123456
+-- Đăng ký tài khoản thuộc về Bảo tàng 1 (RoleId 1= SystemAdmin, RoleId 2 = MuseumManager, RoleId 3 = ContentManager)
+INSERT INTO Users (FullName, Email, PasswordHash, PhoneNumber, AvatarUrl, RoleId, MuseumId, Status) VALUES 
+(N'Nguyễn Văn Quản Lý', 'manager@baotanglichsu.vn', '$2a$11$0OOHejSvnDYOJfbKl0GYxOKCuhy.YMhOKuaCItMF00prbBZpiNelq', '0912345678', 'https://api.museumar.vn/avatars/manager.png', 2, @MuseumId, 'Active'),
+(N'Trần Content', 'content@baotanglichsu.vn', '$2a$11$0OOHejSvnDYOJfbKl0GYxOKCuhy.YMhOKuaCItMF00prbBZpiNelq', '0987654321', 'https://api.museumar.vn/avatars/content.png', 3, @MuseumId, 'Active'),
+(N'Lê Admin Hệ Thống', 'admin@museumar.vn', '$2a$11$0OOHejSvnDYOJfbKl0GYxOKCuhy.YMhOKuaCItMF00prbBZpiNelq', '0901112222', 'https://api.museumar.vn/avatars/admin.png', 1, NULL, 'Active');
+
+DECLARE @UserId INT = 2; -- ID của Content Manager phục vụ trường CreatedBy sau này
+
+-- 5. BẢN ĐỒ 2D VÀ CÁC ĐIỂM TIỆN ÍCH (MUSEUM MAPS & MAP POIS)
+INSERT INTO MuseumMaps (MuseumId, FloorNumber, MapName, MapImageUrl, Width, Height, IsDefault) VALUES 
+(@MuseumId, 1, N'Tầng 1 - Lịch sử Cổ Trung Đại', 'https://api.museumar.vn/maps/floor1.png', 1920, 1080, 1);
+
+DECLARE @MapId INT = 1;
+
+INSERT INTO MapPOIs (MapId, POIType, LocationX, LocationY, Description) VALUES 
+(@MapId, 'TicketCounter', 10.5, 85.0, N'Quầy bán vé vào cổng'),
+(@MapId, 'WC', 90.0, 15.2, N'Khu nhà vệ sinh tầng 1'),
+(@MapId, 'Exit', 5.0, 50.0, N'Lối ra hiểm');
+
+-- 6. TRIỂN LÃM / SỰ KIỆN CHUYÊN ĐỀ (EXHIBITIONS & TRANSLATIONS)
+INSERT INTO Exhibitions (MuseumId, ThumbnailUrl, StartDate, EndDate, Status) VALUES 
+(@MuseumId, 'https://api.museumar.vn/images/exhibitions/dong_son_culture.jpg', GETUTCDATE(), DATEADD(month, 3, GETUTCDATE()), 'Active');
+
+DECLARE @ExhibitionId INT = 1;
+
+INSERT INTO ExhibitionTranslations (ExhibitionId, LanguageCode, Name, Description) VALUES 
+(@ExhibitionId, 'vi', N'Bách vật Đông Sơn', N'Triển lãm chuyên đề về văn hóa Đông Sơn và kỹ nghệ đúc đồng đỉnh cao.'),
+(@ExhibitionId, 'en', 'Dong Son Culture Treasures', 'Special exhibition on Dong Son culture and advanced bronze casting techniques.');
+
+-- 7. DANH MỤC / BỘ SƯU TẬP (CATEGORIES & TRANSLATIONS)
+INSERT INTO Categories (MuseumId, ParentId, SortOrder, IconUrl, Status) VALUES 
+(@MuseumId, NULL, 1, 'https://api.museumar.vn/icons/bronze_age.png', 'Active');
+
+DECLARE @CategoryId INT = 1;
+
+INSERT INTO CategoryTranslations (CategoryId, LanguageCode, CategoryName, Description) VALUES 
+(@CategoryId, 'vi', N'Thời đại đồ đồng', N'Các hiện vật thuộc thời kỳ văn hóa Phùng Nguyên đến Đông Sơn'),
+(@CategoryId, 'en', 'Bronze Age', 'Artifacts from the Phung Nguyen to Dong Son cultural periods');
+
+-- 8. DỮ LIỆU CÁ NHÂN HÓA (THEMES & AGE GROUPS)
+INSERT INTO Themes (ThemeName, Description) VALUES 
+(N'Nghệ thuật Quân sự', N'Khám phá vũ khí và chiến thuật lịch sử'),
+(N'Đời sống Tâm linh', N'Tìm hiểu tín ngưỡng, tôn giáo xưa cổ');
+
+INSERT INTO AgeGroups (GroupName, MinAge, MaxAge) VALUES 
+(N'Trẻ em', 6, 12),
+(N'Người lớn', 18, 60);
+
+DECLARE @ThemeId INT = 1;
+DECLARE @AgeGroupId INT = 2;
+
+-- 9. HIỆN VẬT NÒNG CỐT (EXHIBITS)
+INSERT INTO Exhibits (MuseumId, CategoryId, ExhibitCode, QRCodeData, QRCodeImageUrl, ThumbnailUrl, AROverlayUrl, ARMarkerUrl, MapId, LocationX, LocationY, SortOrder, Status, PublishedAt, CreatedBy)
+VALUES 
+(@MuseumId, @CategoryId, 'EX-DSON-01', 'MUSEUM_1_EX_1', 'https://api.museumar.vn/qrcodes/ex_1.png', 'https://api.museumar.vn/images/exhibits/trong_dong_thumb.jpg', 'https://api.museumar.vn/ar/overlay/trong_dong_info.png', 'https://api.museumar.vn/ar/markers/trong_dong_marker.jpg', @MapId, 45.5, 60.2, 1, 'Published', GETUTCDATE(), @UserId),
+(@MuseumId, @CategoryId, 'EX-DSON-02', 'MUSEUM_1_EX_2', 'https://api.museumar.vn/qrcodes/ex_2.png', 'https://api.museumar.vn/images/exhibits/dao_gam_thumb.jpg', NULL, NULL, @MapId, 50.0, 62.5, 2, 'Published', GETUTCDATE(), @UserId);
+
+DECLARE @ExhibitId1 INT = 1;
+DECLARE @ExhibitId2 INT = 2;
+
+-- Gắn hiện vật vào Triển lãm chuyên đề
+INSERT INTO ExhibitionExhibits (ExhibitionId, ExhibitId) VALUES 
+(@ExhibitionId, @ExhibitId1),
+(@ExhibitionId, @ExhibitId2);
+
+-- Gắn Metadata cá nhân hóa cho hiện vật 1
+INSERT INTO ExhibitMetadata (ExhibitId, ThemeId, AgeGroupId, Era, HistoricalEvent) VALUES 
+(@ExhibitId1, @ThemeId, @AgeGroupId, N'Văn hóa Đông Sơn', N'Thời đại Hùng Vương dựng nước');
+
+-- 10. BẢN DỊCH NỘI DUNG VÀ AUDIO GUIDE (EXHIBIT TRANSLATIONS)
+INSERT INTO ExhibitTranslations (ExhibitId, LanguageCode, Title, Description, AudioUrl, AudioDuration) VALUES 
+(@ExhibitId1, 'vi', N'Trống đồng Ngọc Lũ', N'Trống đồng Ngọc Lũ là một trong những bảo vật quốc gia tiêu biểu nhất của văn hóa Đông Sơn...', 'https://api.museumar.vn/audio/vi/trong_dong_ngoc_lu.mp3', 180),
+(@ExhibitId1, 'en', 'Ngoc Lu Bronze Drum', 'The Ngoc Lu bronze drum is one of the most exquisite national treasures of the Dong Son culture...', 'https://api.museumar.vn/audio/en/ngoc_lu_drum.mp3', 210),
+(@ExhibitId2, 'vi', N'Dao găm chuôi hình người', N'Vũ khí độc đáo bằng đồng với phần chuôi được đúc hình người sinh động...', 'https://api.museumar.vn/audio/vi/dao_gam_dong.mp3', 120),
+(@ExhibitId2, 'en', 'Human-shaped Hilt Dagger', 'A unique bronze weapon featuring a finely cast human figure on its hilt...', 'https://api.museumar.vn/audio/en/dagger.mp3', 140);
+
+-- 11. HÌNH ẢNH CHI TIẾT VÀ TÀI NGUYÊN AR (EXHIBIT IMAGES & AR ASSETS)
+INSERT INTO ExhibitImages (ExhibitId, ImageUrl, Caption, SortOrder) VALUES 
+(@ExhibitId1, 'https://api.museumar.vn/images/exhibits/details/trong_dong_mat_tren.jpg', N'Hoa văn ngôi sao 14 cánh trên mặt trống', 1);
+
+INSERT INTO ExhibitARAssets (ExhibitId, AssetType, AssetUrl, FileSizeBytes, Width, Height, Description, SortOrder) VALUES 
+(@ExhibitId1, 'Model3D', 'https://api.museumar.vn/ar/models/trong_dong_3d.glb', 15428900, NULL, NULL, N'Mô hình 3D tương tác AR của Trống Đồng', 1);
+
+-- 12. LỘ TRÌNH THAM QUAN GỢI Ý (TOUR ROUTES & DETAILS)
+INSERT INTO TourRoutes (MuseumId, EstimatedMinutes, ThumbnailUrl, AgeGroupId, ThemeId, IsDefault, Status) VALUES 
+(@MuseumId, 45, 'https://api.museumar.vn/tours/tour_quick_thumb.jpg', @AgeGroupId, @ThemeId, 1, 'Active');
+
+DECLARE @RouteId INT = 1;
+
+INSERT INTO TourRouteTranslations (TourRouteId, LanguageCode, RouteName, Description) VALUES 
+(@RouteId, 'vi', N'Tour Khám phá Tinh hoa Đồ Đồng', N'Lộ trình ngắn gọn đi qua các báu vật đồ đồng đỉnh cao trong 45 phút.'),
+(@RouteId, 'en', 'Bronze Essence Express Tour', 'A short route guiding you through premier bronze masterpieces in 45 minutes.');
+
+INSERT INTO TourRouteExhibits (TourRouteId, ExhibitId, StopOrder, EstimatedMinutes) VALUES 
+(@RouteId, @ExhibitId1, 1, 15),
+(@RouteId, @ExhibitId2, 2, 10);
+
+-- 13. KHÁCH THAM QUAN APP MOBILE (VISITORS)
+INSERT INTO Visitors (DeviceId, DisplayName, Email, PreferredLang, DeviceType, DeviceModel, AppVersion) VALUES 
+('F39B672A-8811-4E1B-9473-D683A648AA29', N'Đức Mạnh', 'visitor.manh@gmail.com', 'vi', 'iOS', 'iPhone 15 Pro', '1.0.0'),
+('A28D471C-9922-4F2A-8361-C234E128BB88', 'John Doe', 'johndoe@gmail.com', 'en', 'Android', 'Samsung S24 Ultra', '1.0.0');
+
+DECLARE @VisitorId INT = 1;
+
+-- 14. ĐẶT VÉ VÀ THANH TOÁN (TRANSACTIONS, TICKET TYPES, TICKETS)
+INSERT INTO TicketTypes (MuseumId, ExhibitionId, Name, Price, Description, IsActive) VALUES 
+(@MuseumId, NULL, N'Vé người lớn toàn cảnh', 40000.00, N'Vé tham quan tất cả các khu vực chính của bảo tàng', 1);
+
+DECLARE @TicketTypeId INT = 1;
+
+INSERT INTO Transactions (VisitorId, PaymentMethodId, OrderCode, TotalAmount, Currency, PaymentStatus, GatewayTransactionId, PaymentDate, Description) VALUES 
+(@VisitorId, 1, 'ORDER_20260623_001', 40000.00, 'VND', 'Completed', 'VNPAY_12345678', GETUTCDATE(), N'Thanh toan ve tham quan Bao tang LSQS');
+
+DECLARE @TransactionId INT = 1;
+
+INSERT INTO Tickets (VisitorId, TicketTypeId, TransactionId, TicketCode, ValidDate, Status) VALUES 
+(@VisitorId, @TicketTypeId, @TransactionId, 'QR_TICKET_M1_778899', GETUTCDATE(), 'Paid');
+
+-- Ghi Log raw response từ VNPay
+INSERT INTO PaymentLogs (TransactionId, RawResponse, LogMessage) VALUES 
+(@TransactionId, '{"vnp_ResponseCode":"00","vnp_Amount":"4000000","vnp_TxnRef":"ORDER_20260623_001"}', N'Giao dịch thành công qua cổng VNPAY');
+
+-- 15. TƯƠNG TÁC CỦA KHÁCH (BOOKMARKS, VISITED)
+INSERT INTO Bookmarks (VisitorId, ExhibitId) VALUES (@VisitorId, @ExhibitId1);
+INSERT INTO VisitedExhibits (VisitorId, ExhibitId, MuseumId) VALUES (@VisitorId, @ExhibitId1, @MuseumId);
+
+-- 16. NHẬT KÝ SỰ KIỆN THỐNG KÊ (ANALYTICS LOGS)
+-- Đổ dữ liệu mẫu vào để API Dashboard của bạn quét ra số liệu thực tế
+INSERT INTO AnalyticsLogs (VisitorId, ExhibitId, MuseumId, ActionType, ListeningDuration, LanguageUsed, IsOfflineEvent, EventTimestamp) VALUES 
+(@VisitorId, @ExhibitId1, @MuseumId, 'QR_SCAN', NULL, 'vi', 0, GETUTCDATE()),
+(@VisitorId, @ExhibitId1, @MuseumId, 'AUDIO_PLAY', NULL, 'vi', 0, GETUTCDATE()),
+(@VisitorId, @ExhibitId1, @MuseumId, 'AUDIO_COMPLETE', 175, 'vi', 0, GETUTCDATE()), -- Nghe gần hết 180s
+(@VisitorId, @ExhibitId2, @MuseumId, 'QR_SCAN', NULL, 'vi', 0, GETUTCDATE()),
+(@VisitorId, @ExhibitId2, @MuseumId, 'AUDIO_COMPLETE', 110, 'vi', 0, GETUTCDATE()),
+(@VisitorId, NULL,        @MuseumId, 'PACKAGE_DOWNLOAD', NULL, NULL, 0, GETUTCDATE()),
+(@VisitorId, NULL,        @MuseumId, 'LANGUAGE_SWITCH', NULL, 'en', 0, GETUTCDATE());
+
+-- 17. ĐÓNG GÓI DỮ LIỆU OFFLINE (CONTENT VERSIONS, OFFLINE PACKAGES & DOWNLOADS)
+INSERT INTO ContentVersions (MuseumId, VersionNumber, ChangeDescription, TotalExhibits, TotalMediaFiles, PackageSizeBytes, PublishedBy, Status, PublishedAt)
+VALUES 
+(@MuseumId, '1.0.0', N'Bản phát hành dữ liệu Đông Sơn đầu tiên', 2, 3, 25489600, @UserId, 'Published', GETUTCDATE());
+
+DECLARE @VersionId INT = 1;
+
+INSERT INTO OfflinePackages (MuseumId, VersionId, PackageUrl, PackageSizeBytes, Checksum, AudioCount, ImageCount, ARAssetCount, ExhibitCount, Status, BuiltAt)
+VALUES 
+(@MuseumId, @VersionId, 'https://api.museumar.vn/packages/museum_1_v100.zip', 25489600, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', 2, 1, 1, 2, 'Available', GETUTCDATE());
+
+DECLARE @PackageId INT = 1;
+
+INSERT INTO PackageDownloads (PackageId, VisitorId, DeviceType) VALUES 
+(@PackageId, @VisitorId, 'iOS');
+
+-- 18. NHẬT KÝ HỆ THỐNG (AUDIT LOGS)
+INSERT INTO AuditLogs (UserId, Action, EntityType, EntityId, OldValues, NewValues, IpAddress, UserAgent) VALUES 
+(@UserId, 'CREATE', 'Exhibit', @ExhibitId1, NULL, '{"ExhibitCode":"EX-DSON-01","Status":"Published"}', '127.0.0.1', 'Mozilla/5.0 Windows');
+
+PRINT '==== SEED DATA CHO TOÀN BỘ CÁC BẢNG ĐÃ CHẠY HOÀN TẤT THÀNH CÔNG! ====';
