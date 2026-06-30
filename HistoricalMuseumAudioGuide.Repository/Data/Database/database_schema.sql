@@ -184,7 +184,7 @@ CREATE TABLE ExhibitionTranslations (
 
 CREATE TABLE Categories (
     Id              INT IDENTITY(1,1) PRIMARY KEY,
-    MuseumId        INT             NOT NULL,
+    MuseumId        INT             NULL, -- nullable, null means global/system category
     ParentId        INT             NULL,  -- self-referencing for sub-categories
     SortOrder       INT             NOT NULL DEFAULT 0,
     IconUrl         NVARCHAR(500)   NULL,
@@ -212,9 +212,11 @@ CREATE TABLE CategoryTranslations (
 
 CREATE TABLE Themes (
     Id              INT IDENTITY(1,1) PRIMARY KEY,
+    MuseumId        INT             NULL, -- nullable, null means global/system theme
     ThemeName       NVARCHAR(100)   NOT NULL,
     Description     NVARCHAR(255)   NULL,
-    CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE()
+    CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
+    CONSTRAINT FK_Themes_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id)
 );
 
 CREATE TABLE AgeGroups (
@@ -811,9 +813,16 @@ INSERT INTO CategoryTranslations (CategoryId, LanguageCode, CategoryName, Descri
 (@CategoryId, 'en', 'Bronze Age', 'Artifacts from the Phung Nguyen to Dong Son cultural periods');
 
 -- 8. DỮ LIỆU CÁ NHÂN HÓA (THEMES & AGE GROUPS)
-INSERT INTO Themes (ThemeName, Description) VALUES 
-(N'Nghệ thuật Quân sự', N'Khám phá vũ khí và chiến thuật lịch sử'),
-(N'Đời sống Tâm linh', N'Tìm hiểu tín ngưỡng, tôn giáo xưa cổ');
+INSERT INTO Themes (MuseumId, ThemeName, Description) VALUES 
+    (NULL, N'Nghệ thuật Quân sự', N'Khám phá vũ khí và chiến thuật lịch sử'),
+    (NULL, N'Đời sống Tâm linh', N'Tìm hiểu tín ngưỡng, tôn giáo xưa cổ'),
+    (NULL, N'Cổ vật & Bảo vật', N'Các di sản nghệ thuật, điêu khắc và cổ vật quý giá'),
+    (NULL, N'Khoa học & Đời sống', N'Sự phát triển công cụ lao động, nông nghiệp và đời sống thường nhật'),
+    (@MuseumId, N'Kháng chiến chống thực dân Pháp', N'Các tư liệu, hiện vật về thời kỳ kháng chiến chống Pháp (1858 - 1954)'),
+    (@MuseumId, N'Kháng chiến chống Mỹ cứu nước', N'Hồ sơ, hiện vật về cuộc đấu tranh giải phóng miền Nam, thống nhất đất nước'),
+    (@MuseumId, N'Văn hóa Đông Sơn', N'Kỹ nghệ đúc đồng và đời sống cư dân Việt cổ thời kỳ Hùng Vương'),
+    (@MuseumId, N'Triều đại Phong kiến Việt Nam', N'Lịch sử các triều đại Đinh, Lê, Lý, Trần, Hậu Lê, Nguyễn'),
+    (@MuseumId, N'Thời kỳ Tiền sử và Sơ sử', N'Dấu tích loài người và các nền văn hóa cổ xưa tại Việt Nam');
 
 INSERT INTO AgeGroups (GroupName, MinAge, MaxAge) VALUES 
 (N'Trẻ em', 6, 12),

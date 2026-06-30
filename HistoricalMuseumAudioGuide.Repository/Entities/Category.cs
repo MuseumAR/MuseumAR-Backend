@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace HistoricalMuseumAudioGuide.Repository.Entities;
@@ -7,7 +7,7 @@ public partial class Category
 {
     public int Id { get; set; }
 
-    public int MuseumId { get; set; }
+    public int? MuseumId { get; set; }
 
     public int? ParentId { get; set; }
 
@@ -27,7 +27,7 @@ public partial class Category
 
     public virtual ICollection<Category> InverseParent { get; set; } = new List<Category>();
 
-    public virtual Museum Museum { get; set; } = null!;
+    public virtual Museum? Museum { get; set; }
 
     public virtual Category? Parent { get; set; }
 }

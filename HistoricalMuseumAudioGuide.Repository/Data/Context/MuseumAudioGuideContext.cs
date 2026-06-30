@@ -686,6 +686,10 @@ public partial class MuseumAudioGuideContext : DbContext
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
             entity.Property(e => e.Description).HasMaxLength(255);
             entity.Property(e => e.ThemeName).HasMaxLength(100);
+
+            entity.HasOne(d => d.Museum).WithMany(p => p.Themes)
+                .HasForeignKey(d => d.MuseumId)
+                .HasConstraintName("FK_Themes_Museum");
         });
 
         modelBuilder.Entity<Ticket>(entity =>

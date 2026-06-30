@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace HistoricalMuseumAudioGuide.Repository.Entities;
@@ -12,6 +12,10 @@ public partial class Theme
     public string? Description { get; set; }
 
     public DateTime CreatedAt { get; set; }
+
+    public int? MuseumId { get; set; }
+
+    public virtual Museum? Museum { get; set; }
 
     public virtual ICollection<ExhibitMetadatum> ExhibitMetadata { get; set; } = new List<ExhibitMetadatum>();
 

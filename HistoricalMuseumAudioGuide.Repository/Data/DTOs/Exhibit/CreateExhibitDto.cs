@@ -12,6 +12,8 @@ namespace HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibit
         public string? ARMarkerUrl { get; set; }
         public string Status { get; set; } = "Draft";
         
+        public ExhibitMetadataDto? ExhibitMetadata { get; set; }
+        
         // Include initial translation (e.g., in default language)
         public ICollection<ExhibitTranslationDto> Translations { get; set; } = new List<ExhibitTranslationDto>();
     }

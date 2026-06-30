@@ -14,6 +14,8 @@ using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Category;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.ContentVersion;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Auth;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Analytics;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.AgeGroup;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Theme;
 
 namespace HistoricalMuseumAudioGuide.Repository.Mappings
 {
@@ -39,15 +41,27 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
             CreateMap<Museum, MuseumDto>().ReverseMap();
             CreateMap<CreateMuseumDto, Museum>();
             
-            CreateMap<Exhibit, ExhibitDto>().ReverseMap();
+            CreateMap<Exhibit, ExhibitDto>()
+                .ForMember(dest => dest.ExhibitMetadata, opt => opt.MapFrom(src => src.ExhibitMetadatum))
+                .ReverseMap();
             CreateMap<CreateExhibitDto, Exhibit>();
 
             // Exhibit Translation
             CreateMap<ExhibitTranslation, ExhibitTranslationDto>();
             CreateMap<ExhibitTranslationDto, ExhibitTranslation>();
 
+            // Exhibit Metadata
+            CreateMap<ExhibitMetadatum, ExhibitMetadataDto>().ReverseMap();
+
             // Category
-            CreateMap<Category, CategoryDto>();
+            CreateMap<Category, CategoryDto>().ReverseMap();
+            CreateMap<CreateCategoryDto, Category>();
+            CreateMap<CategoryTranslation, CategoryTranslationDto>().ReverseMap();
+
+            // AgeGroup & Theme
+            CreateMap<AgeGroup, AgeGroupDto>();
+            CreateMap<Theme, ThemeDto>().ReverseMap();
+            CreateMap<CreateThemeDto, Theme>();
 
             // Content Version
             CreateMap<ContentVersion, ContentVersionDto>();
@@ -75,8 +89,10 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
             CreateMap<CreateVisitedExhibitDto, VisitedExhibit>();
 
             // Maps & Routes
-            CreateMap<MuseumMap, MuseumMapDto>().ReverseMap();
-            CreateMap<CreateMuseumMapDto, MuseumMap>();
+            CreateMap<MuseumMap, MuseumMapDto>()
+                .ForMember(dest => dest.MapType, opt => opt.MapFrom(src => src.MapName ?? "floor"))
+                .ReverseMap()
+                .ForMember(dest => dest.MapName, opt => opt.MapFrom(src => src.MapType));
             CreateMap<TourRoute, TourRouteDto>().ReverseMap();
             CreateMap<CreateTourRouteDto, TourRoute>();
 
