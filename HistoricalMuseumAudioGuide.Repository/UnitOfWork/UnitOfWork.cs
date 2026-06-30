@@ -50,6 +50,9 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
             AnalyticsLogs = new GenericRepository<AnalyticsLog>(_context);
             AuditLogs = new GenericRepository<AuditLog>(_context);
             SystemConfigurations = new GenericRepository<SystemConfiguration>(_context);
+            Themes = new GenericRepository<Theme>(_context);
+            AgeGroups = new GenericRepository<AgeGroup>(_context);
+            ExhibitMetadata = new GenericRepository<ExhibitMetadatum>(_context);
         }
         public IAnalyticsRepository Analytics { get; private set; }
         public IMuseumRepository Museums { get; private set; }
@@ -74,6 +77,9 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         public IGenericRepository<AnalyticsLog> AnalyticsLogs { get; private set; }
         public IGenericRepository<AuditLog> AuditLogs { get; private set; }
         public IGenericRepository<SystemConfiguration> SystemConfigurations { get; private set; }
+        public IGenericRepository<Theme> Themes { get; private set; }
+        public IGenericRepository<AgeGroup> AgeGroups { get; private set; }
+        public IGenericRepository<ExhibitMetadatum> ExhibitMetadata { get; private set; }
 
         public async Task<int> CompleteAsync()
         {
