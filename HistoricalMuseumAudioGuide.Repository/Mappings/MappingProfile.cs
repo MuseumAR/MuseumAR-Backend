@@ -16,6 +16,7 @@ using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Auth;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Analytics;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.AgeGroup;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Theme;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Tag;
 
 namespace HistoricalMuseumAudioGuide.Repository.Mappings
 {
@@ -62,6 +63,12 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
             CreateMap<AgeGroup, AgeGroupDto>();
             CreateMap<Theme, ThemeDto>().ReverseMap();
             CreateMap<CreateThemeDto, Theme>();
+
+            // Tag & TagGroup
+            CreateMap<TagGroup, TagGroupDto>().ReverseMap();
+            CreateMap<CreateTagGroupDto, TagGroup>();
+            CreateMap<Tag, TagDto>().ReverseMap();
+            CreateMap<CreateTagDto, Tag>();
 
             // Content Version
             CreateMap<ContentVersion, ContentVersionDto>();

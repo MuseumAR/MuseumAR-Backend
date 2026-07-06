@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace HistoricalMuseumAudioGuide.Repository.Entities;
@@ -34,8 +34,6 @@ public partial class User
     public DateTime? ResetTokenExpiresAt { get; set; }
 
     public virtual ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
-
-    public virtual ICollection<ContentChangeLog> ContentChangeLogs { get; set; } = new List<ContentChangeLog>();
 
     public virtual ICollection<ContentVersion> ContentVersions { get; set; } = new List<ContentVersion>();
 

@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Category;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Theme;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Tag;
 
 namespace HistoricalMuseumAudioGuide.Service.Services.Content
 {
@@ -58,6 +59,20 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
         Task<ResponseModel> UpdateThemeAsync(int id, CreateThemeDto themeDto, int? userMuseumId);
         Task<ResponseModel> DeleteThemeAsync(int id, int? userMuseumId);
         Task<ResponseModel> GetAllAgeGroupsAsync();
+
+        // Tag Management
+        Task<ResponseModel> GetTagGroupsAsync();
+        Task<ResponseModel> CreateTagGroupAsync(CreateTagGroupDto tagGroupDto);
+        Task<ResponseModel> UpdateTagGroupAsync(int id, CreateTagGroupDto tagGroupDto);
+        Task<ResponseModel> DeleteTagGroupAsync(int id);
+        Task<ResponseModel> GetTagsByGroupAsync(int tagGroupId);
+        Task<ResponseModel> GetAllTagsAsync();
+        Task<ResponseModel> CreateTagAsync(CreateTagDto tagDto);
+        Task<ResponseModel> UpdateTagAsync(int id, CreateTagDto tagDto);
+        Task<ResponseModel> DeleteTagAsync(int id);
+        Task<ResponseModel> AssignTagsToExhibitAsync(int exhibitId, List<int> tagIds, int? userMuseumId);
+        Task<ResponseModel> RemoveTagFromExhibitAsync(int exhibitId, int tagId, int? userMuseumId);
+        Task<ResponseModel> GetExhibitTagsAsync(int exhibitId);
 
         // Content Version Management
         Task<ResponseModel> GetContentVersionsAsync(int museumId);

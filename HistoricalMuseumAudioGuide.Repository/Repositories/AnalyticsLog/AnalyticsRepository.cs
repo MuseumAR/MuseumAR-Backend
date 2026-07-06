@@ -1,4 +1,4 @@
-﻿using HistoricalMuseumAudioGuide.Repository.Data.Context;
+using HistoricalMuseumAudioGuide.Repository.Data.Context;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Analytics;
 using HistoricalMuseumAudioGuide.Repository.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -22,7 +22,7 @@ namespace HistoricalMuseumAudioGuide.Repository.Repositories.Analytics
                 .GroupBy(log => new
                 {
                     log.ExhibitId,
-                    ExhibitTitle = log.Exhibit.ExhibitTranslations.FirstOrDefault().Title
+                    ExhibitTitle = log.Exhibit != null ? log.Exhibit.ExhibitTranslations.FirstOrDefault()!.Title : null
                 })
 
                 .Select(g => new ExhibitScanStatDto
@@ -43,7 +43,7 @@ namespace HistoricalMuseumAudioGuide.Repository.Repositories.Analytics
                 .GroupBy(log => new
                 {
                     log.ExhibitId,
-                    ExhibitTitle = log.Exhibit.ExhibitTranslations.FirstOrDefault().Title
+                    ExhibitTitle = log.Exhibit != null ? log.Exhibit.ExhibitTranslations.FirstOrDefault()!.Title : null
                 })
                 .Select(g => new PopularExhibitDto
                 {

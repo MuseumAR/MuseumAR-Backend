@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace HistoricalMuseumAudioGuide.Repository.Entities;
@@ -28,8 +28,6 @@ public partial class Visitor
     public virtual ICollection<AnalyticsLog> AnalyticsLogs { get; set; } = new List<AnalyticsLog>();
 
     public virtual ICollection<Bookmark> Bookmarks { get; set; } = new List<Bookmark>();
-
-    public virtual ICollection<PackageDownload> PackageDownloads { get; set; } = new List<PackageDownload>();
 
     public virtual ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
 

@@ -49,11 +49,7 @@ public partial class Museum
 
     public virtual ICollection<Exhibit> Exhibits { get; set; } = new List<Exhibit>();
 
-    public virtual ICollection<MuseumLanguage> MuseumLanguages { get; set; } = new List<MuseumLanguage>();
-
     public virtual ICollection<MuseumMap> MuseumMaps { get; set; } = new List<MuseumMap>();
-
-    public virtual ICollection<MuseumTranslation> MuseumTranslations { get; set; } = new List<MuseumTranslation>();
 
     public virtual ICollection<OfflinePackage> OfflinePackages { get; set; } = new List<OfflinePackage>();
 

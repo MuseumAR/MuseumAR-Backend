@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace HistoricalMuseumAudioGuide.Repository.Entities;
@@ -28,8 +28,6 @@ public partial class Transaction
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
-
-    public virtual ICollection<PaymentLog> PaymentLogs { get; set; } = new List<PaymentLog>();
 
     public virtual PaymentMethod PaymentMethod { get; set; } = null!;
 

@@ -9,6 +9,7 @@ using HistoricalMuseumAudioGuide.Repository.Data.DTOs.MuseumMap;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.TourRoute;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.AgeGroup;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Theme;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Tag;
 using HistoricalMuseumAudioGuide.Repository.Entities;
 using HistoricalMuseumAudioGuide.Repository.UnitOfWork;
 using HistoricalMuseumAudioGuide.Service.Services.Media;
@@ -664,6 +665,150 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             var packages = await _unitOfWork.OfflinePackages.GetPackagesByMuseumIdAsync(museumId);
             var packageDtos = _mapper.Map<IEnumerable<OfflinePackageDto>>(packages);
             return ResponseModel.Success("Get offline packages successful", packageDtos);
+        }
+
+        // --- Tag Management ---
+
+        public async Task<ResponseModel> GetTagGroupsAsync()
+        {
+            var tagGroups = await _unitOfWork.TagGroups.GetAllAsync();
+            var dtos = _mapper.Map<IEnumerable<TagGroupDto>>(tagGroups);
+            return ResponseModel.Success("Get tag groups successful", dtos);
+        }
+
+        public async Task<ResponseModel> CreateTagGroupAsync(CreateTagGroupDto tagGroupDto)
+        {
+            var tagGroup = _mapper.Map<TagGroup>(tagGroupDto);
+            tagGroup.CreatedAt = DateTime.UtcNow;
+            await _unitOfWork.TagGroups.AddAsync(tagGroup);
+            await _unitOfWork.CompleteAsync();
+            var dto = _mapper.Map<TagGroupDto>(tagGroup);
+            return ResponseModel.Success("Tag group created successfully", dto);
+        }
+
+        public async Task<ResponseModel> UpdateTagGroupAsync(int id, CreateTagGroupDto tagGroupDto)
+        {
+            var tagGroup = await _unitOfWork.TagGroups.GetByIdAsync(id);
+            if (tagGroup == null) return ResponseModel.NotFound("Tag group not found");
+
+            _mapper.Map(tagGroupDto, tagGroup);
+            _unitOfWork.TagGroups.Update(tagGroup);
+            await _unitOfWork.CompleteAsync();
+            return ResponseModel.Success("Tag group updated successfully");
+        }
+
+        public async Task<ResponseModel> DeleteTagGroupAsync(int id)
+        {
+            var tagGroup = await _unitOfWork.TagGroups.GetByIdAsync(id);
+            if (tagGroup == null) return ResponseModel.NotFound("Tag group not found");
+
+            _unitOfWork.TagGroups.Delete(tagGroup);
+            await _unitOfWork.CompleteAsync();
+            return ResponseModel.Success("Tag group deleted successfully");
+        }
+
+        public async Task<ResponseModel> GetTagsByGroupAsync(int tagGroupId)
+        {
+            var tags = await _unitOfWork.Tags.FindAsync(t => t.TagGroupId == tagGroupId);
+            var dtos = _mapper.Map<IEnumerable<TagDto>>(tags);
+            return ResponseModel.Success("Get tags successful", dtos);
+        }
+
+        public async Task<ResponseModel> GetAllTagsAsync()
+        {
+            var tags = await _unitOfWork.Tags.GetAllAsync();
+            var dtos = _mapper.Map<IEnumerable<TagDto>>(tags);
+            return ResponseModel.Success("Get all tags successful", dtos);
+        }
+
+        public async Task<ResponseModel> CreateTagAsync(CreateTagDto tagDto)
+        {
+            var tagGroup = await _unitOfWork.TagGroups.GetByIdAsync(tagDto.TagGroupId);
+            if (tagGroup == null) return ResponseModel.BadRequest("Tag group not found");
+
+            var tag = _mapper.Map<Tag>(tagDto);
+            tag.CreatedAt = DateTime.UtcNow;
+            await _unitOfWork.Tags.AddAsync(tag);
+            await _unitOfWork.CompleteAsync();
+            var dto = _mapper.Map<TagDto>(tag);
+            return ResponseModel.Success("Tag created successfully", dto);
+        }
+
+        public async Task<ResponseModel> UpdateTagAsync(int id, CreateTagDto tagDto)
+        {
+            var tag = await _unitOfWork.Tags.GetByIdAsync(id);
+            if (tag == null) return ResponseModel.NotFound("Tag not found");
+
+            _mapper.Map(tagDto, tag);
+            _unitOfWork.Tags.Update(tag);
+            await _unitOfWork.CompleteAsync();
+            return ResponseModel.Success("Tag updated successfully");
+        }
+
+        public async Task<ResponseModel> DeleteTagAsync(int id)
+        {
+            var tag = await _unitOfWork.Tags.GetByIdAsync(id);
+            if (tag == null) return ResponseModel.NotFound("Tag not found");
+
+            _unitOfWork.Tags.Delete(tag);
+            await _unitOfWork.CompleteAsync();
+            return ResponseModel.Success("Tag deleted successfully");
+        }
+
+        public async Task<ResponseModel> AssignTagsToExhibitAsync(int exhibitId, List<int> tagIds, int? userMuseumId)
+        {
+            var exhibit = await _unitOfWork.Exhibits.GetFirstOrDefaultAsync(
+                e => e.Id == exhibitId,
+                includeProperties: "Tags"
+            );
+            if (exhibit == null) return ResponseModel.NotFound("Exhibit not found");
+
+            var accessCheck = ValidateMuseumAccess(userMuseumId, exhibit.MuseumId);
+            if (accessCheck != null) return accessCheck;
+
+            foreach (var tagId in tagIds)
+            {
+                if (exhibit.Tags.Any(t => t.Id == tagId)) continue;
+                var tag = await _unitOfWork.Tags.GetByIdAsync(tagId);
+                if (tag == null) continue;
+                exhibit.Tags.Add(tag);
+            }
+
+            _unitOfWork.Exhibits.Update(exhibit);
+            await _unitOfWork.CompleteAsync();
+            return ResponseModel.Success("Tags assigned to exhibit successfully");
+        }
+
+        public async Task<ResponseModel> RemoveTagFromExhibitAsync(int exhibitId, int tagId, int? userMuseumId)
+        {
+            var exhibit = await _unitOfWork.Exhibits.GetFirstOrDefaultAsync(
+                e => e.Id == exhibitId,
+                includeProperties: "Tags"
+            );
+            if (exhibit == null) return ResponseModel.NotFound("Exhibit not found");
+
+            var accessCheck = ValidateMuseumAccess(userMuseumId, exhibit.MuseumId);
+            if (accessCheck != null) return accessCheck;
+
+            var tagToRemove = exhibit.Tags.FirstOrDefault(t => t.Id == tagId);
+            if (tagToRemove == null) return ResponseModel.NotFound("Tag not found on this exhibit");
+
+            exhibit.Tags.Remove(tagToRemove);
+            _unitOfWork.Exhibits.Update(exhibit);
+            await _unitOfWork.CompleteAsync();
+            return ResponseModel.Success("Tag removed from exhibit successfully");
+        }
+
+        public async Task<ResponseModel> GetExhibitTagsAsync(int exhibitId)
+        {
+            var exhibit = await _unitOfWork.Exhibits.GetFirstOrDefaultAsync(
+                e => e.Id == exhibitId,
+                includeProperties: "Tags"
+            );
+            if (exhibit == null) return ResponseModel.NotFound("Exhibit not found");
+
+            var dtos = _mapper.Map<IEnumerable<TagDto>>(exhibit.Tags);
+            return ResponseModel.Success("Get exhibit tags successful", dtos);
         }
     }
 }

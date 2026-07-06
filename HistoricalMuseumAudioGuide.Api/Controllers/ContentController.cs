@@ -7,6 +7,7 @@ using HistoricalMuseumAudioGuide.Repository.Data.DTOs.MuseumMap;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.TourRoute;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Category;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Theme;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Tag;
 using HistoricalMuseumAudioGuide.Service.Services;
 using HistoricalMuseumAudioGuide.Service.Services.Content;
 using System.Threading.Tasks;
@@ -332,6 +333,102 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         public async Task<IActionResult> GetAgeGroups()
         {
             var response = await _contentService.GetAllAgeGroupsAsync();
+            return ResponseParser.Result(response);
+        }
+
+        // --- Tag Management ---
+
+        [HttpGet("tag-groups")]
+        public async Task<IActionResult> GetTagGroups()
+        {
+            var response = await _contentService.GetTagGroupsAsync();
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "SystemAdmin")]
+        [HttpPost("tag-groups")]
+        public async Task<IActionResult> CreateTagGroup([FromBody] CreateTagGroupDto tagGroupDto)
+        {
+            var response = await _contentService.CreateTagGroupAsync(tagGroupDto);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "SystemAdmin")]
+        [HttpPut("tag-groups/{id}")]
+        public async Task<IActionResult> UpdateTagGroup(int id, [FromBody] CreateTagGroupDto tagGroupDto)
+        {
+            var response = await _contentService.UpdateTagGroupAsync(id, tagGroupDto);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "SystemAdmin")]
+        [HttpDelete("tag-groups/{id}")]
+        public async Task<IActionResult> DeleteTagGroup(int id)
+        {
+            var response = await _contentService.DeleteTagGroupAsync(id);
+            return ResponseParser.Result(response);
+        }
+
+        [HttpGet("tags")]
+        public async Task<IActionResult> GetAllTags()
+        {
+            var response = await _contentService.GetAllTagsAsync();
+            return ResponseParser.Result(response);
+        }
+
+        [HttpGet("tag-groups/{tagGroupId}/tags")]
+        public async Task<IActionResult> GetTagsByGroup(int tagGroupId)
+        {
+            var response = await _contentService.GetTagsByGroupAsync(tagGroupId);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "SystemAdmin")]
+        [HttpPost("tags")]
+        public async Task<IActionResult> CreateTag([FromBody] CreateTagDto tagDto)
+        {
+            var response = await _contentService.CreateTagAsync(tagDto);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "SystemAdmin")]
+        [HttpPut("tags/{id}")]
+        public async Task<IActionResult> UpdateTag(int id, [FromBody] CreateTagDto tagDto)
+        {
+            var response = await _contentService.UpdateTagAsync(id, tagDto);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "SystemAdmin")]
+        [HttpDelete("tags/{id}")]
+        public async Task<IActionResult> DeleteTag(int id)
+        {
+            var response = await _contentService.DeleteTagAsync(id);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "ContentManager,SystemAdmin")]
+        [HttpPost("exhibits/{exhibitId}/tags")]
+        public async Task<IActionResult> AssignTagsToExhibit(int exhibitId, [FromBody] List<int> tagIds)
+        {
+            var userMuseumId = GetCurrentUserMuseumId();
+            var response = await _contentService.AssignTagsToExhibitAsync(exhibitId, tagIds, userMuseumId);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "ContentManager,SystemAdmin")]
+        [HttpDelete("exhibits/{exhibitId}/tags/{tagId}")]
+        public async Task<IActionResult> RemoveTagFromExhibit(int exhibitId, int tagId)
+        {
+            var userMuseumId = GetCurrentUserMuseumId();
+            var response = await _contentService.RemoveTagFromExhibitAsync(exhibitId, tagId, userMuseumId);
+            return ResponseParser.Result(response);
+        }
+
+        [HttpGet("exhibits/{exhibitId}/tags")]
+        public async Task<IActionResult> GetExhibitTags(int exhibitId)
+        {
+            var response = await _contentService.GetExhibitTagsAsync(exhibitId);
             return ResponseParser.Result(response);
         }
     }

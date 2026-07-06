@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace HistoricalMuseumAudioGuide.Repository.Entities;
@@ -26,8 +26,6 @@ public partial class ContentVersion
     public DateTime? PublishedAt { get; set; }
 
     public DateTime CreatedAt { get; set; }
-
-    public virtual ICollection<ContentChangeLog> ContentChangeLogs { get; set; } = new List<ContentChangeLog>();
 
     public virtual Museum Museum { get; set; } = null!;
 

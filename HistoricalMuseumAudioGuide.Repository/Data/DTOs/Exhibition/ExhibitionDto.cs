@@ -6,6 +6,7 @@ namespace HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibition
     {
         public int Id { get; set; }
         public int MuseumId { get; set; }
+        public int? ThemeId { get; set; }
         public string? ThumbnailUrl { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
