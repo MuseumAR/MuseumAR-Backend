@@ -17,7 +17,5 @@ public partial class Theme
 
     public virtual Museum? Museum { get; set; }
 
-    public virtual ICollection<ExhibitMetadatum> ExhibitMetadata { get; set; } = new List<ExhibitMetadatum>();
-
-    public virtual ICollection<TourRoute> TourRoutes { get; set; } = new List<TourRoute>();
+    public virtual ICollection<Exhibition> Exhibitions { get; set; } = new List<Exhibition>();
 }

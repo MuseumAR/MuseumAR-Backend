@@ -48,6 +48,8 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         IGenericRepository<Theme> Themes { get; }
         IGenericRepository<AgeGroup> AgeGroups { get; }
         IGenericRepository<ExhibitMetadatum> ExhibitMetadata { get; }
+        IGenericRepository<TagGroup> TagGroups { get; }
+        IGenericRepository<Tag> Tags { get; }
         
         Task<int> CompleteAsync();
     }

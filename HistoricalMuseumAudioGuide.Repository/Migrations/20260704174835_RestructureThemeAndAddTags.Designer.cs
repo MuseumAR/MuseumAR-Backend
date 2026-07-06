@@ -4,6 +4,7 @@ using HistoricalMuseumAudioGuide.Repository.Data.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HistoricalMuseumAudioGuide.Repository.Migrations
 {
     [DbContext(typeof(MuseumAudioGuideContext))]
-    partial class MuseumAudioGuideContextModelSnapshot : ModelSnapshot
+    [Migration("20260704174835_RestructureThemeAndAddTags")]
+    partial class RestructureThemeAndAddTags
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -320,6 +323,54 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                         .IsUnique();
 
                     b.ToTable("CategoryTranslations");
+                });
+
+            modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.ContentChangeLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ChangeType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("ChangedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("(getutcdate())");
+
+                    b.Property<int?>("ChangedBy")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int?>("ExhibitId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("VersionId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id")
+                        .HasName("PK__ContentC__3214EC07D7F809D8");
+
+                    b.HasIndex("ChangedBy");
+
+                    b.HasIndex("ExhibitId");
+
+                    b.HasIndex("VersionId");
+
+                    b.ToTable("ContentChangeLogs");
                 });
 
             modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.ContentVersion", b =>
@@ -880,6 +931,24 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                     b.ToTable("Museums");
                 });
 
+            modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.MuseumLanguage", b =>
+                {
+                    b.Property<int>("MuseumId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LanguageId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("bit");
+
+                    b.HasKey("MuseumId", "LanguageId");
+
+                    b.HasIndex("LanguageId");
+
+                    b.ToTable("MuseumLanguages");
+                });
+
             modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.MuseumMap", b =>
                 {
                     b.Property<int>("Id")
@@ -930,6 +999,44 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                     b.HasIndex("MuseumId");
 
                     b.ToTable("MuseumMaps");
+                });
+
+            modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.MuseumTranslation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("LanguageCode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<int>("MuseumId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("OpeningHours")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Id")
+                        .HasName("PK__MuseumTr__3214EC077CD8E139");
+
+                    b.HasIndex(new[] { "MuseumId", "LanguageCode" }, "UQ_MuseumTrans")
+                        .IsUnique();
+
+                    b.ToTable("MuseumTranslations");
                 });
 
             modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.OfflinePackage", b =>
@@ -994,6 +1101,70 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                     b.HasIndex("VersionId");
 
                     b.ToTable("OfflinePackages");
+                });
+
+            modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.PackageDownload", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("DeviceType")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("DownloadedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("(getutcdate())");
+
+                    b.Property<int>("PackageId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("VisitorId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id")
+                        .HasName("PK__PackageD__3214EC0771127F31");
+
+                    b.HasIndex("PackageId");
+
+                    b.HasIndex("VisitorId");
+
+                    b.ToTable("PackageDownloads");
+                });
+
+            modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.PaymentLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("(getutcdate())");
+
+                    b.Property<string>("LogMessage")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("RawResponse")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("TransactionId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id")
+                        .HasName("PK__PaymentL__3214EC07BB4B7413");
+
+                    b.HasIndex("TransactionId");
+
+                    b.ToTable("PaymentLogs");
                 });
 
             modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.PaymentMethod", b =>
@@ -1887,6 +2058,31 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                     b.Navigation("Category");
                 });
 
+            modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.ContentChangeLog", b =>
+                {
+                    b.HasOne("HistoricalMuseumAudioGuide.Repository.Entities.User", "ChangedByNavigation")
+                        .WithMany("ContentChangeLogs")
+                        .HasForeignKey("ChangedBy")
+                        .HasConstraintName("FK_ChangeLog_User");
+
+                    b.HasOne("HistoricalMuseumAudioGuide.Repository.Entities.Exhibit", "Exhibit")
+                        .WithMany("ContentChangeLogs")
+                        .HasForeignKey("ExhibitId")
+                        .HasConstraintName("FK_ChangeLog_Exhibit");
+
+                    b.HasOne("HistoricalMuseumAudioGuide.Repository.Entities.ContentVersion", "Version")
+                        .WithMany("ContentChangeLogs")
+                        .HasForeignKey("VersionId")
+                        .IsRequired()
+                        .HasConstraintName("FK_ChangeLog_Version");
+
+                    b.Navigation("ChangedByNavigation");
+
+                    b.Navigation("Exhibit");
+
+                    b.Navigation("Version");
+                });
+
             modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.ContentVersion", b =>
                 {
                     b.HasOne("HistoricalMuseumAudioGuide.Repository.Entities.Museum", "Museum")
@@ -2041,6 +2237,25 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                     b.Navigation("Map");
                 });
 
+            modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.MuseumLanguage", b =>
+                {
+                    b.HasOne("HistoricalMuseumAudioGuide.Repository.Entities.Language", "Language")
+                        .WithMany("MuseumLanguages")
+                        .HasForeignKey("LanguageId")
+                        .IsRequired()
+                        .HasConstraintName("FK_MuseumLang_Language");
+
+                    b.HasOne("HistoricalMuseumAudioGuide.Repository.Entities.Museum", "Museum")
+                        .WithMany("MuseumLanguages")
+                        .HasForeignKey("MuseumId")
+                        .IsRequired()
+                        .HasConstraintName("FK_MuseumLang_Museum");
+
+                    b.Navigation("Language");
+
+                    b.Navigation("Museum");
+                });
+
             modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.MuseumMap", b =>
                 {
                     b.HasOne("HistoricalMuseumAudioGuide.Repository.Entities.Museum", "Museum")
@@ -2049,6 +2264,18 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("FK_MuseumMaps_Museum");
+
+                    b.Navigation("Museum");
+                });
+
+            modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.MuseumTranslation", b =>
+                {
+                    b.HasOne("HistoricalMuseumAudioGuide.Repository.Entities.Museum", "Museum")
+                        .WithMany("MuseumTranslations")
+                        .HasForeignKey("MuseumId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_MuseumTrans_Museum");
 
                     b.Navigation("Museum");
                 });
@@ -2070,6 +2297,35 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                     b.Navigation("Museum");
 
                     b.Navigation("Version");
+                });
+
+            modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.PackageDownload", b =>
+                {
+                    b.HasOne("HistoricalMuseumAudioGuide.Repository.Entities.OfflinePackage", "Package")
+                        .WithMany("PackageDownloads")
+                        .HasForeignKey("PackageId")
+                        .IsRequired()
+                        .HasConstraintName("FK_PkgDownloads_Package");
+
+                    b.HasOne("HistoricalMuseumAudioGuide.Repository.Entities.Visitor", "Visitor")
+                        .WithMany("PackageDownloads")
+                        .HasForeignKey("VisitorId")
+                        .HasConstraintName("FK_PkgDownloads_Visitor");
+
+                    b.Navigation("Package");
+
+                    b.Navigation("Visitor");
+                });
+
+            modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.PaymentLog", b =>
+                {
+                    b.HasOne("HistoricalMuseumAudioGuide.Repository.Entities.Transaction", "Transaction")
+                        .WithMany("PaymentLogs")
+                        .HasForeignKey("TransactionId")
+                        .IsRequired()
+                        .HasConstraintName("FK_PaymentLogs_Transaction");
+
+                    b.Navigation("Transaction");
                 });
 
             modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.RefreshToken", b =>
@@ -2307,6 +2563,8 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
 
             modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.ContentVersion", b =>
                 {
+                    b.Navigation("ContentChangeLogs");
+
                     b.Navigation("OfflinePackages");
                 });
 
@@ -2315,6 +2573,8 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                     b.Navigation("AnalyticsLogs");
 
                     b.Navigation("Bookmarks");
+
+                    b.Navigation("ContentChangeLogs");
 
                     b.Navigation("ExhibitArassets");
 
@@ -2336,6 +2596,11 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                     b.Navigation("TicketTypes");
                 });
 
+            modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.Language", b =>
+                {
+                    b.Navigation("MuseumLanguages");
+                });
+
             modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.Museum", b =>
                 {
                     b.Navigation("AnalyticsLogs");
@@ -2348,7 +2613,11 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
 
                     b.Navigation("Exhibits");
 
+                    b.Navigation("MuseumLanguages");
+
                     b.Navigation("MuseumMaps");
+
+                    b.Navigation("MuseumTranslations");
 
                     b.Navigation("OfflinePackages");
 
@@ -2368,6 +2637,11 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                     b.Navigation("Exhibits");
 
                     b.Navigation("MapPois");
+                });
+
+            modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.OfflinePackage", b =>
+                {
+                    b.Navigation("PackageDownloads");
                 });
 
             modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.PaymentMethod", b =>
@@ -2404,12 +2678,16 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
 
             modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.Transaction", b =>
                 {
+                    b.Navigation("PaymentLogs");
+
                     b.Navigation("Tickets");
                 });
 
             modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.User", b =>
                 {
                     b.Navigation("AuditLogs");
+
+                    b.Navigation("ContentChangeLogs");
 
                     b.Navigation("ContentVersions");
 
@@ -2427,6 +2705,8 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                     b.Navigation("AnalyticsLogs");
 
                     b.Navigation("Bookmarks");
+
+                    b.Navigation("PackageDownloads");
 
                     b.Navigation("Tickets");
 

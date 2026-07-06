@@ -101,27 +101,7 @@ CREATE TABLE Museums (
 ALTER TABLE Users
 ADD CONSTRAINT FK_Users_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id);
 
--- Museum-Language support (which languages each museum supports)
-CREATE TABLE MuseumLanguages (
-    MuseumId        INT NOT NULL,
-    LanguageId      INT NOT NULL,
-    IsDefault       BIT NOT NULL DEFAULT 0,
-    CONSTRAINT PK_MuseumLanguages PRIMARY KEY (MuseumId, LanguageId),
-    CONSTRAINT FK_MuseumLang_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id),
-    CONSTRAINT FK_MuseumLang_Language FOREIGN KEY (LanguageId) REFERENCES Languages(Id)
-);
 
--- Museum translations (multilingual museum info)
-CREATE TABLE MuseumTranslations (
-    Id              INT IDENTITY(1,1) PRIMARY KEY,
-    MuseumId        INT             NOT NULL,
-    LanguageCode    VARCHAR(10)     NOT NULL,
-    Name            NVARCHAR(200)   NOT NULL,
-    Description     NVARCHAR(MAX)   NULL,
-    OpeningHours    NVARCHAR(500)   NULL,
-    CONSTRAINT FK_MuseumTrans_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id) ON DELETE CASCADE,
-    CONSTRAINT UQ_MuseumTrans UNIQUE (MuseumId, LanguageCode)
-);
 
 -- ============================================================
 -- 4.1. MUSEUM MAPS & POIs (2D Map support)
@@ -158,6 +138,7 @@ CREATE TABLE MapPOIs (
 CREATE TABLE Exhibitions (
     Id              INT IDENTITY(1,1) PRIMARY KEY,
     MuseumId        INT             NOT NULL,
+    ThemeId         INT             NULL,  -- FK to Themes: categorizes exhibition by reusable theme
     ThumbnailUrl    NVARCHAR(500)   NULL,
     StartDate       DATETIME2       NULL,
     EndDate         DATETIME2       NULL,
@@ -165,7 +146,8 @@ CREATE TABLE Exhibitions (
                     CHECK (Status IN ('Active', 'Inactive', 'Ended')),
     CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
     UpdatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
-    CONSTRAINT FK_Exhibitions_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id)
+    CONSTRAINT FK_Exhibitions_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id),
+    CONSTRAINT FK_Exhibitions_Theme FOREIGN KEY (ThemeId) REFERENCES Themes(Id)
 );
 
 CREATE TABLE ExhibitionTranslations (
@@ -207,7 +189,7 @@ CREATE TABLE CategoryTranslations (
 );
 
 -- ============================================================
--- 5.1. PERSONALIZATION METADATA (Themes, Age Groups)
+-- 5.1. PERSONALIZATION METADATA (Themes as Exhibition categories, Age Groups)
 -- ============================================================
 
 CREATE TABLE Themes (
@@ -259,16 +241,14 @@ CREATE TABLE Exhibits (
     CONSTRAINT FK_Exhibits_UpdatedBy FOREIGN KEY (UpdatedBy) REFERENCES Users(Id)
 );
 
--- Link Exhibits to Metadata
+-- Link Exhibits to Metadata (ThemeId removed — Theme now links to Exhibition, not Exhibit)
 CREATE TABLE ExhibitMetadata (
     ExhibitId       INT NOT NULL,
-    ThemeId         INT NULL,
     AgeGroupId      INT NULL,
     Era             NVARCHAR(100)   NULL, -- e.g., 'Lý', 'Trần', 'Lê'
     HistoricalEvent NVARCHAR(200)   NULL, -- e.g., 'Chiến dịch Điện Biên Phủ'
     CONSTRAINT PK_ExhibitMetadata PRIMARY KEY (ExhibitId),
     CONSTRAINT FK_ExhibMeta_Exhib FOREIGN KEY (ExhibitId) REFERENCES Exhibits(Id) ON DELETE CASCADE,
-    CONSTRAINT FK_ExhibMeta_Theme FOREIGN KEY (ThemeId) REFERENCES Themes(Id),
     CONSTRAINT FK_ExhibMeta_Age FOREIGN KEY (AgeGroupId) REFERENCES AgeGroups(Id)
 );
 
@@ -332,7 +312,36 @@ CREATE TABLE ExhibitARAssets (
 );
 
 -- ============================================================
+-- 9.1. TAGS & TAG GROUPS (Faceted search/filter for exhibits)
+-- ============================================================
+
+CREATE TABLE TagGroups (
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    GroupName       NVARCHAR(100)   NOT NULL,  -- e.g., 'Thời kỳ', 'Chất liệu', 'Chủ đề'
+    SortOrder       INT             NOT NULL DEFAULT 0,
+    CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE()
+);
+
+CREATE TABLE Tags (
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    TagGroupId      INT             NOT NULL,
+    TagName         NVARCHAR(100)   NOT NULL,  -- e.g., 'Thời Trần', 'Gốm', 'Chiến tranh'
+    SortOrder       INT             NOT NULL DEFAULT 0,
+    CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
+    CONSTRAINT FK_Tags_TagGroup FOREIGN KEY (TagGroupId) REFERENCES TagGroups(Id) ON DELETE CASCADE
+);
+
+CREATE TABLE ExhibitTags (
+    ExhibitId       INT NOT NULL,
+    TagId           INT NOT NULL,
+    CONSTRAINT PK_ExhibitTags PRIMARY KEY (ExhibitId, TagId),
+    CONSTRAINT FK_ExhibitTags_Exhibit FOREIGN KEY (ExhibitId) REFERENCES Exhibits(Id) ON DELETE CASCADE,
+    CONSTRAINT FK_ExhibitTags_Tag FOREIGN KEY (TagId) REFERENCES Tags(Id) ON DELETE CASCADE
+);
+
+-- ============================================================
 -- 10. TOUR ROUTES (Suggested tour routes)
+-- ThemeId removed — personalization via Tags instead
 -- ============================================================
 
 CREATE TABLE TourRoutes (
@@ -341,15 +350,13 @@ CREATE TABLE TourRoutes (
     EstimatedMinutes INT            NULL,
     ThumbnailUrl    NVARCHAR(500)   NULL,
     AgeGroupId      INT             NULL,  -- Personalization
-    ThemeId         INT             NULL,  -- Personalization
     IsDefault       BIT             NOT NULL DEFAULT 0,
     Status          NVARCHAR(20)    NOT NULL DEFAULT 'Active'
                     CHECK (Status IN ('Active', 'Inactive')),
     CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
     UpdatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
     CONSTRAINT FK_TourRoutes_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id),
-    CONSTRAINT FK_TourRoutes_AgeGroup FOREIGN KEY (AgeGroupId) REFERENCES AgeGroups(Id),
-    CONSTRAINT FK_TourRoutes_Theme FOREIGN KEY (ThemeId) REFERENCES Themes(Id)
+    CONSTRAINT FK_TourRoutes_AgeGroup FOREIGN KEY (AgeGroupId) REFERENCES AgeGroups(Id)
 );
 
 CREATE TABLE TourRouteTranslations (
@@ -458,14 +465,7 @@ CREATE TABLE Tickets (
     CONSTRAINT FK_Tickets_Transaction FOREIGN KEY (TransactionId) REFERENCES Transactions(Id)
 );
 
-CREATE TABLE PaymentLogs (
-    Id              INT IDENTITY(1,1) PRIMARY KEY,
-    TransactionId   INT             NOT NULL,
-    RawResponse     NVARCHAR(MAX)   NULL, -- JSON response from gateway
-    LogMessage      NVARCHAR(500)   NULL,
-    CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
-    CONSTRAINT FK_PaymentLogs_Transaction FOREIGN KEY (TransactionId) REFERENCES Transactions(Id)
-);
+
 
 -- ============================================================
 -- 14. BOOKMARKS
@@ -556,24 +556,7 @@ CREATE TABLE ContentVersions (
     CONSTRAINT UQ_ContentVersion UNIQUE (MuseumId, VersionNumber)
 );
 
--- ============================================================
--- 18. CONTENT CHANGE LOG (track individual content changes)
--- ============================================================
 
-CREATE TABLE ContentChangeLogs (
-    Id              INT IDENTITY(1,1) PRIMARY KEY,
-    VersionId       INT             NOT NULL,
-    ExhibitId       INT             NULL,
-    ChangeType      NVARCHAR(20)    NOT NULL
-                    CHECK (ChangeType IN ('Added', 'Updated', 'Deleted')),
-    EntityType      NVARCHAR(50)    NOT NULL,  -- 'Exhibit', 'Audio', 'Image', 'ARAsset'
-    Description     NVARCHAR(500)   NULL,
-    ChangedBy       INT             NULL,
-    ChangedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
-    CONSTRAINT FK_ChangeLog_Version FOREIGN KEY (VersionId) REFERENCES ContentVersions(Id),
-    CONSTRAINT FK_ChangeLog_Exhibit FOREIGN KEY (ExhibitId) REFERENCES Exhibits(Id),
-    CONSTRAINT FK_ChangeLog_User FOREIGN KEY (ChangedBy) REFERENCES Users(Id)
-);
 
 -- ============================================================
 -- 19. OFFLINE PACKAGES
@@ -598,19 +581,7 @@ CREATE TABLE OfflinePackages (
     CONSTRAINT FK_OfflinePackages_Version FOREIGN KEY (VersionId) REFERENCES ContentVersions(Id)
 );
 
--- ============================================================
--- 20. PACKAGE DOWNLOADS (track offline package downloads)
--- ============================================================
 
-CREATE TABLE PackageDownloads (
-    Id              INT IDENTITY(1,1) PRIMARY KEY,
-    PackageId       INT             NOT NULL,
-    VisitorId       INT             NULL,
-    DeviceType      NVARCHAR(50)    NULL,
-    DownloadedAt    DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
-    CONSTRAINT FK_PkgDownloads_Package FOREIGN KEY (PackageId) REFERENCES OfflinePackages(Id),
-    CONSTRAINT FK_PkgDownloads_Visitor FOREIGN KEY (VisitorId) REFERENCES Visitors(Id)
-);
 
 -- ============================================================
 -- 21. SYSTEM CONFIGURATIONS
@@ -761,15 +732,7 @@ VALUES
 -- Lấy ra Id của Bảo tàng vừa tạo (Giả định Id = 1)
 DECLARE @MuseumId INT = 1;
 
--- 2. CẤU HÌNH NGÔN NGỮ HỖ TRỢ CHO BẢO TÀNG (MUSEUM LANGUAGES)
--- Kết nối Bảo tàng 1 với Tiếng Việt (Id=1 là tiếng Việt, mặc định) và Tiếng Anh (Id=2)
-INSERT INTO MuseumLanguages (MuseumId, LanguageId, IsDefault) VALUES 
-(@MuseumId, 1, 1),
-(@MuseumId, 2, 0);
 
--- 3. BẢN DỊCH ĐA NGÔN NGỮ CHO BẢO TÀNG (MUSEUM TRANSLATIONS)
-INSERT INTO MuseumTranslations (MuseumId, LanguageCode, Name, Description, OpeningHours) VALUES 
-(@MuseumId, 'en', 'National Museum of History', 'The place preserving Vietnamese historical artifacts through various eras.', '08:00 - 17:00 (Tue - Sun)');
 
 -- 4. TÀI KHOẢN MANAGER VÀ CONTENT CHO BẢO TÀNG (USERS)
 -- TẤT CẢ PASSWORD ĐỀU LÀ 123456
@@ -898,9 +861,7 @@ DECLARE @TransactionId INT = 1;
 INSERT INTO Tickets (VisitorId, TicketTypeId, TransactionId, TicketCode, ValidDate, Status) VALUES 
 (@VisitorId, @TicketTypeId, @TransactionId, 'QR_TICKET_M1_778899', GETUTCDATE(), 'Paid');
 
--- Ghi Log raw response từ VNPay
-INSERT INTO PaymentLogs (TransactionId, RawResponse, LogMessage) VALUES 
-(@TransactionId, '{"vnp_ResponseCode":"00","vnp_Amount":"4000000","vnp_TxnRef":"ORDER_20260623_001"}', N'Giao dịch thành công qua cổng VNPAY');
+
 
 -- 15. TƯƠNG TÁC CỦA KHÁCH (BOOKMARKS, VISITED)
 INSERT INTO Bookmarks (VisitorId, ExhibitId) VALUES (@VisitorId, @ExhibitId1);
@@ -928,10 +889,7 @@ INSERT INTO OfflinePackages (MuseumId, VersionId, PackageUrl, PackageSizeBytes, 
 VALUES 
 (@MuseumId, @VersionId, 'https://api.museumar.vn/packages/museum_1_v100.zip', 25489600, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', 2, 1, 1, 2, 'Available', GETUTCDATE());
 
-DECLARE @PackageId INT = 1;
 
-INSERT INTO PackageDownloads (PackageId, VisitorId, DeviceType) VALUES 
-(@PackageId, @VisitorId, 'iOS');
 
 -- 18. NHẬT KÝ HỆ THỐNG (AUDIT LOGS)
 INSERT INTO AuditLogs (UserId, Action, EntityType, EntityId, OldValues, NewValues, IpAddress, UserAgent) VALUES 

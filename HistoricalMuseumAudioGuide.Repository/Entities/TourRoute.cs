@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace HistoricalMuseumAudioGuide.Repository.Entities;
@@ -15,8 +15,6 @@ public partial class TourRoute
 
     public int? AgeGroupId { get; set; }
 
-    public int? ThemeId { get; set; }
-
     public bool IsDefault { get; set; }
 
     public string Status { get; set; } = null!;
@@ -28,8 +26,6 @@ public partial class TourRoute
     public virtual AgeGroup? AgeGroup { get; set; }
 
     public virtual Museum Museum { get; set; } = null!;
-
-    public virtual Theme? Theme { get; set; }
 
     public virtual ICollection<TourRouteExhibit> TourRouteExhibits { get; set; } = new List<TourRouteExhibit>();
 

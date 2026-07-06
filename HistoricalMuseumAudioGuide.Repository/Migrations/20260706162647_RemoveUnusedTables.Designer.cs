@@ -4,6 +4,7 @@ using HistoricalMuseumAudioGuide.Repository.Data.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HistoricalMuseumAudioGuide.Repository.Migrations
 {
     [DbContext(typeof(MuseumAudioGuideContext))]
-    partial class MuseumAudioGuideContextModelSnapshot : ModelSnapshot
+    [Migration("20260706162647_RemoveUnusedTables")]
+    partial class RemoveUnusedTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

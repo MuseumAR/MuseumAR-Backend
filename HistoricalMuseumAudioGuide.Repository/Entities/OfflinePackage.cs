@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace HistoricalMuseumAudioGuide.Repository.Entities;
@@ -32,8 +32,6 @@ public partial class OfflinePackage
     public DateTime CreatedAt { get; set; }
 
     public virtual Museum Museum { get; set; } = null!;
-
-    public virtual ICollection<PackageDownload> PackageDownloads { get; set; } = new List<PackageDownload>();
 
     public virtual ContentVersion Version { get; set; } = null!;
 }
