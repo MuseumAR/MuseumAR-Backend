@@ -55,6 +55,7 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
             ExhibitMetadata = new GenericRepository<ExhibitMetadatum>(_context);
             TagGroups = new GenericRepository<TagGroup>(_context);
             Tags = new GenericRepository<Tag>(_context);
+            RefreshTokens = new GenericRepository<RefreshToken>(_context);
         }
         public IAnalyticsRepository Analytics { get; private set; }
         public IMuseumRepository Museums { get; private set; }
@@ -84,12 +85,13 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         public IGenericRepository<ExhibitMetadatum> ExhibitMetadata { get; private set; }
         public IGenericRepository<TagGroup> TagGroups { get; private set; }
         public IGenericRepository<Tag> Tags { get; private set; }
-
+        public IGenericRepository<RefreshToken> RefreshTokens { get; private set; }
+ 
         public async Task<int> CompleteAsync()
         {
             return await _context.SaveChangesAsync();
         }
-
+ 
         public void Dispose()
         {
             _context.Dispose();

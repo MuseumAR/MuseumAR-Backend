@@ -1,6 +1,7 @@
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Museum;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Ticketing;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.SystemConfig;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.User;
 using HistoricalMuseumAudioGuide.Service.Services;
 using HistoricalMuseumAudioGuide.Service.Services.Admin;
 using HistoricalMuseumAudioGuide.Service.Services.SystemConfig;
@@ -25,17 +26,18 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             _configService = configService;
         }
 
-        [HttpGet("museums")]
-        public async Task<IActionResult> GetMuseums()
+        [HttpGet("museum-profile")]
+        public async Task<IActionResult> GetMuseumProfile()
         {
-            var response = await _adminService.GetAllMuseumsAsync();
+            var response = await _adminService.GetMuseumProfileAsync();
             return ResponseParser.Result(response);
         }
 
-        [HttpPost("museums")]
-        public async Task<IActionResult> CreateMuseum(CreateMuseumDto createMuseumDto)
+        [Authorize(Roles = "SystemAdmin,MuseumManager")]
+        [HttpPut("museum-profile")]
+        public async Task<IActionResult> UpdateMuseumProfile(UpdateMuseumProfileDto dto)
         {
-            var response = await _adminService.CreateMuseumAsync(createMuseumDto);
+            var response = await _adminService.UpdateMuseumProfileAsync(dto);
             return ResponseParser.Result(response);
         }
 
@@ -74,6 +76,64 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             }
 
             var response = await _configService.UpdateConfigAsync(key, dto, userId);
+            return ResponseParser.Result(response);
+        }
+
+        // --- User Management (SystemAdmin only) ---
+
+        [Authorize(Roles = "SystemAdmin")]
+        [HttpGet("users")]
+        public async Task<IActionResult> GetAllUsers([FromQuery] string? role, [FromQuery] string? status, [FromQuery] string? search)
+        {
+            var response = await _adminService.GetAllUsersAsync(role, status, search);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "SystemAdmin")]
+        [HttpGet("users/{id}")]
+        public async Task<IActionResult> GetUserById(int id)
+        {
+            var response = await _adminService.GetUserByIdAsync(id);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "SystemAdmin")]
+        [HttpPost("users")]
+        public async Task<IActionResult> CreateUser([FromBody] CreateUserDto dto)
+        {
+            var response = await _adminService.CreateUserAsync(dto);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "SystemAdmin")]
+        [HttpPut("users/{id}")]
+        public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserDto dto)
+        {
+            var response = await _adminService.UpdateUserAsync(id, dto);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "SystemAdmin")]
+        [HttpDelete("users/{id}")]
+        public async Task<IActionResult> DeleteUser(int id)
+        {
+            var response = await _adminService.DeleteUserAsync(id);
+            return ResponseParser.Result(response);
+        }
+
+        // --- Audit Logs (SystemAdmin only) ---
+
+        [Authorize(Roles = "SystemAdmin")]
+        [HttpGet("audit-logs")]
+        public async Task<IActionResult> GetAuditLogs(
+            [FromQuery] int? userId,
+            [FromQuery] string? action,
+            [FromQuery] System.DateTime? fromDate,
+            [FromQuery] System.DateTime? toDate,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            var response = await _adminService.GetAuditLogsAsync(userId, action, fromDate, toDate, page, pageSize);
             return ResponseParser.Result(response);
         }
     }

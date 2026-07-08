@@ -11,6 +11,7 @@ using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Tag;
 using HistoricalMuseumAudioGuide.Service.Services;
 using HistoricalMuseumAudioGuide.Service.Services.Content;
 using System.Threading.Tasks;
+using System.Linq;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Authorization;
@@ -22,10 +23,12 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
     public class ContentController : ControllerBase
     {
         private readonly IContentService _contentService;
+        private readonly IMuseumResolver _museumResolver;
 
-        public ContentController(IContentService contentService)
+        public ContentController(IContentService contentService, IMuseumResolver museumResolver)
         {
             _contentService = contentService;
+            _museumResolver = museumResolver;
         }
 
         /// <summary>
@@ -44,9 +47,10 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
 
         // --- Exhibit Management (Read - Public) ---
 
-        [HttpGet("museums/{museumId}/exhibits")]
-        public async Task<IActionResult> GetAllExhibits(int museumId)
+        [HttpGet("exhibits")]
+        public async Task<IActionResult> GetAllExhibits()
         {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
             var response = await _contentService.GetAllExhibitsAsync(museumId);
             return ResponseParser.Result(response);
         }
@@ -135,9 +139,10 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         }
 
         [Authorize(Roles = "MuseumManager,ContentManager,SystemAdmin")]
-        [HttpPost("museums/{museumId}/versions")]
-        public async Task<IActionResult> CreateContentVersion(int museumId, [FromQuery] string versionNumber, [FromQuery] string description)
+        [HttpPost("versions")]
+        public async Task<IActionResult> CreateContentVersion([FromQuery] string versionNumber, [FromQuery] string description)
         {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
             var userMuseumId = GetCurrentUserMuseumId();
             var response = await _contentService.CreateNewContentVersionAsync(museumId, versionNumber, description, userMuseumId);
             return ResponseParser.Result(response);
@@ -172,18 +177,19 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
 
         // --- Offline Package Management (Read - Public, Write - Authorized) ---
 
-        [HttpGet("museums/{museumId}/packages")]
-        public async Task<IActionResult> GetOfflinePackages(int museumId)
+        [HttpGet("packages")]
+        public async Task<IActionResult> GetOfflinePackages()
         {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
             var response = await _contentService.GetOfflinePackagesByMuseumIdAsync(museumId);
             return ResponseParser.Result(response);
         }
 
         [Authorize(Roles = "MuseumManager,ContentManager,SystemAdmin")]
-        [HttpPost("museums/{museumId}/packages/generate")]
-        public async Task<IActionResult> GenerateOfflinePackage(int museumId, [FromBody] CreateOfflinePackageDto dto)
+        [HttpPost("packages/generate")]
+        public async Task<IActionResult> GenerateOfflinePackage([FromBody] CreateOfflinePackageDto dto)
         {
-            if (museumId != dto.MuseumId) return BadRequest("Museum ID mismatch");
+            var museumId = await _museumResolver.GetMuseumIdAsync();
             var userMuseumId = GetCurrentUserMuseumId();
             var response = await _contentService.GenerateOfflinePackageAsync(museumId, dto.VersionId, userMuseumId);
             return ResponseParser.Result(response);
@@ -191,9 +197,10 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
 
         // --- Exhibition Management (Read - Public, Write - Authorized) ---
 
-        [HttpGet("museums/{museumId}/exhibitions")]
-        public async Task<IActionResult> GetExhibitions(int museumId)
+        [HttpGet("exhibitions")]
+        public async Task<IActionResult> GetExhibitions()
         {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
             var response = await _contentService.GetExhibitionsByMuseumIdAsync(museumId);
             return ResponseParser.Result(response);
         }
@@ -209,9 +216,10 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
 
         // --- Maps Management (Read - Public, Write - Authorized) ---
 
-        [HttpGet("museums/{museumId}/maps")]
-        public async Task<IActionResult> GetMuseumMaps(int museumId)
+        [HttpGet("maps")]
+        public async Task<IActionResult> GetMuseumMaps()
         {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
             var response = await _contentService.GetMuseumMapsAsync(museumId);
             return ResponseParser.Result(response);
         }
@@ -227,9 +235,10 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
 
         // --- Tour Routes Management (Read - Public, Write - Authorized) ---
 
-        [HttpGet("museums/{museumId}/routes")]
-        public async Task<IActionResult> GetTourRoutes(int museumId)
+        [HttpGet("routes")]
+        public async Task<IActionResult> GetTourRoutes()
         {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
             var response = await _contentService.GetTourRoutesAsync(museumId);
             return ResponseParser.Result(response);
         }
@@ -246,8 +255,9 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         // --- Category Management (Read - Public, Write - Authorized) ---
 
         [HttpGet("categories")]
-        public async Task<IActionResult> GetCategories([FromQuery] int? museumId)
+        public async Task<IActionResult> GetCategories()
         {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
             var response = await _contentService.GetCategoriesAsync(museumId);
             return ResponseParser.Result(response);
         }
@@ -289,8 +299,9 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         // --- Reference Metadata (Read - Public, Write - Authorized) ---
 
         [HttpGet("themes")]
-        public async Task<IActionResult> GetThemes([FromQuery] int? museumId)
+        public async Task<IActionResult> GetThemes()
         {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
             var response = await _contentService.GetThemesAsync(museumId);
             return ResponseParser.Result(response);
         }

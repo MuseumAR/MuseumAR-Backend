@@ -50,6 +50,7 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         IGenericRepository<ExhibitMetadatum> ExhibitMetadata { get; }
         IGenericRepository<TagGroup> TagGroups { get; }
         IGenericRepository<Tag> Tags { get; }
+        IGenericRepository<RefreshToken> RefreshTokens { get; }
         
         Task<int> CompleteAsync();
     }

@@ -17,6 +17,7 @@ using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Analytics;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.AgeGroup;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Theme;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Tag;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.User;
 
 namespace HistoricalMuseumAudioGuide.Repository.Mappings
 {
@@ -29,6 +30,11 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
                 .ForMember(dest => dest.UserId, opt => opt.MapFrom(src => src.Id))
                 .ForMember(dest => dest.RoleName, opt => opt.MapFrom(src => src.Role.RoleName));
             CreateMap<RegisterRequestDto, User>();
+            CreateMap<CreateUserDto, User>();
+            CreateMap<UpdateUserDto, User>()
+                .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
+            CreateMap<User, UserResponseDto>()
+                .ForMember(dest => dest.RoleName, opt => opt.MapFrom(src => src.Role != null ? src.Role.RoleName : string.Empty));
 
             // Analytics
             CreateMap<CreateAnalyticsLogDto, AnalyticsLog>();
@@ -41,6 +47,7 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
             
             CreateMap<Museum, MuseumDto>().ReverseMap();
             CreateMap<CreateMuseumDto, Museum>();
+            CreateMap<UpdateMuseumProfileDto, Museum>();
             
             CreateMap<Exhibit, ExhibitDto>()
                 .ForMember(dest => dest.ExhibitMetadata, opt => opt.MapFrom(src => src.ExhibitMetadatum))
