@@ -16,11 +16,13 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
     {
         private readonly IVisitorService _visitorService;
         private readonly IAnalyticsService _analyticsService;
+        private readonly IMuseumResolver _museumResolver;
 
-        public VisitorController(IVisitorService visitorService, IAnalyticsService analyticsService)
+        public VisitorController(IVisitorService visitorService, IAnalyticsService analyticsService, IMuseumResolver museumResolver)
         {
             _visitorService = visitorService;
             _analyticsService = analyticsService;
+            _museumResolver = museumResolver;
         }
 
         [HttpPost("track-action")]
@@ -37,9 +39,10 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
-        [HttpGet("museums/{museumId}/sync-check")]
-        public async Task<IActionResult> CheckForUpdates(int museumId)
+        [HttpGet("sync-check")]
+        public async Task<IActionResult> CheckForUpdates()
         {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
             var response = await _visitorService.GetLatestOfflinePackageAsync(museumId);
             return ResponseParser.Result(response);
         }

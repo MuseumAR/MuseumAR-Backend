@@ -7,5 +7,5 @@ public class LoginResponseDto
     public string Email { get; set; } = null!;
     public string RoleName { get; set; } = null!;
     public string AccessToken { get; set; } = null!;
-    // Optionally add refresh token here later if required by the client
+    public string? RefreshToken { get; set; }
 }

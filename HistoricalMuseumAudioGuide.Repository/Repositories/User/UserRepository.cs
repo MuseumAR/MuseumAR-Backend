@@ -24,4 +24,11 @@ public class UserRepository : GenericRepository<Entities.User>, IUserRepository
         return await _dbSet
             .FirstOrDefaultAsync(u => u.PasswordResetToken == token && u.ResetTokenExpiresAt > DateTime.UtcNow);
     }
+
+    public async Task<System.Collections.Generic.IEnumerable<Entities.User>> GetAllUsersWithRoleAsync()
+    {
+        return await _dbSet
+            .Include(u => u.Role)
+            .ToListAsync();
+    }
 }
