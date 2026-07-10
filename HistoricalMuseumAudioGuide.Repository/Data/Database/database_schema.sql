@@ -101,27 +101,7 @@ CREATE TABLE Museums (
 ALTER TABLE Users
 ADD CONSTRAINT FK_Users_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id);
 
--- Museum-Language support (which languages each museum supports)
-CREATE TABLE MuseumLanguages (
-    MuseumId        INT NOT NULL,
-    LanguageId      INT NOT NULL,
-    IsDefault       BIT NOT NULL DEFAULT 0,
-    CONSTRAINT PK_MuseumLanguages PRIMARY KEY (MuseumId, LanguageId),
-    CONSTRAINT FK_MuseumLang_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id),
-    CONSTRAINT FK_MuseumLang_Language FOREIGN KEY (LanguageId) REFERENCES Languages(Id)
-);
 
--- Museum translations (multilingual museum info)
-CREATE TABLE MuseumTranslations (
-    Id              INT IDENTITY(1,1) PRIMARY KEY,
-    MuseumId        INT             NOT NULL,
-    LanguageCode    VARCHAR(10)     NOT NULL,
-    Name            NVARCHAR(200)   NOT NULL,
-    Description     NVARCHAR(MAX)   NULL,
-    OpeningHours    NVARCHAR(500)   NULL,
-    CONSTRAINT FK_MuseumTrans_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id) ON DELETE CASCADE,
-    CONSTRAINT UQ_MuseumTrans UNIQUE (MuseumId, LanguageCode)
-);
 
 -- ============================================================
 -- 4.1. MUSEUM MAPS & POIs (2D Map support)
@@ -152,12 +132,21 @@ CREATE TABLE MapPOIs (
 );
 
 -- ============================================================
--- 4.2. EXHIBITIONS & EVENTS
+-- 4.2. THEMES, EXHIBITIONS & EVENTS (Themes as Exhibition categories)
 -- ============================================================
+CREATE TABLE Themes (
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    MuseumId        INT             NULL, -- nullable, null means global/system theme
+    ThemeName       NVARCHAR(100)   NOT NULL,
+    Description     NVARCHAR(255)   NULL,
+    CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
+    CONSTRAINT FK_Themes_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id)
+); 
 
 CREATE TABLE Exhibitions (
     Id              INT IDENTITY(1,1) PRIMARY KEY,
     MuseumId        INT             NOT NULL,
+    ThemeId         INT             NULL,  -- FK to Themes: categorizes exhibition by reusable theme
     ThumbnailUrl    NVARCHAR(500)   NULL,
     StartDate       DATETIME2       NULL,
     EndDate         DATETIME2       NULL,
@@ -165,7 +154,8 @@ CREATE TABLE Exhibitions (
                     CHECK (Status IN ('Active', 'Inactive', 'Ended')),
     CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
     UpdatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
-    CONSTRAINT FK_Exhibitions_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id)
+    CONSTRAINT FK_Exhibitions_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id),
+    CONSTRAINT FK_Exhibitions_Theme FOREIGN KEY (ThemeId) REFERENCES Themes(Id)
 );
 
 CREATE TABLE ExhibitionTranslations (
@@ -184,7 +174,7 @@ CREATE TABLE ExhibitionTranslations (
 
 CREATE TABLE Categories (
     Id              INT IDENTITY(1,1) PRIMARY KEY,
-    MuseumId        INT             NOT NULL,
+    MuseumId        INT             NULL, -- nullable, null means global/system category
     ParentId        INT             NULL,  -- self-referencing for sub-categories
     SortOrder       INT             NOT NULL DEFAULT 0,
     IconUrl         NVARCHAR(500)   NULL,
@@ -207,15 +197,8 @@ CREATE TABLE CategoryTranslations (
 );
 
 -- ============================================================
--- 5.1. PERSONALIZATION METADATA (Themes, Age Groups)
+-- 5.1. PERSONALIZATION METADATA (Age Groups)
 -- ============================================================
-
-CREATE TABLE Themes (
-    Id              INT IDENTITY(1,1) PRIMARY KEY,
-    ThemeName       NVARCHAR(100)   NOT NULL,
-    Description     NVARCHAR(255)   NULL,
-    CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE()
-);
 
 CREATE TABLE AgeGroups (
     Id              INT IDENTITY(1,1) PRIMARY KEY,
@@ -257,16 +240,14 @@ CREATE TABLE Exhibits (
     CONSTRAINT FK_Exhibits_UpdatedBy FOREIGN KEY (UpdatedBy) REFERENCES Users(Id)
 );
 
--- Link Exhibits to Metadata
+-- Link Exhibits to Metadata (ThemeId removed — Theme now links to Exhibition, not Exhibit)
 CREATE TABLE ExhibitMetadata (
     ExhibitId       INT NOT NULL,
-    ThemeId         INT NULL,
     AgeGroupId      INT NULL,
     Era             NVARCHAR(100)   NULL, -- e.g., 'Lý', 'Trần', 'Lê'
     HistoricalEvent NVARCHAR(200)   NULL, -- e.g., 'Chiến dịch Điện Biên Phủ'
     CONSTRAINT PK_ExhibitMetadata PRIMARY KEY (ExhibitId),
     CONSTRAINT FK_ExhibMeta_Exhib FOREIGN KEY (ExhibitId) REFERENCES Exhibits(Id) ON DELETE CASCADE,
-    CONSTRAINT FK_ExhibMeta_Theme FOREIGN KEY (ThemeId) REFERENCES Themes(Id),
     CONSTRAINT FK_ExhibMeta_Age FOREIGN KEY (AgeGroupId) REFERENCES AgeGroups(Id)
 );
 
@@ -330,7 +311,36 @@ CREATE TABLE ExhibitARAssets (
 );
 
 -- ============================================================
+-- 9.1. TAGS & TAG GROUPS (Faceted search/filter for exhibits)
+-- ============================================================
+
+CREATE TABLE TagGroups (
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    GroupName       NVARCHAR(100)   NOT NULL,  -- e.g., 'Thời kỳ', 'Chất liệu', 'Chủ đề'
+    SortOrder       INT             NOT NULL DEFAULT 0,
+    CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE()
+);
+
+CREATE TABLE Tags (
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    TagGroupId      INT             NOT NULL,
+    TagName         NVARCHAR(100)   NOT NULL,  -- e.g., 'Thời Trần', 'Gốm', 'Chiến tranh'
+    SortOrder       INT             NOT NULL DEFAULT 0,
+    CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
+    CONSTRAINT FK_Tags_TagGroup FOREIGN KEY (TagGroupId) REFERENCES TagGroups(Id) ON DELETE CASCADE
+);
+
+CREATE TABLE ExhibitTags (
+    ExhibitId       INT NOT NULL,
+    TagId           INT NOT NULL,
+    CONSTRAINT PK_ExhibitTags PRIMARY KEY (ExhibitId, TagId),
+    CONSTRAINT FK_ExhibitTags_Exhibit FOREIGN KEY (ExhibitId) REFERENCES Exhibits(Id) ON DELETE CASCADE,
+    CONSTRAINT FK_ExhibitTags_Tag FOREIGN KEY (TagId) REFERENCES Tags(Id) ON DELETE CASCADE
+);
+
+-- ============================================================
 -- 10. TOUR ROUTES (Suggested tour routes)
+-- ThemeId removed — personalization via Tags instead
 -- ============================================================
 
 CREATE TABLE TourRoutes (
@@ -339,15 +349,13 @@ CREATE TABLE TourRoutes (
     EstimatedMinutes INT            NULL,
     ThumbnailUrl    NVARCHAR(500)   NULL,
     AgeGroupId      INT             NULL,  -- Personalization
-    ThemeId         INT             NULL,  -- Personalization
     IsDefault       BIT             NOT NULL DEFAULT 0,
     Status          NVARCHAR(20)    NOT NULL DEFAULT 'Active'
                     CHECK (Status IN ('Active', 'Inactive')),
     CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
     UpdatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
     CONSTRAINT FK_TourRoutes_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id),
-    CONSTRAINT FK_TourRoutes_AgeGroup FOREIGN KEY (AgeGroupId) REFERENCES AgeGroups(Id),
-    CONSTRAINT FK_TourRoutes_Theme FOREIGN KEY (ThemeId) REFERENCES Themes(Id)
+    CONSTRAINT FK_TourRoutes_AgeGroup FOREIGN KEY (AgeGroupId) REFERENCES AgeGroups(Id)
 );
 
 CREATE TABLE TourRouteTranslations (
@@ -456,14 +464,7 @@ CREATE TABLE Tickets (
     CONSTRAINT FK_Tickets_Transaction FOREIGN KEY (TransactionId) REFERENCES Transactions(Id)
 );
 
-CREATE TABLE PaymentLogs (
-    Id              INT IDENTITY(1,1) PRIMARY KEY,
-    TransactionId   INT             NOT NULL,
-    RawResponse     NVARCHAR(MAX)   NULL, -- JSON response from gateway
-    LogMessage      NVARCHAR(500)   NULL,
-    CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
-    CONSTRAINT FK_PaymentLogs_Transaction FOREIGN KEY (TransactionId) REFERENCES Transactions(Id)
-);
+
 
 -- ============================================================
 -- 14. BOOKMARKS
@@ -554,24 +555,7 @@ CREATE TABLE ContentVersions (
     CONSTRAINT UQ_ContentVersion UNIQUE (MuseumId, VersionNumber)
 );
 
--- ============================================================
--- 18. CONTENT CHANGE LOG (track individual content changes)
--- ============================================================
 
-CREATE TABLE ContentChangeLogs (
-    Id              INT IDENTITY(1,1) PRIMARY KEY,
-    VersionId       INT             NOT NULL,
-    ExhibitId       INT             NULL,
-    ChangeType      NVARCHAR(20)    NOT NULL
-                    CHECK (ChangeType IN ('Added', 'Updated', 'Deleted')),
-    EntityType      NVARCHAR(50)    NOT NULL,  -- 'Exhibit', 'Audio', 'Image', 'ARAsset'
-    Description     NVARCHAR(500)   NULL,
-    ChangedBy       INT             NULL,
-    ChangedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
-    CONSTRAINT FK_ChangeLog_Version FOREIGN KEY (VersionId) REFERENCES ContentVersions(Id),
-    CONSTRAINT FK_ChangeLog_Exhibit FOREIGN KEY (ExhibitId) REFERENCES Exhibits(Id),
-    CONSTRAINT FK_ChangeLog_User FOREIGN KEY (ChangedBy) REFERENCES Users(Id)
-);
 
 -- ============================================================
 -- 19. OFFLINE PACKAGES
@@ -596,19 +580,7 @@ CREATE TABLE OfflinePackages (
     CONSTRAINT FK_OfflinePackages_Version FOREIGN KEY (VersionId) REFERENCES ContentVersions(Id)
 );
 
--- ============================================================
--- 20. PACKAGE DOWNLOADS (track offline package downloads)
--- ============================================================
 
-CREATE TABLE PackageDownloads (
-    Id              INT IDENTITY(1,1) PRIMARY KEY,
-    PackageId       INT             NOT NULL,
-    VisitorId       INT             NULL,
-    DeviceType      NVARCHAR(50)    NULL,
-    DownloadedAt    DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
-    CONSTRAINT FK_PkgDownloads_Package FOREIGN KEY (PackageId) REFERENCES OfflinePackages(Id),
-    CONSTRAINT FK_PkgDownloads_Visitor FOREIGN KEY (VisitorId) REFERENCES Visitors(Id)
-);
 
 -- ============================================================
 -- 21. SYSTEM CONFIGURATIONS
@@ -747,185 +719,202 @@ PRINT 'Database schema updated successfully with Events, Ticketing, Personalizat
 GO
 
 -- ============================================================
--- SCRIPT SEED DATA CHO CÁC BẢNG CÒN LẠI (MUSEUM AUDIO GUIDE)
--- TẤT CẢ TÀI KHOẢN ĐỂ ĐĂNG NHẬP ĐỀU CÓ PASSWORD LÀ 123456
+-- SEED DATA CHUẨN XÁC: BẢO TÀNG THÀNH PHỐ HỒ CHÍ MINH
+-- Các tài khoản có password là 123456
 -- ============================================================
 
--- 1. SEED DATA CHO MẠNG LƯỚI BẢO TÀNG (MUSEUMS)
-INSERT INTO Museums (Name, Description, Address, City, Province, Country, Latitude, Longitude, ThumbnailUrl, OpeningHours, ContactPhone, ContactEmail, Website, Status)
+USE MuseumAudioGuide;
+GO
+
+-- 1. CHÈN BẢO TÀNG DUY NHẤT (Id = 1)
+-- Lưu ý: Đối chiếu bảng Museums (Name, Description, Address, City...)
+SET IDENTITY_INSERT Museums ON;
+INSERT INTO Museums (Id, Name, Description, Address, City, Province, Country, Latitude, Longitude, ThumbnailUrl, OpeningHours, ContactPhone, ContactEmail, Website, Status, CreatedAt, UpdatedAt)
+VALUES (1, 
+        N'Bảo tàng Thành phố Hồ Chí Minh', 
+        N'Nơi lưu giữ báu vật lịch sử, văn hóa sài gòn qua các thời kỳ, tọa lạc tại tòa nhà dinh Gia Long xưa.', 
+        N'65 Lý Tự Trọng, Bến Nghé, Quận 1', 
+        N'Thành phố Hồ Chí Minh', N'Thành phố Hồ Chí Minh', N'Vietnam', 
+        10.776111, 106.699722, 
+        'https://cdn.museum.gov.vn/thumbnails/hcm-museum.jpg', 
+        N'08:00 AM - 05:00 PM', '02838299465', 'info@baotangtphcm.vn', 'https://baotangtphcm.vn',
+        'Active', GETUTCDATE(), GETUTCDATE());
+SET IDENTITY_INSERT Museums OFF;
+
+-- 2. CHÈN TÀI KHOẢN CMS (Bảng Users liên kết Role và MuseumId = 1)
+-- Mật khẩu giả định chuỗi Hash của '123456'
+SET IDENTITY_INSERT Users ON;
+INSERT INTO Users (Id, FullName, Email, PasswordHash, PhoneNumber, AvatarUrl, RoleId, MuseumId, Status, CreatedAt, UpdatedAt)
 VALUES 
-(N'Bảo tàng Lịch sử Quốc gia', N'Nơi lưu giữ các cổ vật lịch sử Việt Nam qua các thời kỳ', N'1 Tràng Tiền, Phan Chu Trinh, Hoàn Kiếm', N'Hà Nội', N'Hà Nội', N'Vietnam', 21.0243, 105.8590, 'https://api.museumar.vn/images/museums/vn_history_thumb.jpg', N'08:00 - 17:00 (Thứ Ba - Chủ Nhật)', '02438252853', 'contact@baotanglichsu.vn', 'https://baotanglichsu.vn', 'Active');
+(1, N'Nguyễn Văn Admin', 'admin@baotangtphcm.vn', '$2a$11$0OOHejSvnDYOJfbKl0GYxOKCuhy.YMhOKuaCItMF00prbBZpiNelq', '0901234567', 'https://cdn.museum.gov.vn/avatars/admin.png', 1, 1, 'Active', GETUTCDATE(), GETUTCDATE()), -- SystemAdmin
+(2, N'Trần Thị Quản Lý', 'manager@baotangtphcm.vn', '$2a$11$0OOHejSvnDYOJfbKl0GYxOKCuhy.YMhOKuaCItMF00prbBZpiNelq', '0907654321', 'https://cdn.museum.gov.vn/avatars/manager.png', 2, 1, 'Active', GETUTCDATE(), GETUTCDATE()), -- MuseumManager
+(3, N'Lê Văn Nội Dung', 'content@baotangtphcm.vn', '$2a$11$0OOHejSvnDYOJfbKl0GYxOKCuhy.YMhOKuaCItMF00prbBZpiNelq', '0908888888', 'https://cdn.museum.gov.vn/avatars/content.png', 3, 1, 'Active', GETUTCDATE(), GETUTCDATE()); -- ContentManager
+SET IDENTITY_INSERT Users OFF;
 
--- Lấy ra Id của Bảo tàng vừa tạo (Giả định Id = 1)
-DECLARE @MuseumId INT = 1;
-
--- 2. CẤU HÌNH NGÔN NGỮ HỖ TRỢ CHO BẢO TÀNG (MUSEUM LANGUAGES)
--- Kết nối Bảo tàng 1 với Tiếng Việt (Id=1 là tiếng Việt, mặc định) và Tiếng Anh (Id=2)
-INSERT INTO MuseumLanguages (MuseumId, LanguageId, IsDefault) VALUES 
-(@MuseumId, 1, 1),
-(@MuseumId, 2, 0);
-
--- 3. BẢN DỊCH ĐA NGÔN NGỮ CHO BẢO TÀNG (MUSEUM TRANSLATIONS)
-INSERT INTO MuseumTranslations (MuseumId, LanguageCode, Name, Description, OpeningHours) VALUES 
-(@MuseumId, 'en', 'National Museum of History', 'The place preserving Vietnamese historical artifacts through various eras.', '08:00 - 17:00 (Tue - Sun)');
-
--- 4. TÀI KHOẢN MANAGER VÀ CONTENT CHO BẢO TÀNG (USERS)
--- TẤT CẢ PASSWORD ĐỀU LÀ 123456
--- Đăng ký tài khoản thuộc về Bảo tàng 1 (RoleId 1= SystemAdmin, RoleId 2 = MuseumManager, RoleId 3 = ContentManager)
-INSERT INTO Users (FullName, Email, PasswordHash, PhoneNumber, AvatarUrl, RoleId, MuseumId, Status) VALUES 
-(N'Nguyễn Văn Quản Lý', 'manager@baotanglichsu.vn', '$2a$11$0OOHejSvnDYOJfbKl0GYxOKCuhy.YMhOKuaCItMF00prbBZpiNelq', '0912345678', 'https://api.museumar.vn/avatars/manager.png', 2, @MuseumId, 'Active'),
-(N'Trần Content', 'content@baotanglichsu.vn', '$2a$11$0OOHejSvnDYOJfbKl0GYxOKCuhy.YMhOKuaCItMF00prbBZpiNelq', '0987654321', 'https://api.museumar.vn/avatars/content.png', 3, @MuseumId, 'Active'),
-(N'Lê Admin Hệ Thống', 'admin@museumar.vn', '$2a$11$0OOHejSvnDYOJfbKl0GYxOKCuhy.YMhOKuaCItMF00prbBZpiNelq', '0901112222', 'https://api.museumar.vn/avatars/admin.png', 1, NULL, 'Active');
-
-DECLARE @UserId INT = 2; -- ID của Content Manager phục vụ trường CreatedBy sau này
-
--- 5. BẢN ĐỒ 2D VÀ CÁC ĐIỂM TIỆN ÍCH (MUSEUM MAPS & MAP POIS)
-INSERT INTO MuseumMaps (MuseumId, FloorNumber, MapName, MapImageUrl, Width, Height, IsDefault) VALUES 
-(@MuseumId, 1, N'Tầng 1 - Lịch sử Cổ Trung Đại', 'https://api.museumar.vn/maps/floor1.png', 1920, 1080, 1);
-
-DECLARE @MapId INT = 1;
-
-INSERT INTO MapPOIs (MapId, POIType, LocationX, LocationY, Description) VALUES 
-(@MapId, 'TicketCounter', 10.5, 85.0, N'Quầy bán vé vào cổng'),
-(@MapId, 'WC', 90.0, 15.2, N'Khu nhà vệ sinh tầng 1'),
-(@MapId, 'Exit', 5.0, 50.0, N'Lối ra hiểm');
-
--- 6. TRIỂN LÃM / SỰ KIỆN CHUYÊN ĐỀ (EXHIBITIONS & TRANSLATIONS)
-INSERT INTO Exhibitions (MuseumId, ThumbnailUrl, StartDate, EndDate, Status) VALUES 
-(@MuseumId, 'https://api.museumar.vn/images/exhibitions/dong_son_culture.jpg', GETUTCDATE(), DATEADD(month, 3, GETUTCDATE()), 'Active');
-
-DECLARE @ExhibitionId INT = 1;
-
-INSERT INTO ExhibitionTranslations (ExhibitionId, LanguageCode, Name, Description) VALUES 
-(@ExhibitionId, 'vi', N'Bách vật Đông Sơn', N'Triển lãm chuyên đề về văn hóa Đông Sơn và kỹ nghệ đúc đồng đỉnh cao.'),
-(@ExhibitionId, 'en', 'Dong Son Culture Treasures', 'Special exhibition on Dong Son culture and advanced bronze casting techniques.');
-
--- 7. DANH MỤC / BỘ SƯU TẬP (CATEGORIES & TRANSLATIONS)
-INSERT INTO Categories (MuseumId, ParentId, SortOrder, IconUrl, Status) VALUES 
-(@MuseumId, NULL, 1, 'https://api.museumar.vn/icons/bronze_age.png', 'Active');
-
-DECLARE @CategoryId INT = 1;
-
-INSERT INTO CategoryTranslations (CategoryId, LanguageCode, CategoryName, Description) VALUES 
-(@CategoryId, 'vi', N'Thời đại đồ đồng', N'Các hiện vật thuộc thời kỳ văn hóa Phùng Nguyên đến Đông Sơn'),
-(@CategoryId, 'en', 'Bronze Age', 'Artifacts from the Phung Nguyen to Dong Son cultural periods');
-
--- 8. DỮ LIỆU CÁ NHÂN HÓA (THEMES & AGE GROUPS)
-INSERT INTO Themes (ThemeName, Description) VALUES 
-(N'Nghệ thuật Quân sự', N'Khám phá vũ khí và chiến thuật lịch sử'),
-(N'Đời sống Tâm linh', N'Tìm hiểu tín ngưỡng, tôn giáo xưa cổ');
-
-INSERT INTO AgeGroups (GroupName, MinAge, MaxAge) VALUES 
-(N'Trẻ em', 6, 12),
-(N'Người lớn', 18, 60);
-
-DECLARE @ThemeId INT = 1;
-DECLARE @AgeGroupId INT = 2;
-
--- 9. HIỆN VẬT NÒNG CỐT (EXHIBITS)
-INSERT INTO Exhibits (MuseumId, CategoryId, ExhibitCode, QRCodeData, QRCodeImageUrl, ThumbnailUrl, AROverlayUrl, ARMarkerUrl, MapId, LocationX, LocationY, SortOrder, Status, PublishedAt, CreatedBy)
+-- 3. CHÈN BẢN ĐỒ CÁC TẦNG (Bảng MuseumMaps sử dụng MapImageUrl)
+SET IDENTITY_INSERT MuseumMaps ON;
+INSERT INTO MuseumMaps (Id, MuseumId, FloorNumber, MapName, MapImageUrl, Width, Height, IsDefault, CreatedAt, UpdatedAt)
 VALUES 
-(@MuseumId, @CategoryId, 'EX-DSON-01', 'MUSEUM_1_EX_1', 'https://api.museumar.vn/qrcodes/ex_1.png', 'https://api.museumar.vn/images/exhibits/trong_dong_thumb.jpg', 'https://api.museumar.vn/ar/overlay/trong_dong_info.png', 'https://api.museumar.vn/ar/markers/trong_dong_marker.jpg', @MapId, 45.5, 60.2, 1, 'Published', GETUTCDATE(), @UserId),
-(@MuseumId, @CategoryId, 'EX-DSON-02', 'MUSEUM_1_EX_2', 'https://api.museumar.vn/qrcodes/ex_2.png', 'https://api.museumar.vn/images/exhibits/dao_gam_thumb.jpg', NULL, NULL, @MapId, 50.0, 62.5, 2, 'Published', GETUTCDATE(), @UserId);
+(1, 1, 0, N'Bản đồ Tầng trệt', 'https://cdn.museum.gov.vn/maps/hcm-ground-floor.png', 1920, 1080, 1, GETUTCDATE(), GETUTCDATE()),
+(2, 1, 1, N'Bản đồ Lầu 1', 'https://cdn.museum.gov.vn/maps/hcm-first-floor.png', 1920, 1080, 0, GETUTCDATE(), GETUTCDATE());
+SET IDENTITY_INSERT MuseumMaps OFF;
 
-DECLARE @ExhibitId1 INT = 1;
-DECLARE @ExhibitId2 INT = 2;
+-- 4. CHÈN CÁC ĐIỂM ĐỊNH VỊ TIỆN ÍCH (Bảng MapPOIs)
+INSERT INTO MapPOIs (MapId, POIType, LocationX, LocationY, Description)
+VALUES 
+(1, 'TicketCounter', 15.5, 10.2, N'Quầy bán vé sảnh chính tầng trệt'),
+(1, 'WC', 85.0, 90.5, N'Nhà vệ sinh khu vực Khảo cổ'),
+(2, 'Exit', 50.0, 5.0, N'Lối thoát hiểm ban công phía Tây');
 
--- Gắn hiện vật vào Triển lãm chuyên đề
-INSERT INTO ExhibitionExhibits (ExhibitionId, ExhibitId) VALUES 
-(@ExhibitionId, @ExhibitId1),
-(@ExhibitionId, @ExhibitId2);
+-- 5. CHÈN CHỦ ĐỀ & TRIỂN LÃM (Bảng Themes và Exhibitions)
+SET IDENTITY_INSERT Themes ON;
+INSERT INTO Themes (Id, MuseumId, ThemeName, Description, CreatedAt)
+VALUES 
+(1, 1, N'Lịch sử Sài Gòn - Gia Định', N'Quá trình hình thành và phát triển đô thị', GETUTCDATE()),
+(2, 1, N'Kháng chiến thế kỷ XX', N'Phong trào cách mạng địa phương', GETUTCDATE());
+SET IDENTITY_INSERT Themes OFF;
 
--- Gắn Metadata cá nhân hóa cho hiện vật 1
-INSERT INTO ExhibitMetadata (ExhibitId, ThemeId, AgeGroupId, Era, HistoricalEvent) VALUES 
-(@ExhibitId1, @ThemeId, @AgeGroupId, N'Văn hóa Đông Sơn', N'Thời đại Hùng Vương dựng nước');
+SET IDENTITY_INSERT Exhibitions ON;
+INSERT INTO Exhibitions (Id, MuseumId, ThemeId, ThumbnailUrl, StartDate, EndDate, Status, CreatedAt, UpdatedAt)
+VALUES 
+(1, 1, 1, 'https://cdn.museum.gov.vn/exhibitions/thien-nhien.jpg', '2026-01-01', '2026-12-31', 'Active', GETUTCDATE(), GETUTCDATE()),
+(2, 1, 2, 'https://cdn.museum.gov.vn/exhibitions/khang-chien.jpg', '2026-05-01', '2026-10-31', 'Active', GETUTCDATE(), GETUTCDATE());
+SET IDENTITY_INSERT Exhibitions OFF;
 
--- 10. BẢN DỊCH NỘI DUNG VÀ AUDIO GUIDE (EXHIBIT TRANSLATIONS)
-INSERT INTO ExhibitTranslations (ExhibitId, LanguageCode, Title, Description, AudioUrl, AudioDuration) VALUES 
-(@ExhibitId1, 'vi', N'Trống đồng Ngọc Lũ', N'Trống đồng Ngọc Lũ là một trong những bảo vật quốc gia tiêu biểu nhất của văn hóa Đông Sơn...', 'https://api.museumar.vn/audio/vi/trong_dong_ngoc_lu.mp3', 180),
-(@ExhibitId1, 'en', 'Ngoc Lu Bronze Drum', 'The Ngoc Lu bronze drum is one of the most exquisite national treasures of the Dong Son culture...', 'https://api.museumar.vn/audio/en/ngoc_lu_drum.mp3', 210),
-(@ExhibitId2, 'vi', N'Dao găm chuôi hình người', N'Vũ khí độc đáo bằng đồng với phần chuôi được đúc hình người sinh động...', 'https://api.museumar.vn/audio/vi/dao_gam_dong.mp3', 120),
-(@ExhibitId2, 'en', 'Human-shaped Hilt Dagger', 'A unique bronze weapon featuring a finely cast human figure on its hilt...', 'https://api.museumar.vn/audio/en/dagger.mp3', 140);
-
--- 11. HÌNH ẢNH CHI TIẾT VÀ TÀI NGUYÊN AR (EXHIBIT IMAGES & AR ASSETS)
 INSERT INTO ExhibitImages (ExhibitId, ImageUrl, Caption, SortOrder) VALUES 
-(@ExhibitId1, 'https://api.museumar.vn/images/exhibits/details/trong_dong_mat_tren.jpg', N'Hoa văn ngôi sao 14 cánh trên mặt trống', 1);
+(1, 'https://api.museumar.vn/images/exhibits/details/trong_dong_mat_tren.jpg', N'Hoa văn ngôi sao 14 cánh trên mặt trống', 1);
 
-INSERT INTO ExhibitARAssets (ExhibitId, AssetType, AssetUrl, FileSizeBytes, Width, Height, Description, SortOrder) VALUES 
-(@ExhibitId1, 'Model3D', 'https://api.museumar.vn/ar/models/trong_dong_3d.glb', 15428900, NULL, NULL, N'Mô hình 3D tương tác AR của Trống Đồng', 1);
+INSERT INTO ExhibitionTranslations (ExhibitionId, LanguageCode, Name, Description)
+VALUES 
+(1, 'vi', N'Triển lãm Thiên nhiên và Khảo cổ đất Sài Gòn', N'Minh chứng về địa chất, sinh thái cổ sơ.'),
+(1, 'en', N'Saigon Nature and Archaeology Exhibition', N'Evidence of ancient geology and ecology.'),
+(2, 'vi', N'Triển lãm Đấu tranh chính trị 1954 - 1975', N'Tái hiện các phong trào học sinh sinh viên nội thành.'),
+(2, 'en', N'Political Resistance 1954 - 1975', N'Showcasing urban student movements.');
 
--- 12. LỘ TRÌNH THAM QUAN GỢI Ý (TOUR ROUTES & DETAILS)
-INSERT INTO TourRoutes (MuseumId, EstimatedMinutes, ThumbnailUrl, AgeGroupId, ThemeId, IsDefault, Status) VALUES 
-(@MuseumId, 45, 'https://api.museumar.vn/tours/tour_quick_thumb.jpg', @AgeGroupId, @ThemeId, 1, 'Active');
+-- 6. CHÈN DANH MỤC HIỆN VẬT (Bảng Categories)
+SET IDENTITY_INSERT Categories ON;
+INSERT INTO Categories (Id, MuseumId, ParentId, SortOrder, IconUrl, Status, CreatedAt, UpdatedAt)
+VALUES 
+(1, 1, NULL, 1, 'https://cdn.museum.gov.vn/icons/archeology.png', 'Active', GETUTCDATE(), GETUTCDATE()),
+(2, 1, NULL, 2, 'https://cdn.museum.gov.vn/icons/weapons.png', 'Active', GETUTCDATE(), GETUTCDATE());
+SET IDENTITY_INSERT Categories OFF;
 
-DECLARE @RouteId INT = 1;
+INSERT INTO CategoryTranslations (CategoryId, LanguageCode, CategoryName, Description)
+VALUES 
+(1, 'vi', N'Cổ vật Khảo cổ', N'Công cụ đá, gốm, mộ táng cổ'),
+(1, 'en', N'Archaeological Artifacts', N'Stone tools, ancient pottery'),
+(2, 'vi', N'Vũ khí Lịch sử', N'Phương tiện, súng pháo chiến tranh'),
+(2, 'en', 'Historical Weapons', 'Military firearms and equipment');
 
-INSERT INTO TourRouteTranslations (TourRouteId, LanguageCode, RouteName, Description) VALUES 
-(@RouteId, 'vi', N'Tour Khám phá Tinh hoa Đồ Đồng', N'Lộ trình ngắn gọn đi qua các báu vật đồ đồng đỉnh cao trong 45 phút.'),
-(@RouteId, 'en', 'Bronze Essence Express Tour', 'A short route guiding you through premier bronze masterpieces in 45 minutes.');
+-- 7. CHÈN PHÂN KHÚC ĐỘ TUỔI CÁ NHÂN HÓA (Bảng AgeGroups)
+SET IDENTITY_INSERT AgeGroups ON;
+INSERT INTO AgeGroups (Id, GroupName, MinAge, MaxAge, CreatedAt)
+VALUES 
+(1, N'Trẻ em & Học sinh', 6, 17, GETUTCDATE()),
+(2, N'Người lớn', 18, 59, GETUTCDATE());
+SET IDENTITY_INSERT AgeGroups OFF;
 
-INSERT INTO TourRouteExhibits (TourRouteId, ExhibitId, StopOrder, EstimatedMinutes) VALUES 
-(@RouteId, @ExhibitId1, 1, 15),
-(@RouteId, @ExhibitId2, 2, 10);
+-- 8. CHÈN HIỆN VẬT (Bảng Exhibits - Đối chiếu chính xác các cột vị trí)
+SET IDENTITY_INSERT Exhibits ON;
+INSERT INTO Exhibits (Id, MuseumId, CategoryId, ExhibitCode, QRCodeData, QRCodeImageUrl, ThumbnailUrl, MapId, LocationX, LocationY, SortOrder, Status, PublishedAt, CreatedBy, UpdatedBy, CreatedAt, UpdatedAt)
+VALUES 
+(1, 1, 1, 'EX-HCM-001', 'MUSEUM_HCM_EX001_SECRET', 'https://cdn.museum.gov.vn/qrs/ex001.png', 'https://cdn.museum.gov.vn/exhibits/mo-chum.jpg', 1, 35.2, 45.8, 1, 'Published', GETUTCDATE(), 3, 3, GETUTCDATE(), GETUTCDATE()),
+(2, 1, 2, 'EX-HCM-002', 'MUSEUM_HCM_EX002_SECRET', 'https://cdn.museum.gov.vn/qrs/ex002.png', 'https://cdn.museum.gov.vn/exhibits/uh1.jpg', 2, 60.1, 22.4, 2, 'Published', GETUTCDATE(), 3, 3, GETUTCDATE(), GETUTCDATE());
+SET IDENTITY_INSERT Exhibits OFF;
+
+-- Bảng ExhibitMetadata phụ thuộc
+INSERT INTO ExhibitMetadata (ExhibitId, AgeGroupId, Era, HistoricalEvent)
+VALUES 
+(1, 1, N'Thời đại đồ đồng thau (Văn hóa Đồng Nai)', N'Thời tiền sử Nam Bộ'),
+(2, 2, N'Kháng chiến chống Mỹ (1954-1975)', N'Chiến dịch Hồ Chí Minh 1975');
+
+-- Bảng trung gian nối Hiện vật vào Triển lãm
+INSERT INTO ExhibitionExhibits (ExhibitionId, ExhibitId)
+VALUES (1, 1), (2, 2);
+
+-- 9. CHÈN THUYẾT MINH ĐA NGÔN NGỮ (Bảng ExhibitTranslations)
+INSERT INTO ExhibitTranslations (ExhibitId, LanguageCode, Title, Description, AudioUrl, AudioDuration)
+VALUES 
+(1, 'vi', N'Mộ chum Khảo cổ học Dốc Chùa', N'Mộ chum bằng đất nung có niên đại khoảng 2.500 năm trước, minh chứng cho táng thức độc đáo cư dân cổ.', 'https://cdn.museum.gov.vn/audio/vi/mo-chum.mp3', 185),
+(1, 'en', N'Doc Chua Archaeological Jar Burial', N'A terracotta burial jar dating back 2,500 years ago, showcasing ancient traditions.', 'https://cdn.museum.gov.vn/audio/en/mo-chum.mp3', 195),
+(2, 'vi', N'Máy bay trực thăng chiến lợi phẩm UH-1', N'Chiếc trực thăng thu giữ từ quân đội đối phương, biểu tượng chiến thắng năm 1975.', 'https://cdn.museum.gov.vn/audio/vi/uh1.mp3', 120),
+(2, 'en', N'Captured UH-1 Huey Helicopter', N'A helicopter seized during the 1975 spring offensive, a symbol of historical victory.', 'https://cdn.museum.gov.vn/audio/en/uh1.mp3', 132);
+
+-- 10. CHÈN TÀI NGUYÊN AR THỰC TẾ ẢO (Bảng ExhibitARAssets sử dụng AssetUrl chung)
+INSERT INTO ExhibitARAssets (ExhibitId, AssetType, AssetUrl, FileSizeBytes, Width, Height, Description, SortOrder, CreatedAt)
+VALUES 
+(1, 'MarkerImage', 'https://cdn.museum.gov.vn/ar/markers/mo-chum.jpg', 102450, 800, 800, N'Ảnh target nhận diện mộ chum', 1, GETUTCDATE()),
+(1, 'Model3D', 'https://cdn.museum.gov.vn/ar/models/mo-chum-3d.glb', 15428900, NULL, NULL, N'Mô hình 3D đám mây điểm của mộ chum', 2, GETUTCDATE()),
+(2, 'MarkerImage', 'https://cdn.museum.gov.vn/ar/markers/uh1.jpg', 254800, 1024, 768, N'Ảnh target nhận diện trực thăng UH1', 1, GETUTCDATE()),
+(2, 'Model3D', 'https://cdn.museum.gov.vn/ar/models/uh1-helicopter.glb', 32451200, NULL, NULL, N'Mô hình khối kỹ thuật trực thăng UH1', 2, GETUTCDATE());
+
+-- 11. CHÈN ĐỊNH NGHĨA LOẠI VÉ (Bảng TicketTypes sử dụng cột Name thay vì TypeName)
+SET IDENTITY_INSERT TicketTypes ON;
+INSERT INTO TicketTypes (Id, MuseumId, ExhibitionId, Name, Price, Description, IsActive, CreatedAt, UpdatedAt)
+VALUES 
+(1, 1, NULL, N'Vé vào cổng phổ thông', 30000.00, N'Áp dụng tham quan toàn bộ khu vực cố định', 1, GETUTCDATE(), GETUTCDATE()),
+(2, 1, 2, N'Vé chuyên đề Kháng Chiến đặc biệt', 50000.00, N'Bao gồm lối đi sảnh chuyên đề và tặng kèm tai nghe', 1, GETUTCDATE(), GETUTCDATE());
+SET IDENTITY_INSERT TicketTypes OFF;
+
+-- 12. CHÈN PHIÊN BẢN VÀ GÓI ĐỒNG BỘ OFFLINE (Bảng ContentVersions và OfflinePackages)
+SET IDENTITY_INSERT ContentVersions ON;
+INSERT INTO ContentVersions (Id, MuseumId, VersionNumber, ChangeDescription, TotalExhibits, TotalMediaFiles, PackageSizeBytes, PublishedBy, Status, PublishedAt, CreatedAt)
+VALUES 
+(1, 1, 'v1.0.0', N'Khởi tạo gói dữ liệu gốc cho Bảo tàng TPHCM bao gồm tầng trệt và lầu 1.', 2, 4, 48133350, 3, 'Published', GETUTCDATE(), GETUTCDATE());
+SET IDENTITY_INSERT ContentVersions OFF;
+
+SET IDENTITY_INSERT OfflinePackages ON;
+INSERT INTO OfflinePackages (Id, MuseumId, VersionId, PackageUrl, PackageSizeBytes, Checksum, AudioCount, ImageCount, ARAssetCount, ExhibitCount, Status, BuiltAt, CreatedAt)
+VALUES 
+(1, 1, 1, 'https://cdn.museum.gov.vn/offline/hcm_museum_v100.zip', 48133350, 'SHA256_7F8A9B2C3D4E5F6G7H8I9J0K', 4, 4, 4, 2, 'Available', GETUTCDATE(), GETUTCDATE());
+SET IDENTITY_INSERT OfflinePackages OFF;
 
 -- 13. KHÁCH THAM QUAN APP MOBILE (VISITORS)
 INSERT INTO Visitors (DeviceId, DisplayName, Email, PreferredLang, DeviceType, DeviceModel, AppVersion) VALUES 
 ('F39B672A-8811-4E1B-9473-D683A648AA29', N'Đức Mạnh', 'visitor.manh@gmail.com', 'vi', 'iOS', 'iPhone 15 Pro', '1.0.0'),
 ('A28D471C-9922-4F2A-8361-C234E128BB88', 'John Doe', 'johndoe@gmail.com', 'en', 'Android', 'Samsung S24 Ultra', '1.0.0');
 
-DECLARE @VisitorId INT = 1;
-
--- 14. ĐẶT VÉ VÀ THANH TOÁN (TRANSACTIONS, TICKET TYPES, TICKETS)
-INSERT INTO TicketTypes (MuseumId, ExhibitionId, Name, Price, Description, IsActive) VALUES 
-(@MuseumId, NULL, N'Vé người lớn toàn cảnh', 40000.00, N'Vé tham quan tất cả các khu vực chính của bảo tàng', 1);
-
-DECLARE @TicketTypeId INT = 1;
-
-INSERT INTO Transactions (VisitorId, PaymentMethodId, OrderCode, TotalAmount, Currency, PaymentStatus, GatewayTransactionId, PaymentDate, Description) VALUES 
-(@VisitorId, 1, 'ORDER_20260623_001', 40000.00, 'VND', 'Completed', 'VNPAY_12345678', GETUTCDATE(), N'Thanh toan ve tham quan Bao tang LSQS');
-
-DECLARE @TransactionId INT = 1;
-
-INSERT INTO Tickets (VisitorId, TicketTypeId, TransactionId, TicketCode, ValidDate, Status) VALUES 
-(@VisitorId, @TicketTypeId, @TransactionId, 'QR_TICKET_M1_778899', GETUTCDATE(), 'Paid');
-
--- Ghi Log raw response từ VNPay
-INSERT INTO PaymentLogs (TransactionId, RawResponse, LogMessage) VALUES 
-(@TransactionId, '{"vnp_ResponseCode":"00","vnp_Amount":"4000000","vnp_TxnRef":"ORDER_20260623_001"}', N'Giao dịch thành công qua cổng VNPAY');
-
--- 15. TƯƠNG TÁC CỦA KHÁCH (BOOKMARKS, VISITED)
-INSERT INTO Bookmarks (VisitorId, ExhibitId) VALUES (@VisitorId, @ExhibitId1);
-INSERT INTO VisitedExhibits (VisitorId, ExhibitId, MuseumId) VALUES (@VisitorId, @ExhibitId1, @MuseumId);
-
--- 16. NHẬT KÝ SỰ KIỆN THỐNG KÊ (ANALYTICS LOGS)
--- Đổ dữ liệu mẫu vào để API Dashboard của bạn quét ra số liệu thực tế
-INSERT INTO AnalyticsLogs (VisitorId, ExhibitId, MuseumId, ActionType, ListeningDuration, LanguageUsed, IsOfflineEvent, EventTimestamp) VALUES 
-(@VisitorId, @ExhibitId1, @MuseumId, 'QR_SCAN', NULL, 'vi', 0, GETUTCDATE()),
-(@VisitorId, @ExhibitId1, @MuseumId, 'AUDIO_PLAY', NULL, 'vi', 0, GETUTCDATE()),
-(@VisitorId, @ExhibitId1, @MuseumId, 'AUDIO_COMPLETE', 175, 'vi', 0, GETUTCDATE()), -- Nghe gần hết 180s
-(@VisitorId, @ExhibitId2, @MuseumId, 'QR_SCAN', NULL, 'vi', 0, GETUTCDATE()),
-(@VisitorId, @ExhibitId2, @MuseumId, 'AUDIO_COMPLETE', 110, 'vi', 0, GETUTCDATE()),
-(@VisitorId, NULL,        @MuseumId, 'PACKAGE_DOWNLOAD', NULL, NULL, 0, GETUTCDATE()),
-(@VisitorId, NULL,        @MuseumId, 'LANGUAGE_SWITCH', NULL, 'en', 0, GETUTCDATE());
-
--- 17. ĐÓNG GÓI DỮ LIỆU OFFLINE (CONTENT VERSIONS, OFFLINE PACKAGES & DOWNLOADS)
-INSERT INTO ContentVersions (MuseumId, VersionNumber, ChangeDescription, TotalExhibits, TotalMediaFiles, PackageSizeBytes, PublishedBy, Status, PublishedAt)
+-- 14. CHÈN BẢNG TUYẾN THAM QUAN (TourRoutes)
+-- Tuyến 1: Dành cho Học sinh (AgeGroupId = 1), ước tính 45 phút, là tuyến mặc định (IsDefault = 1)
+-- Tuyến 2: Dành cho Người lớn (AgeGroupId = 2), ước tính 60 phút
+SET IDENTITY_INSERT TourRoutes ON;
+INSERT INTO TourRoutes (Id, MuseumId, EstimatedMinutes, ThumbnailUrl, AgeGroupId, IsDefault, Status, CreatedAt, UpdatedAt)
 VALUES 
-(@MuseumId, '1.0.0', N'Bản phát hành dữ liệu Đông Sơn đầu tiên', 2, 3, 25489600, @UserId, 'Published', GETUTCDATE());
+(1, 1, 45, 'https://cdn.museum.gov.vn/routes/hcm-student-tour.jpg', 1, 1, 'Active', GETUTCDATE(), GETUTCDATE()),
+(2, 1, 60, 'https://cdn.museum.gov.vn/routes/hcm-history-tour.jpg', 2, 0, 'Active', GETUTCDATE(), GETUTCDATE());
+SET IDENTITY_INSERT TourRoutes OFF;
 
-DECLARE @VersionId INT = 1;
 
-INSERT INTO OfflinePackages (MuseumId, VersionId, PackageUrl, PackageSizeBytes, Checksum, AudioCount, ImageCount, ARAssetCount, ExhibitCount, Status, BuiltAt)
+-- 15. CHÈN BẢNG DỊCH THUẬT TUYẾN THAM QUAN (TourRouteTranslations)
+-- Cung cấp đa ngôn ngữ (vi, en) cho cả 2 tuyến vừa tạo
+INSERT INTO TourRouteTranslations (TourRouteId, LanguageCode, RouteName, Description)
 VALUES 
-(@MuseumId, @VersionId, 'https://api.museumar.vn/packages/museum_1_v100.zip', 25489600, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', 2, 1, 1, 2, 'Available', GETUTCDATE());
+-- Tuyến 1 (Tiếng Việt)
+(1, 'vi', N'Hành trình Khám phá Lịch sử xanh (Dành cho Học sinh)', 
+ N'Tuyến tham quan được thiết kế ngắn gọn, trực quan, tập trung vào các cổ vật khảo cổ đất Sài Gòn xưa và các hoạt động trải nghiệm tương tác thực tế ảo tăng cường AR.'),
+-- Tuyến 1 (Tiếng Anh)
+(1, 'en', N'Green History Discovery Tour (For Students)', 
+ N'A concise, highly visual tour optimized for student groups, focusing on ancient Saigon archaeological artifacts and interactive AR multimedia experiences.'),
 
-DECLARE @PackageId INT = 1;
+-- Tuyến 2 (Tiếng Việt)
+(2, 'vi', N'Sài Gòn - Gia Định: Từ Đô thị cổ đến Thành phố Anh hùng', 
+ N'Tuyến đi chuyên sâu xuyên suốt từ tầng trệt lên lầu 1, giúp khách tham quan cái nhìn toàn cảnh từ thời tiền sử, giai đoạn phát triển thương cảng đến cuộc kháng chiến cứu nước vĩ đại.'),
+-- Tuyến 2 (Tiếng Anh)
+(2, 'en', N'Saigon - Gia Dinh: From Ancient Town to Heroic City', 
+ N'An in-depth historical timeline tour guiding visitors from prehistory through early commercial trading eras, culminating in the major 20th-century revolutionary resistance movements.');
 
-INSERT INTO PackageDownloads (PackageId, VisitorId, DeviceType) VALUES 
-(@PackageId, @VisitorId, 'iOS');
 
--- 18. NHẬT KÝ HỆ THỐNG (AUDIT LOGS)
-INSERT INTO AuditLogs (UserId, Action, EntityType, EntityId, OldValues, NewValues, IpAddress, UserAgent) VALUES 
-(@UserId, 'CREATE', 'Exhibit', @ExhibitId1, NULL, '{"ExhibitCode":"EX-DSON-01","Status":"Published"}', '127.0.0.1', 'Mozilla/5.0 Windows');
+-- 16. CHÈN BẢNG CHI TIẾT CÁC ĐIỂM DỪNG CỦA TUYẾN (TourRouteExhibits)
+-- Liên kết các hiện vật (ExhibitId 1: Mộ chum, ExhibitId 2: Máy bay UH-1) vào các tuyến theo thứ tự (StopOrder)
+INSERT INTO TourRouteExhibits (TourRouteId, ExhibitId, StopOrder, EstimatedMinutes)
+VALUES 
+-- Tuyến 1 (Học sinh): Ưu tiên xem Mộ chum khảo cổ học trước
+(1, 1, 1, 15), -- Điểm dừng 1: Mộ chum (Xem trong 15 phút)
+(1, 2, 2, 20), -- Điểm dừng 2: Máy bay UH-1 (Xem trong 20 phút)
 
-PRINT '==== SEED DATA CHO TOÀN BỘ CÁC BẢNG ĐÃ CHẠY HOÀN TẤT THÀNH CÔNG! ====';
+-- Tuyến 2 (Người lớn): Đi theo trình tự thời gian từ cổ chí kim
+(2, 1, 1, 20), -- Điểm dừng 1: Mộ chum (Xem trong 20 phút)
+(2, 2, 2, 25); -- Điểm dừng 2: Máy bay UH-1 (Xem trong 25 phút)
+
+PRINT 'Seed data cho Bảo tàng Thành phố Hồ Chí Minh (Single-Museum) đã được chèn hoàn tất và chính xác với Schema!';
+GO
