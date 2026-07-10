@@ -7,10 +7,6 @@
       "RelativeMoniker": "D:0:0:{F0DF585F-6A72-F05C-FD0B-A18A8879ABF6}|HistoricalMuseumAudioGuide.Repository\\HistoricalMuseumAudioGuide.Repository.csproj|solutionrelative:historicalmuseumaudioguide.repository\\data\\database\\database_schema.sql||{CC5D8DF0-88F4-4BB2-9DBB-B48CEE65C30A}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{11A2D334-5C65-DF2B-159D-5D376375CEBB}|HistoricalMuseumAudioGuide.Api\\HistoricalMuseumAudioGuide.Api.csproj|c:\\my_project\\sep\\museumar-backend\\historicalmuseumaudioguide.api\\.env||{8B382828-6202-11D1-8870-0000F87579D2}",
-      "RelativeMoniker": "D:0:0:{11A2D334-5C65-DF2B-159D-5D376375CEBB}|HistoricalMuseumAudioGuide.Api\\HistoricalMuseumAudioGuide.Api.csproj|solutionrelative:historicalmuseumaudioguide.api\\.env||{8B382828-6202-11D1-8870-0000F87579D2}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{F0DF585F-6A72-F05C-FD0B-A18A8879ABF6}|HistoricalMuseumAudioGuide.Repository\\HistoricalMuseumAudioGuide.Repository.csproj|c:\\my_project\\sep\\museumar-backend\\historicalmuseumaudioguide.repository\\data\\database\\database_schema.sql||{CC5D8DF0-88F4-4BB2-9DBB-B48CEE65C30A}|CodeFrame",
       "RelativeMoniker": "D:0:0:{F0DF585F-6A72-F05C-FD0B-A18A8879ABF6}|HistoricalMuseumAudioGuide.Repository\\HistoricalMuseumAudioGuide.Repository.csproj|solutionrelative:historicalmuseumaudioguide.repository\\data\\database\\database_schema.sql||{CC5D8DF0-88F4-4BB2-9DBB-B48CEE65C30A}|CodeFrame"
     }
@@ -22,21 +18,8 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 1,
+          "SelectedChildIndex": 0,
           "Children": [
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": ".env",
-              "DocumentMoniker": "C:\\My_Project\\SEP\\MuseumAR-Backend\\HistoricalMuseumAudioGuide.Api\\.env",
-              "RelativeDocumentMoniker": "HistoricalMuseumAudioGuide.Api\\.env",
-              "ToolTip": "C:\\My_Project\\SEP\\MuseumAR-Backend\\HistoricalMuseumAudioGuide.Api\\.env",
-              "RelativeToolTip": "HistoricalMuseumAudioGuide.Api\\.env",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
-              "WhenOpened": "2026-07-10T12:42:52.258Z",
-              "EditorCaption": ""
-            },
             {
               "$type": "Document",
               "DocumentIndex": 0,
