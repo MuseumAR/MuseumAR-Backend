@@ -197,17 +197,8 @@ CREATE TABLE CategoryTranslations (
 );
 
 -- ============================================================
--- 5.1. PERSONALIZATION METADATA (Themes as Exhibition categories, Age Groups)
+-- 5.1. PERSONALIZATION METADATA (Age Groups)
 -- ============================================================
-
-CREATE TABLE Themes (
-    Id              INT IDENTITY(1,1) PRIMARY KEY,
-    MuseumId        INT             NULL, -- nullable, null means global/system theme
-    ThemeName       NVARCHAR(100)   NOT NULL,
-    Description     NVARCHAR(255)   NULL,
-    CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
-    CONSTRAINT FK_Themes_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id)
-);
 
 CREATE TABLE AgeGroups (
     Id              INT IDENTITY(1,1) PRIMARY KEY,
@@ -790,9 +781,6 @@ VALUES
 (2, 1, 2, 'https://cdn.museum.gov.vn/exhibitions/khang-chien.jpg', '2026-05-01', '2026-10-31', 'Active', GETUTCDATE(), GETUTCDATE());
 SET IDENTITY_INSERT Exhibitions OFF;
 
-INSERT INTO ExhibitImages (ExhibitId, ImageUrl, Caption, SortOrder) VALUES 
-(1, 'https://api.museumar.vn/images/exhibits/details/trong_dong_mat_tren.jpg', N'Hoa văn ngôi sao 14 cánh trên mặt trống', 1);
-
 INSERT INTO ExhibitionTranslations (ExhibitionId, LanguageCode, Name, Description)
 VALUES 
 (1, 'vi', N'Triển lãm Thiên nhiên và Khảo cổ đất Sài Gòn', N'Minh chứng về địa chất, sinh thái cổ sơ.'),
@@ -836,6 +824,12 @@ INSERT INTO ExhibitMetadata (ExhibitId, AgeGroupId, Era, HistoricalEvent)
 VALUES 
 (1, 1, N'Thời đại đồ đồng thau (Văn hóa Đồng Nai)', N'Thời tiền sử Nam Bộ'),
 (2, 2, N'Kháng chiến chống Mỹ (1954-1975)', N'Chiến dịch Hồ Chí Minh 1975');
+
+-- Bảng ExhibitImages phụ thuộc
+SET IDENTITY_INSERT ExhibitImages ON;
+INSERT INTO ExhibitImages (Id, ExhibitId, ImageUrl, Caption, SortOrder) VALUES 
+(1, 1, 'https://api.museumar.vn/images/exhibits/details/trong_dong_mat_tren.jpg', N'Hoa văn ngôi sao 14 cánh trên mặt trống', 1);
+SET IDENTITY_INSERT ExhibitImages OFF;
 
 -- Bảng trung gian nối Hiện vật vào Triển lãm
 INSERT INTO ExhibitionExhibits (ExhibitionId, ExhibitId)
