@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace HistoricalMuseumAudioGuide.Repository.Entities;
@@ -49,17 +49,15 @@ public partial class Museum
 
     public virtual ICollection<Exhibit> Exhibits { get; set; } = new List<Exhibit>();
 
-    public virtual ICollection<MuseumLanguage> MuseumLanguages { get; set; } = new List<MuseumLanguage>();
-
     public virtual ICollection<MuseumMap> MuseumMaps { get; set; } = new List<MuseumMap>();
-
-    public virtual ICollection<MuseumTranslation> MuseumTranslations { get; set; } = new List<MuseumTranslation>();
 
     public virtual ICollection<OfflinePackage> OfflinePackages { get; set; } = new List<OfflinePackage>();
 
     public virtual ICollection<TicketType> TicketTypes { get; set; } = new List<TicketType>();
 
     public virtual ICollection<TourRoute> TourRoutes { get; set; } = new List<TourRoute>();
+
+    public virtual ICollection<Theme> Themes { get; set; } = new List<Theme>();
 
     public virtual ICollection<User> Users { get; set; } = new List<User>();
 

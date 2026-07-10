@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace HistoricalMuseumAudioGuide.Repository.Entities;
@@ -23,19 +23,17 @@ public partial class User
 
     public string Status { get; set; } = null!;
 
-    public string? PasswordResetToken { get; set; }
-
-    public DateTime? ResetTokenExpiresAt { get; set; }
-
     public DateTime? LastLoginAt { get; set; }
 
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
 
-    public virtual ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
+    public string? PasswordResetToken { get; set; }
 
-    public virtual ICollection<ContentChangeLog> ContentChangeLogs { get; set; } = new List<ContentChangeLog>();
+    public DateTime? ResetTokenExpiresAt { get; set; }
+
+    public virtual ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
 
     public virtual ICollection<ContentVersion> ContentVersions { get; set; } = new List<ContentVersion>();
 

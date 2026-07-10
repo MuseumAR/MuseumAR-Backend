@@ -14,6 +14,10 @@ using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Category;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.ContentVersion;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Auth;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Analytics;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.AgeGroup;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Theme;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Tag;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.User;
 
 namespace HistoricalMuseumAudioGuide.Repository.Mappings
 {
@@ -26,6 +30,11 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
                 .ForMember(dest => dest.UserId, opt => opt.MapFrom(src => src.Id))
                 .ForMember(dest => dest.RoleName, opt => opt.MapFrom(src => src.Role.RoleName));
             CreateMap<RegisterRequestDto, User>();
+            CreateMap<CreateUserDto, User>();
+            CreateMap<UpdateUserDto, User>()
+                .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
+            CreateMap<User, UserResponseDto>()
+                .ForMember(dest => dest.RoleName, opt => opt.MapFrom(src => src.Role != null ? src.Role.RoleName : string.Empty));
 
             // Analytics
             CreateMap<CreateAnalyticsLogDto, AnalyticsLog>();
@@ -38,16 +47,35 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
             
             CreateMap<Museum, MuseumDto>().ReverseMap();
             CreateMap<CreateMuseumDto, Museum>();
+            CreateMap<UpdateMuseumProfileDto, Museum>();
             
-            CreateMap<Exhibit, ExhibitDto>().ReverseMap();
+            CreateMap<Exhibit, ExhibitDto>()
+                .ForMember(dest => dest.ExhibitMetadata, opt => opt.MapFrom(src => src.ExhibitMetadatum))
+                .ReverseMap();
             CreateMap<CreateExhibitDto, Exhibit>();
 
             // Exhibit Translation
             CreateMap<ExhibitTranslation, ExhibitTranslationDto>();
             CreateMap<ExhibitTranslationDto, ExhibitTranslation>();
 
+            // Exhibit Metadata
+            CreateMap<ExhibitMetadatum, ExhibitMetadataDto>().ReverseMap();
+
             // Category
-            CreateMap<Category, CategoryDto>();
+            CreateMap<Category, CategoryDto>().ReverseMap();
+            CreateMap<CreateCategoryDto, Category>();
+            CreateMap<CategoryTranslation, CategoryTranslationDto>().ReverseMap();
+
+            // AgeGroup & Theme
+            CreateMap<AgeGroup, AgeGroupDto>();
+            CreateMap<Theme, ThemeDto>().ReverseMap();
+            CreateMap<CreateThemeDto, Theme>();
+
+            // Tag & TagGroup
+            CreateMap<TagGroup, TagGroupDto>().ReverseMap();
+            CreateMap<CreateTagGroupDto, TagGroup>();
+            CreateMap<Tag, TagDto>().ReverseMap();
+            CreateMap<CreateTagDto, Tag>();
 
             // Content Version
             CreateMap<ContentVersion, ContentVersionDto>();
@@ -75,8 +103,10 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
             CreateMap<CreateVisitedExhibitDto, VisitedExhibit>();
 
             // Maps & Routes
-            CreateMap<MuseumMap, MuseumMapDto>().ReverseMap();
-            CreateMap<CreateMuseumMapDto, MuseumMap>();
+            CreateMap<MuseumMap, MuseumMapDto>()
+                .ForMember(dest => dest.MapType, opt => opt.MapFrom(src => src.MapName ?? "floor"))
+                .ReverseMap()
+                .ForMember(dest => dest.MapName, opt => opt.MapFrom(src => src.MapType));
             CreateMap<TourRoute, TourRouteDto>().ReverseMap();
             CreateMap<CreateTourRouteDto, TourRoute>();
 

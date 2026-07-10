@@ -197,8 +197,17 @@ CREATE TABLE CategoryTranslations (
 );
 
 -- ============================================================
--- 5.1. PERSONALIZATION METADATA (Age Groups)
+-- 5.1. PERSONALIZATION METADATA (Themes as Exhibition categories, Age Groups)
 -- ============================================================
+
+CREATE TABLE Themes (
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    MuseumId        INT             NULL, -- nullable, null means global/system theme
+    ThemeName       NVARCHAR(100)   NOT NULL,
+    Description     NVARCHAR(255)   NULL,
+    CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
+    CONSTRAINT FK_Themes_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id)
+);
 
 CREATE TABLE AgeGroups (
     Id              INT IDENTITY(1,1) PRIMARY KEY,

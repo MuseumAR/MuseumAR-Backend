@@ -1,8 +1,15 @@
-namespace HistoricalMuseumAudioGuide.Repository.Data.DTOs.Category;
+using System.Collections.Generic;
 
-public class CategoryDto
+namespace HistoricalMuseumAudioGuide.Repository.Data.DTOs.Category
 {
-    public int Id { get; set; }
-    public string Name { get; set; } = null!;
-    public string? Description { get; set; }
+    public class CategoryDto
+    {
+        public int Id { get; set; }
+        public int? MuseumId { get; set; }
+        public int? ParentId { get; set; }
+        public int SortOrder { get; set; }
+        public string? IconUrl { get; set; }
+        public string Status { get; set; } = null!;
+        public ICollection<CategoryTranslationDto> CategoryTranslations { get; set; } = new List<CategoryTranslationDto>();
+    }
 }

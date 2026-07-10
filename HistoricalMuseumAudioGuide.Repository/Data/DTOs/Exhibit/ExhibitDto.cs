@@ -17,6 +17,8 @@ namespace HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibit
         public string Status { get; set; } = "Draft";
         public DateTime? PublishedAt { get; set; }
         
+        public ExhibitMetadataDto? ExhibitMetadata { get; set; }
+        
         public ICollection<ExhibitTranslationDto> Translations { get; set; } = new List<ExhibitTranslationDto>();
     }
 }

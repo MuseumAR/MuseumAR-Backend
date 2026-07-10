@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace HistoricalMuseumAudioGuide.Repository.Entities;
@@ -8,6 +8,8 @@ public partial class Exhibition
     public int Id { get; set; }
 
     public int MuseumId { get; set; }
+
+    public int? ThemeId { get; set; }
 
     public string? ThumbnailUrl { get; set; }
 
@@ -24,6 +26,8 @@ public partial class Exhibition
     public virtual ICollection<ExhibitionTranslation> ExhibitionTranslations { get; set; } = new List<ExhibitionTranslation>();
 
     public virtual Museum Museum { get; set; } = null!;
+
+    public virtual Theme? Theme { get; set; }
 
     public virtual ICollection<TicketType> TicketTypes { get; set; } = new List<TicketType>();
 

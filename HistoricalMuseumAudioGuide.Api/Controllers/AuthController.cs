@@ -30,6 +30,18 @@ public class AuthController : ControllerBase
         return ResponseParser.Result(response);
     }
 
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequestDto request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var response = await _authService.RefreshTokenAsync(request.RefreshToken);
+        return ResponseParser.Result(response);
+    }
+
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequestDto request)
     {

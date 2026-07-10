@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace HistoricalMuseumAudioGuide.Repository.Entities;
@@ -17,5 +17,4 @@ public partial class Language
 
     public DateTime CreatedAt { get; set; }
 
-    public virtual ICollection<MuseumLanguage> MuseumLanguages { get; set; } = new List<MuseumLanguage>();
 }

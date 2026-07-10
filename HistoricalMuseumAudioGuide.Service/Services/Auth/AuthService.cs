@@ -55,9 +55,11 @@ public class AuthService : IAuthService
 
         // Generate Token
         var token = GenerateJwtToken(user);
+        var refreshToken = await GenerateAndSaveRefreshToken(user.Id);
 
         var responseDto = _mapper.Map<LoginResponseDto>(user);
         responseDto.AccessToken = token;
+        responseDto.RefreshToken = refreshToken;
 
         return ResponseModel.Success("Login successful.", responseDto);
     }
@@ -218,9 +220,11 @@ public class AuthService : IAuthService
 
             // Generate Local JWT
             var token = GenerateJwtToken(user);
+            var refreshToken = await GenerateAndSaveRefreshToken(user.Id);
 
             var responseDto = _mapper.Map<LoginResponseDto>(user);
             responseDto.AccessToken = token;
+            responseDto.RefreshToken = refreshToken;
 
             return ResponseModel.Success("Google login successful.", responseDto);
         }
@@ -278,5 +282,81 @@ public class AuthService : IAuthService
         var token = tokenHandler.CreateToken(tokenDescriptor);
 
         return tokenHandler.WriteToken(token);
+    }
+
+    private async Task<string> GenerateAndSaveRefreshToken(int userId)
+    {
+        var tokenBytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(64);
+        var tokenString = System.Convert.ToBase64String(tokenBytes)
+            .Replace("+", "").Replace("/", "").Replace("=", "");
+        if (tokenString.Length > 50) tokenString = tokenString.Substring(0, 50);
+
+        var refreshToken = new RefreshToken
+        {
+            UserId = userId,
+            Token = tokenString,
+            ExpiresAt = DateTime.UtcNow.AddDays(7), // Refresh token valid for 7 days
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _unitOfWork.RefreshTokens.AddAsync(refreshToken);
+        await _unitOfWork.CompleteAsync();
+
+        return tokenString;
+    }
+
+    public async Task<ResponseModel> RefreshTokenAsync(string token)
+    {
+        // 1. Get the refresh token from DB
+        var refreshTokens = await _unitOfWork.RefreshTokens.FindAsync(t => t.Token == token);
+        var refreshToken = refreshTokens.FirstOrDefault();
+
+        if (refreshToken == null)
+        {
+            return ResponseModel.Unauthorized("Invalid refresh token.");
+        }
+
+        // 2. Validate token state
+        if (refreshToken.ExpiresAt < DateTime.UtcNow || refreshToken.RevokedAt.HasValue)
+        {
+            return ResponseModel.Unauthorized("Refresh token has expired or been revoked.");
+        }
+
+        // 3. Get User including Role
+        var user = await _unitOfWork.Users.GetFirstOrDefaultAsync(u => u.Id == refreshToken.UserId, includeProperties: "Role");
+        if (user == null || user.Status != "Active")
+        {
+            return ResponseModel.Unauthorized("User is inactive or not found.");
+        }
+
+        // 4. Generate new JWT and new Refresh Token
+        var newJwtToken = GenerateJwtToken(user);
+        var newRefreshTokenString = System.Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(64))
+            .Replace("+", "").Replace("/", "").Replace("=", "");
+        if (newRefreshTokenString.Length > 50) newRefreshTokenString = newRefreshTokenString.Substring(0, 50);
+
+        // 5. Revoke old refresh token and link to new one
+        refreshToken.RevokedAt = DateTime.UtcNow;
+        refreshToken.ReplacedByToken = newRefreshTokenString;
+        _unitOfWork.RefreshTokens.Update(refreshToken);
+
+        // 6. Save new refresh token
+        var newRefreshToken = new RefreshToken
+        {
+            UserId = user.Id,
+            Token = newRefreshTokenString,
+            ExpiresAt = DateTime.UtcNow.AddDays(7),
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _unitOfWork.RefreshTokens.AddAsync(newRefreshToken);
+        await _unitOfWork.CompleteAsync();
+
+        // 7. Return new tokens
+        var responseDto = _mapper.Map<LoginResponseDto>(user);
+        responseDto.AccessToken = newJwtToken;
+        responseDto.RefreshToken = newRefreshTokenString;
+
+        return ResponseModel.Success("Token refreshed successfully.", responseDto);
     }
 }

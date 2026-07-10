@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace HistoricalMuseumAudioGuide.Repository.Entities;
@@ -49,8 +49,6 @@ public partial class Exhibit
 
     public virtual Category? Category { get; set; }
 
-    public virtual ICollection<ContentChangeLog> ContentChangeLogs { get; set; } = new List<ContentChangeLog>();
-
     public virtual User? CreatedByNavigation { get; set; }
 
     public virtual ICollection<ExhibitArasset> ExhibitArassets { get; set; } = new List<ExhibitArasset>();
@@ -72,4 +70,6 @@ public partial class Exhibit
     public virtual ICollection<VisitedExhibit> VisitedExhibits { get; set; } = new List<VisitedExhibit>();
 
     public virtual ICollection<Exhibition> Exhibitions { get; set; } = new List<Exhibition>();
+
+    public virtual ICollection<Tag> Tags { get; set; } = new List<Tag>();
 }

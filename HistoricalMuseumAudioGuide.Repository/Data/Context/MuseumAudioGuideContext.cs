@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using HistoricalMuseumAudioGuide.Repository.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -28,7 +28,6 @@ public partial class MuseumAudioGuideContext : DbContext
 
     public virtual DbSet<CategoryTranslation> CategoryTranslations { get; set; }
 
-    public virtual DbSet<ContentChangeLog> ContentChangeLogs { get; set; }
 
     public virtual DbSet<ContentVersion> ContentVersions { get; set; }
 
@@ -52,17 +51,12 @@ public partial class MuseumAudioGuideContext : DbContext
 
     public virtual DbSet<Museum> Museums { get; set; }
 
-    public virtual DbSet<MuseumLanguage> MuseumLanguages { get; set; }
 
     public virtual DbSet<MuseumMap> MuseumMaps { get; set; }
 
-    public virtual DbSet<MuseumTranslation> MuseumTranslations { get; set; }
 
     public virtual DbSet<OfflinePackage> OfflinePackages { get; set; }
 
-    public virtual DbSet<PackageDownload> PackageDownloads { get; set; }
-
-    public virtual DbSet<PaymentLog> PaymentLogs { get; set; }
 
     public virtual DbSet<PaymentMethod> PaymentMethods { get; set; }
 
@@ -75,6 +69,10 @@ public partial class MuseumAudioGuideContext : DbContext
     public virtual DbSet<SystemConfiguration> SystemConfigurations { get; set; }
 
     public virtual DbSet<Theme> Themes { get; set; }
+
+    public virtual DbSet<TagGroup> TagGroups { get; set; }
+
+    public virtual DbSet<Tag> Tags { get; set; }
 
     public virtual DbSet<Ticket> Tickets { get; set; }
 
@@ -93,17 +91,18 @@ public partial class MuseumAudioGuideContext : DbContext
     public virtual DbSet<VisitedExhibit> VisitedExhibits { get; set; }
 
     public virtual DbSet<Visitor> Visitors { get; set; }
-protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-{
-    if (!optionsBuilder.IsConfigured)
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
-        if (!string.IsNullOrEmpty(connectionString))
+        if (!optionsBuilder.IsConfigured)
         {
-            optionsBuilder.UseSqlServer(connectionString);
+            var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
+            if (!string.IsNullOrEmpty(connectionString))
+            {
+                optionsBuilder.UseSqlServer(connectionString);
+            }
         }
     }
-}
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -226,28 +225,6 @@ protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
                 .HasConstraintName("FK_CatTrans_Category");
         });
 
-        modelBuilder.Entity<ContentChangeLog>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PK__ContentC__3214EC07D7F809D8");
-
-            entity.Property(e => e.ChangeType).HasMaxLength(20);
-            entity.Property(e => e.ChangedAt).HasDefaultValueSql("(getutcdate())");
-            entity.Property(e => e.Description).HasMaxLength(500);
-            entity.Property(e => e.EntityType).HasMaxLength(50);
-
-            entity.HasOne(d => d.ChangedByNavigation).WithMany(p => p.ContentChangeLogs)
-                .HasForeignKey(d => d.ChangedBy)
-                .HasConstraintName("FK_ChangeLog_User");
-
-            entity.HasOne(d => d.Exhibit).WithMany(p => p.ContentChangeLogs)
-                .HasForeignKey(d => d.ExhibitId)
-                .HasConstraintName("FK_ChangeLog_Exhibit");
-
-            entity.HasOne(d => d.Version).WithMany(p => p.ContentChangeLogs)
-                .HasForeignKey(d => d.VersionId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_ChangeLog_Version");
-        });
 
         modelBuilder.Entity<ContentVersion>(entity =>
         {
@@ -366,10 +343,6 @@ protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
             entity.HasOne(d => d.Exhibit).WithOne(p => p.ExhibitMetadatum)
                 .HasForeignKey<ExhibitMetadatum>(d => d.ExhibitId)
                 .HasConstraintName("FK_ExhibMeta_Exhib");
-
-            entity.HasOne(d => d.Theme).WithMany(p => p.ExhibitMetadata)
-                .HasForeignKey(d => d.ThemeId)
-                .HasConstraintName("FK_ExhibMeta_Theme");
         });
 
         modelBuilder.Entity<ExhibitTranslation>(entity =>
@@ -404,6 +377,10 @@ protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
                 .HasForeignKey(d => d.MuseumId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Exhibitions_Museum");
+
+            entity.HasOne(d => d.Theme).WithMany(p => p.Exhibitions)
+                .HasForeignKey(d => d.ThemeId)
+                .HasConstraintName("FK_Exhibitions_Theme");
 
             entity.HasMany(d => d.Exhibits).WithMany(p => p.Exhibitions)
                 .UsingEntity<Dictionary<string, object>>(
@@ -493,20 +470,6 @@ protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
             entity.Property(e => e.Website).HasMaxLength(500);
         });
 
-        modelBuilder.Entity<MuseumLanguage>(entity =>
-        {
-            entity.HasKey(e => new { e.MuseumId, e.LanguageId });
-
-            entity.HasOne(d => d.Language).WithMany(p => p.MuseumLanguages)
-                .HasForeignKey(d => d.LanguageId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_MuseumLang_Language");
-
-            entity.HasOne(d => d.Museum).WithMany(p => p.MuseumLanguages)
-                .HasForeignKey(d => d.MuseumId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_MuseumLang_Museum");
-        });
 
         modelBuilder.Entity<MuseumMap>(entity =>
         {
@@ -523,22 +486,6 @@ protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
                 .HasConstraintName("FK_MuseumMaps_Museum");
         });
 
-        modelBuilder.Entity<MuseumTranslation>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PK__MuseumTr__3214EC077CD8E139");
-
-            entity.HasIndex(e => new { e.MuseumId, e.LanguageCode }, "UQ_MuseumTrans").IsUnique();
-
-            entity.Property(e => e.LanguageCode)
-                .HasMaxLength(10)
-                .IsUnicode(false);
-            entity.Property(e => e.Name).HasMaxLength(200);
-            entity.Property(e => e.OpeningHours).HasMaxLength(500);
-
-            entity.HasOne(d => d.Museum).WithMany(p => p.MuseumTranslations)
-                .HasForeignKey(d => d.MuseumId)
-                .HasConstraintName("FK_MuseumTrans_Museum");
-        });
 
         modelBuilder.Entity<OfflinePackage>(entity =>
         {
@@ -563,35 +510,6 @@ protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
                 .HasConstraintName("FK_OfflinePackages_Version");
         });
 
-        modelBuilder.Entity<PackageDownload>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PK__PackageD__3214EC0771127F31");
-
-            entity.Property(e => e.DeviceType).HasMaxLength(50);
-            entity.Property(e => e.DownloadedAt).HasDefaultValueSql("(getutcdate())");
-
-            entity.HasOne(d => d.Package).WithMany(p => p.PackageDownloads)
-                .HasForeignKey(d => d.PackageId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_PkgDownloads_Package");
-
-            entity.HasOne(d => d.Visitor).WithMany(p => p.PackageDownloads)
-                .HasForeignKey(d => d.VisitorId)
-                .HasConstraintName("FK_PkgDownloads_Visitor");
-        });
-
-        modelBuilder.Entity<PaymentLog>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PK__PaymentL__3214EC07BB4B7413");
-
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
-            entity.Property(e => e.LogMessage).HasMaxLength(500);
-
-            entity.HasOne(d => d.Transaction).WithMany(p => p.PaymentLogs)
-                .HasForeignKey(d => d.TransactionId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_PaymentLogs_Transaction");
-        });
 
         modelBuilder.Entity<PaymentMethod>(entity =>
         {
@@ -685,6 +603,46 @@ protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
             entity.Property(e => e.Description).HasMaxLength(255);
             entity.Property(e => e.ThemeName).HasMaxLength(100);
+
+            entity.HasOne(d => d.Museum).WithMany(p => p.Themes)
+                .HasForeignKey(d => d.MuseumId)
+                .HasConstraintName("FK_Themes_Museum");
+        });
+
+        modelBuilder.Entity<TagGroup>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.GroupName).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
+        });
+
+        modelBuilder.Entity<Tag>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TagName).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
+
+            entity.HasOne(d => d.TagGroup).WithMany(p => p.Tags)
+                .HasForeignKey(d => d.TagGroupId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_Tags_TagGroup");
+
+            entity.HasMany(d => d.Exhibits).WithMany(p => p.Tags)
+                .UsingEntity<Dictionary<string, object>>(
+                    "ExhibitTag",
+                    r => r.HasOne<Exhibit>().WithMany()
+                        .HasForeignKey("ExhibitId")
+                        .HasConstraintName("FK_ExhibitTags_Exhibit"),
+                    l => l.HasOne<Tag>().WithMany()
+                        .HasForeignKey("TagId")
+                        .HasConstraintName("FK_ExhibitTags_Tag"),
+                    j =>
+                    {
+                        j.HasKey("ExhibitId", "TagId");
+                        j.ToTable("ExhibitTags");
+                    });
         });
 
         modelBuilder.Entity<Ticket>(entity =>
@@ -756,10 +714,6 @@ protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
                 .HasForeignKey(d => d.MuseumId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_TourRoutes_Museum");
-
-            entity.HasOne(d => d.Theme).WithMany(p => p.TourRoutes)
-                .HasForeignKey(d => d.ThemeId)
-                .HasConstraintName("FK_TourRoutes_Theme");
         });
 
         modelBuilder.Entity<TourRouteExhibit>(entity =>
@@ -835,6 +789,7 @@ protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
             entity.Property(e => e.Email).HasMaxLength(255);
             entity.Property(e => e.FullName).HasMaxLength(100);
             entity.Property(e => e.PasswordHash).HasMaxLength(500);
+            entity.Property(e => e.PasswordResetToken).HasMaxLength(100);
             entity.Property(e => e.PhoneNumber).HasMaxLength(20);
             entity.Property(e => e.Status)
                 .HasMaxLength(20)

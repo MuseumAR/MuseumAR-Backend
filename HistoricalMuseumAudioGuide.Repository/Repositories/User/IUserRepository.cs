@@ -8,4 +8,5 @@ public interface IUserRepository : IGenericRepository<Entities.User>
 {
     Task<Entities.User?> GetUserByEmailAsync(string email);
     Task<Entities.User?> GetByResetTokenAsync(string token);
+    Task<System.Collections.Generic.IEnumerable<Entities.User>> GetAllUsersWithRoleAsync();
 }

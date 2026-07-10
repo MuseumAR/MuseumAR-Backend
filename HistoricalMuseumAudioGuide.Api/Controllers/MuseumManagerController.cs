@@ -1,4 +1,6 @@
-﻿using HistoricalMuseumAudioGuide.Service.Services.Analytics;
+using HistoricalMuseumAudioGuide.Service.Services;
+using HistoricalMuseumAudioGuide.Service.Services.Analytics;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
 
@@ -6,24 +8,26 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    // Thêm phân quyền nếu hệ thống của bạn đã bật Identity/JWT:
-    // [Authorize(Roles = "MuseumManager,SystemAdmin")]
+    [Authorize(Roles = "MuseumManager,SystemAdmin")]
     public class MuseumManagerController : ControllerBase
     {
         private readonly IMuseumManagerService _managerService;
+        private readonly IMuseumResolver _museumResolver;
 
-        public MuseumManagerController(IMuseumManagerService managerService)
+        public MuseumManagerController(IMuseumManagerService managerService, IMuseumResolver museumResolver)
         {
             _managerService = managerService;
+            _museumResolver = museumResolver;
         }
 
         /// <summary>
         /// API lấy toàn bộ dữ liệu báo cáo thống kê cho Dashboard quản lý của Bảo tàng
-        /// GET: api/MuseumManager/dashboard/{museumId}
+        /// GET: api/MuseumManager/dashboard
         /// </summary>
-        [HttpGet("dashboard/{museumId:int}")]
-        public async Task<IActionResult> GetDashboardData(int museumId)
+        [HttpGet("dashboard")]
+        public async Task<IActionResult> GetDashboardData()
         {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
             var result = await _managerService.GetMuseumDashboardDataAsync(museumId);
 
             // Trả về kết quả động theo StatusCode định nghĩa trong ResponseModel

@@ -1,4 +1,4 @@
-﻿using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Analytics;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Analytics;
 using HistoricalMuseumAudioGuide.Repository.UnitOfWork;
 using System;
 using System.Linq;
@@ -22,20 +22,11 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Analytics
             if (museum == null)
                 return ResponseModel.NotFound($"Museum with ID {museumId} not found.");
 
-            // 2. Kích hoạt gọi đồng thời (Concurrent) các hàm thống kê từ Repository mới tối ưu
-            var qrStatsTask = _unitOfWork.Analytics.GetQrScanStatsAsync(museumId);
-            var popularExhibitsTask = _unitOfWork.Analytics.GetPopularExhibitsAsync(museumId, topCount: 5);
-            var langStatsTask = _unitOfWork.Analytics.GetLanguageUsageStatsAsync(museumId);
-            var offlineDownloadsTask = _unitOfWork.Analytics.GetTotalOfflineDownloadsAsync(museumId);
-
-            // Chờ tất cả các Task xử lý SQL chạy xong hoàn toàn
-            await Task.WhenAll(qrStatsTask, popularExhibitsTask, langStatsTask, offlineDownloadsTask);
-
-            // Bóc tách kết quả từ các Task sau khi hoàn thành
-            var qrStats = await qrStatsTask;
-            var popularExhibits = await popularExhibitsTask;
-            var langStats = await langStatsTask;
-            var offlineDownloads = await offlineDownloadsTask;
+            // 2. Gọi tuần tự các hàm thống kê từ Repository để tránh lỗi Concurrency trên DbContext
+            var qrStats = await _unitOfWork.Analytics.GetQrScanStatsAsync(museumId);
+            var popularExhibits = await _unitOfWork.Analytics.GetPopularExhibitsAsync(museumId, topCount: 5);
+            var langStats = await _unitOfWork.Analytics.GetLanguageUsageStatsAsync(museumId);
+            var offlineDownloads = await _unitOfWork.Analytics.GetTotalOfflineDownloadsAsync(museumId);
 
             // 3. Tính toán các chỉ số KPI tổng hợp (Summary Metrics) hiển thị trên đầu Dashboard
             // Tính tổng số lượt quét QR dựa trên tổng dữ liệu quét của từng hiện vật

@@ -45,6 +45,12 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         IGenericRepository<AnalyticsLog> AnalyticsLogs { get; }
         IGenericRepository<AuditLog> AuditLogs { get; }
         IGenericRepository<SystemConfiguration> SystemConfigurations { get; }
+        IGenericRepository<Theme> Themes { get; }
+        IGenericRepository<AgeGroup> AgeGroups { get; }
+        IGenericRepository<ExhibitMetadatum> ExhibitMetadata { get; }
+        IGenericRepository<TagGroup> TagGroups { get; }
+        IGenericRepository<Tag> Tags { get; }
+        IGenericRepository<RefreshToken> RefreshTokens { get; }
         
         Task<int> CompleteAsync();
     }
