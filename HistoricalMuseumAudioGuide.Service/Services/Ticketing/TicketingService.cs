@@ -35,7 +35,7 @@ public class TicketingService : ITicketingService
     public async Task<ResponseModel> CreateOrderAsync(int visitorId, CreateOrderRequestDto request)
     {
         var ticketType = await _unitOfWork.TicketTypes.GetByIdAsync(request.TicketTypeId);
-        if (ticketType == null || !ticketType.IsActive)
+        if (ticketType == null || !ticketType.IsActive || ticketType.Status != "Approved")
         {
             return ResponseModel.BadRequest("Invalid or inactive ticket type.");
         }

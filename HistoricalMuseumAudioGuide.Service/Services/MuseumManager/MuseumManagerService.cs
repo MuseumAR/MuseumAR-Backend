@@ -1,6 +1,10 @@
+using AutoMapper;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Analytics;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Ticketing;
+using HistoricalMuseumAudioGuide.Repository.Entities;
 using HistoricalMuseumAudioGuide.Repository.UnitOfWork;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -9,10 +13,12 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Analytics
     public class MuseumManagerService : IMuseumManagerService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper;
 
-        public MuseumManagerService(IUnitOfWork unitOfWork)
+        public MuseumManagerService(IUnitOfWork unitOfWork, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
+            _mapper = mapper;
         }
 
         public async Task<ResponseModel> GetMuseumDashboardDataAsync(int museumId)
@@ -52,6 +58,28 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Analytics
             };
 
             return ResponseModel.Success("Get museum dashboard analytics successfully.", dashboardData);
+        }
+
+        public async Task<ResponseModel> GetTicketTypesByMuseumAsync(int museumId)
+        {
+            var ticketTypes = await _unitOfWork.TicketTypes.GetTicketTypesByMuseumIdAsync(museumId);
+            var dtos = _mapper.Map<IEnumerable<TicketTypeDto>>(ticketTypes);
+            return ResponseModel.Success("Retrieve ticket types successfully", dtos);
+        }
+
+        public async Task<ResponseModel> CreateTicketTypeAsync(int museumId, CreateTicketTypeDto createDto)
+        {
+            var ticketType = _mapper.Map<TicketType>(createDto);
+            ticketType.MuseumId = museumId;
+            ticketType.Status = "Pending";
+            ticketType.CreatedAt = System.DateTime.UtcNow;
+            ticketType.UpdatedAt = System.DateTime.UtcNow;
+
+            await _unitOfWork.TicketTypes.AddAsync(ticketType);
+            await _unitOfWork.CompleteAsync();
+
+            var dto = _mapper.Map<TicketTypeDto>(ticketType);
+            return ResponseModel.Success("Ticket type created successfully and is pending approval", dto);
         }
     }
 }

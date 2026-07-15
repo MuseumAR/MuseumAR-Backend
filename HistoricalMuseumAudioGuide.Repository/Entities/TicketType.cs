@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace HistoricalMuseumAudioGuide.Repository.Entities;
@@ -18,6 +18,8 @@ public partial class TicketType
     public string? Description { get; set; }
 
     public bool IsActive { get; set; }
+
+    public string Status { get; set; } = "Pending";
 
     public DateTime CreatedAt { get; set; }
 

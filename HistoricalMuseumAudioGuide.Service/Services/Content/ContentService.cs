@@ -90,6 +90,17 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
                 }
             }
 
+            // Check for duplicate ExhibitCode
+            if (!string.IsNullOrEmpty(exhibitDto.ExhibitCode))
+            {
+                var existingExhibit = await _unitOfWork.Exhibits.GetFirstOrDefaultAsync(
+                    e => e.ExhibitCode == exhibitDto.ExhibitCode && e.Status != "Archived");
+                if (existingExhibit != null)
+                {
+                    return ResponseModel.BadRequest($"Exhibit code '{exhibitDto.ExhibitCode}' already exists.");
+                }
+            }
+
             var exhibit = _mapper.Map<Exhibit>(exhibitDto);
             exhibit.CreatedAt = DateTime.UtcNow;
             exhibit.UpdatedAt = DateTime.UtcNow;
@@ -141,11 +152,58 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
                 }
             }
 
+            // Check for duplicate ExhibitCode (exclude current exhibit)
+            if (!string.IsNullOrEmpty(exhibitDto.ExhibitCode))
+            {
+                var existingExhibit = await _unitOfWork.Exhibits.GetFirstOrDefaultAsync(
+                    e => e.ExhibitCode == exhibitDto.ExhibitCode && e.Id != id && e.Status != "Archived");
+                if (existingExhibit != null)
+                {
+                    return ResponseModel.BadRequest($"Exhibit code '{exhibitDto.ExhibitCode}' already exists.");
+                }
+            }
+
             _mapper.Map(exhibitDto, exhibit);
             exhibit.UpdatedAt = DateTime.UtcNow;
 
             _unitOfWork.Exhibits.Update(exhibit);
             await _unitOfWork.CompleteAsync();
+
+            // Update translations (e.g. title, description, preserving audio guide if not provided)
+            if (exhibitDto.Translations != null && exhibitDto.Translations.Count > 0)
+            {
+                foreach (var transDto in exhibitDto.Translations)
+                {
+                    var existingTranslation = await _unitOfWork.ExhibitTranslations.GetTranslationAsync(id, transDto.LanguageCode);
+                    if (existingTranslation == null)
+                    {
+                        var translation = _mapper.Map<ExhibitTranslation>(transDto);
+                        translation.ExhibitId = id;
+                        await _unitOfWork.ExhibitTranslations.AddAsync(translation);
+                    }
+                    else
+                    {
+                        existingTranslation.Title = transDto.Title;
+                        if (!string.IsNullOrEmpty(transDto.Description))
+                        {
+                            existingTranslation.Description = transDto.Description;
+                        }
+                        
+                        // Preserve existing audioUrl/Duration if not provided
+                        if (!string.IsNullOrEmpty(transDto.AudioUrl))
+                        {
+                            existingTranslation.AudioUrl = transDto.AudioUrl;
+                        }
+                        if (transDto.AudioDuration.HasValue)
+                        {
+                            existingTranslation.AudioDuration = transDto.AudioDuration;
+                        }
+
+                        _unitOfWork.ExhibitTranslations.Update(existingTranslation);
+                    }
+                }
+                await _unitOfWork.CompleteAsync();
+            }
 
             if (exhibitDto.ExhibitMetadata != null)
             {
@@ -320,6 +378,12 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             };
 
             await _unitOfWork.ExhibitImages.AddAsync(exhibitImage);
+
+            // Update exhibit's thumbnail URL
+            exhibit.ThumbnailUrl = fileUrl;
+            exhibit.UpdatedAt = DateTime.UtcNow;
+            _unitOfWork.Exhibits.Update(exhibit);
+
             await _unitOfWork.CompleteAsync();
 
             return ResponseModel.Success("Image uploaded successfully", fileUrl);
@@ -606,6 +670,19 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             };
 
             await _unitOfWork.ExhibitArassets.AddAsync(asset);
+
+            // Update AroverlayUrl or ArmarkerUrl on Exhibit
+            if (assetType == "OverlayImage" || assetType == "Model3D")
+            {
+                exhibit.AroverlayUrl = fileUrl;
+            }
+            else if (assetType == "MarkerImage")
+            {
+                exhibit.ArmarkerUrl = fileUrl;
+            }
+            exhibit.UpdatedAt = DateTime.UtcNow;
+            _unitOfWork.Exhibits.Update(exhibit);
+
             await _unitOfWork.CompleteAsync();
 
             return ResponseModel.Success("AR Asset uploaded and added successfully", asset.Id);

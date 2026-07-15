@@ -1,3 +1,4 @@
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Ticketing;
 using HistoricalMuseumAudioGuide.Service.Services;
 using HistoricalMuseumAudioGuide.Service.Services.Analytics;
 using Microsoft.AspNetCore.Authorization;
@@ -31,6 +32,24 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             var result = await _managerService.GetMuseumDashboardDataAsync(museumId);
 
             // Trả về kết quả động theo StatusCode định nghĩa trong ResponseModel
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [Authorize(Roles = "MuseumManager")]
+        [HttpGet("ticket-types")]
+        public async Task<IActionResult> GetTicketTypes()
+        {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
+            var result = await _managerService.GetTicketTypesByMuseumAsync(museumId);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [Authorize(Roles = "MuseumManager")]
+        [HttpPost("ticket-types")]
+        public async Task<IActionResult> CreateTicketType([FromBody] CreateTicketTypeDto createDto)
+        {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
+            var result = await _managerService.CreateTicketTypeAsync(museumId, createDto);
             return StatusCode(result.StatusCode, result);
         }
     }

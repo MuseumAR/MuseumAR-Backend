@@ -441,6 +441,8 @@ CREATE TABLE TicketTypes (
     Price           DECIMAL(18,2)   NOT NULL DEFAULT 0,
     Description     NVARCHAR(500)   NULL,
     IsActive        BIT             NOT NULL DEFAULT 1,
+    Status          NVARCHAR(20)    NOT NULL DEFAULT 'Pending'
+                    CHECK (Status IN ('Pending', 'Approved', 'Rejected')),
     CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
     UpdatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
     CONSTRAINT FK_TicketTypes_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id),
@@ -853,10 +855,10 @@ VALUES
 
 -- 11. CHÈN ĐỊNH NGHĨA LOẠI VÉ (Bảng TicketTypes sử dụng cột Name thay vì TypeName)
 SET IDENTITY_INSERT TicketTypes ON;
-INSERT INTO TicketTypes (Id, MuseumId, ExhibitionId, Name, Price, Description, IsActive, CreatedAt, UpdatedAt)
+INSERT INTO TicketTypes (Id, MuseumId, ExhibitionId, Name, Price, Description, IsActive, Status, CreatedAt, UpdatedAt)
 VALUES 
-(1, 1, NULL, N'Vé vào cổng phổ thông', 30000.00, N'Áp dụng tham quan toàn bộ khu vực cố định', 1, GETUTCDATE(), GETUTCDATE()),
-(2, 1, 2, N'Vé chuyên đề Kháng Chiến đặc biệt', 50000.00, N'Bao gồm lối đi sảnh chuyên đề và tặng kèm tai nghe', 1, GETUTCDATE(), GETUTCDATE());
+(1, 1, NULL, N'Vé vào cổng phổ thông', 30000.00, N'Áp dụng tham quan toàn bộ khu vực cố định', 1, 'Approved', GETUTCDATE(), GETUTCDATE()),
+(2, 1, 2, N'Vé chuyên đề Kháng Chiến đặc biệt', 50000.00, N'Bao gồm lối đi sảnh chuyên đề và tặng kèm tai nghe', 1, 'Approved', GETUTCDATE(), GETUTCDATE());
 SET IDENTITY_INSERT TicketTypes OFF;
 
 -- 12. CHÈN PHIÊN BẢN VÀ GÓI ĐỒNG BỘ OFFLINE (Bảng ContentVersions và OfflinePackages)

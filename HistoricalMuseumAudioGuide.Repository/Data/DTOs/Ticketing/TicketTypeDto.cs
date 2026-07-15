@@ -8,4 +8,5 @@ public class TicketTypeDto
     public string? Description { get; set; }
     public int MuseumId { get; set; }
     public int? ExhibitionId { get; set; }
+    public string Status { get; set; } = null!;
 }

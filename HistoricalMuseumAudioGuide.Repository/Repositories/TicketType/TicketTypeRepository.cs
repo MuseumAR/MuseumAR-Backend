@@ -15,6 +15,11 @@ public class TicketTypeRepository : GenericRepository<Entities.TicketType>, ITic
 
     public async Task<IEnumerable<Entities.TicketType>> GetActiveTicketTypesAsync()
     {
-        return await _dbSet.Where(t => t.IsActive).ToListAsync();
+        return await _dbSet.Where(t => t.IsActive && t.Status == "Approved").ToListAsync();
+    }
+
+    public async Task<IEnumerable<Entities.TicketType>> GetTicketTypesByMuseumIdAsync(int museumId)
+    {
+        return await _dbSet.Where(t => t.MuseumId == museumId).ToListAsync();
     }
 }

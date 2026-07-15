@@ -16,6 +16,8 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Admin
         // Ticket Type Management
         Task<ResponseModel> GetAllTicketTypesAsync();
         Task<ResponseModel> CreateTicketTypeAsync(CreateTicketTypeDto ticketTypeDto);
+        Task<ResponseModel> ApproveTicketTypeAsync(int id);
+        Task<ResponseModel> RejectTicketTypeAsync(int id);
 
         // User Management
         Task<ResponseModel> GetAllUsersAsync(string? roleName, string? status, string? search);
