@@ -67,6 +67,34 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Admin
             return ResponseModel.Success("Ticket type created successfully", dto);
         }
 
+        public async Task<ResponseModel> ApproveTicketTypeAsync(int id)
+        {
+            var ticketType = await _unitOfWork.TicketTypes.GetByIdAsync(id);
+            if (ticketType == null) return ResponseModel.NotFound("Ticket type not found");
+
+            ticketType.Status = "Approved";
+            ticketType.UpdatedAt = System.DateTime.UtcNow;
+
+            _unitOfWork.TicketTypes.Update(ticketType);
+            await _unitOfWork.CompleteAsync();
+
+            return ResponseModel.Success("Ticket type approved successfully");
+        }
+
+        public async Task<ResponseModel> RejectTicketTypeAsync(int id)
+        {
+            var ticketType = await _unitOfWork.TicketTypes.GetByIdAsync(id);
+            if (ticketType == null) return ResponseModel.NotFound("Ticket type not found");
+
+            ticketType.Status = "Rejected";
+            ticketType.UpdatedAt = System.DateTime.UtcNow;
+
+            _unitOfWork.TicketTypes.Update(ticketType);
+            await _unitOfWork.CompleteAsync();
+
+            return ResponseModel.Success("Ticket type rejected successfully");
+        }
+
         public async Task<ResponseModel> GetAllUsersAsync(string? roleName, string? status, string? search)
         {
             var users = await _unitOfWork.Users.GetAllUsersWithRoleAsync();

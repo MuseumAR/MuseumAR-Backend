@@ -43,6 +43,7 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
 
         // --- Ticket Type Management ---
 
+        [Authorize(Roles = "SystemAdmin")]
         [HttpGet("ticket-types")]
         public async Task<IActionResult> GetAllTicketTypes()
         {
@@ -50,10 +51,27 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
+        [Authorize(Roles = "SystemAdmin")]
         [HttpPost("ticket-types")]
         public async Task<IActionResult> CreateTicketType(CreateTicketTypeDto createTicketTypeDto)
         {
             var response = await _adminService.CreateTicketTypeAsync(createTicketTypeDto);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "SystemAdmin")]
+        [HttpPut("ticket-types/{id}/approve")]
+        public async Task<IActionResult> ApproveTicketType(int id)
+        {
+            var response = await _adminService.ApproveTicketTypeAsync(id);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "SystemAdmin")]
+        [HttpPut("ticket-types/{id}/reject")]
+        public async Task<IActionResult> RejectTicketType(int id)
+        {
+            var response = await _adminService.RejectTicketTypeAsync(id);
             return ResponseParser.Result(response);
         }
 

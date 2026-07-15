@@ -51,8 +51,10 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
             
             CreateMap<Exhibit, ExhibitDto>()
                 .ForMember(dest => dest.ExhibitMetadata, opt => opt.MapFrom(src => src.ExhibitMetadatum))
+                .ForMember(dest => dest.Translations, opt => opt.MapFrom(src => src.ExhibitTranslations))
                 .ReverseMap();
-            CreateMap<CreateExhibitDto, Exhibit>();
+            CreateMap<CreateExhibitDto, Exhibit>()
+                .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
 
             // Exhibit Translation
             CreateMap<ExhibitTranslation, ExhibitTranslationDto>();

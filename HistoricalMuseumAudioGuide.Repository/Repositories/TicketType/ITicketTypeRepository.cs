@@ -8,4 +8,5 @@ namespace HistoricalMuseumAudioGuide.Repository.Repositories.TicketType;
 public interface ITicketTypeRepository : IGenericRepository<Entities.TicketType>
 {
     Task<IEnumerable<Entities.TicketType>> GetActiveTicketTypesAsync();
+    Task<IEnumerable<Entities.TicketType>> GetTicketTypesByMuseumIdAsync(int museumId);
 }

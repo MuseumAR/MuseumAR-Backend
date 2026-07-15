@@ -32,6 +32,12 @@ public class MediaService : IMediaService
         var fileDescription = new FileDescription(file.FileName, stream);
         var folderPath = $"museum_ar/{subDirectory}";
 
+        // Preserve original file name (normalized) with a unique suffix
+        var rawFileName = Path.GetFileNameWithoutExtension(file.FileName);
+        var normalizedFileName = System.Text.RegularExpressions.Regex.Replace(rawFileName, @"[^a-zA-Z0-9_\-]", "");
+        if (string.IsNullOrEmpty(normalizedFileName)) normalizedFileName = "file";
+        var fileNameWithUniqueSuffix = $"{normalizedFileName}_{Guid.NewGuid().ToString().Substring(0, 8)}";
+
         RawUploadResult uploadResult;
 
         if (file.ContentType.StartsWith("image"))
@@ -40,6 +46,7 @@ public class MediaService : IMediaService
             {
                 File = fileDescription,
                 Folder = folderPath,
+                PublicId = fileNameWithUniqueSuffix,
                 Transformation = new Transformation().Quality("auto").FetchFormat("auto")
             };
             uploadResult = await _cloudinary.UploadAsync(uploadParams);
@@ -49,7 +56,8 @@ public class MediaService : IMediaService
             var uploadParams = new VideoUploadParams()
             {
                 File = fileDescription,
-                Folder = folderPath
+                Folder = folderPath,
+                PublicId = fileNameWithUniqueSuffix
             };
             uploadResult = await _cloudinary.UploadAsync(uploadParams);
         }
@@ -59,7 +67,8 @@ public class MediaService : IMediaService
             var uploadParams = new RawUploadParams()
             {
                 File = fileDescription,
-                Folder = folderPath
+                Folder = folderPath,
+                PublicId = fileNameWithUniqueSuffix
             };
             uploadResult = await _cloudinary.UploadAsync(uploadParams);
         }
