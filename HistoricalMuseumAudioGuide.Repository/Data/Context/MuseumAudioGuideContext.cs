@@ -853,6 +853,11 @@ public partial class MuseumAudioGuideContext : DbContext
                 .HasMaxLength(10)
                 .IsUnicode(false)
                 .HasDefaultValue("vi");
+
+            entity.HasOne(d => d.User).WithMany(p => p.Visitors)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FK_Visitors_User");
         });
 
         OnModelCreatingPartial(modelBuilder);

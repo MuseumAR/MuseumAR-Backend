@@ -48,4 +48,6 @@ public partial class User
     public virtual Role Role { get; set; } = null!;
 
     public virtual ICollection<SystemConfiguration> SystemConfigurations { get; set; } = new List<SystemConfiguration>();
+
+    public virtual ICollection<Visitor> Visitors { get; set; } = new List<Visitor>();
 }

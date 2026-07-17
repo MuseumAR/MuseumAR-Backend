@@ -2,5 +2,4 @@
   <Project Path="HistoricalMuseumAudioGuide.Api/HistoricalMuseumAudioGuide.Api.csproj" />
   <Project Path="HistoricalMuseumAudioGuide.Repository/HistoricalMuseumAudioGuide.Repository.csproj" />
   <Project Path="HistoricalMuseumAudioGuide.Service/HistoricalMuseumAudioGuide.Service.csproj" />
-  <Project Path="..\MuseumAR-BackendMobile\HistoricalMuseumAudioGuide.Mobile.csproj" />
 </Solution>

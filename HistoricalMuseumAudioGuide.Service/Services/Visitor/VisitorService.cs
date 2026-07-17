@@ -105,4 +105,46 @@ public class VisitorService : IVisitorService
 
         return ResponseModel.Success("Exhibit tracked successfully");
     }
+
+    public async Task<ResponseModel> GetVisitorByUserIdAsync(int userId)
+    {
+        var visitor = await _unitOfWork.Visitors.GetVisitorByUserIdAsync(userId);
+        if (visitor == null) return ResponseModel.NotFound("Visitor profile not found for this user.");
+        return ResponseModel.Success("Visitor found", visitor);
+    }
+
+    public async Task<ResponseModel> SyncVisitorAsync(VisitorSyncDto dto, int? userId)
+    {
+        var visitor = await _unitOfWork.Visitors.GetVisitorByDeviceIdAsync(dto.DeviceId);
+
+        if (visitor == null)
+        {
+            visitor = _mapper.Map<HistoricalMuseumAudioGuide.Repository.Entities.Visitor>(dto);
+            visitor.UserId = userId;
+            visitor.FirstSeenAt = DateTime.UtcNow;
+            visitor.LastSeenAt = DateTime.UtcNow;
+
+            await _unitOfWork.Visitors.AddAsync(visitor);
+        }
+        else
+        {
+            visitor.DisplayName = dto.DisplayName ?? visitor.DisplayName;
+            visitor.Email = dto.Email ?? visitor.Email;
+            visitor.PreferredLang = dto.PreferredLang;
+            visitor.DeviceType = dto.DeviceType ?? visitor.DeviceType;
+            visitor.DeviceModel = dto.DeviceModel ?? visitor.DeviceModel;
+            visitor.AppVersion = dto.AppVersion ?? visitor.AppVersion;
+            visitor.LastSeenAt = DateTime.UtcNow;
+
+            if (userId.HasValue)
+            {
+                visitor.UserId = userId;
+            }
+
+            _unitOfWork.Visitors.Update(visitor);
+        }
+
+        await _unitOfWork.CompleteAsync();
+        return ResponseModel.Success("Visitor synchronized successfully.", visitor);
+    }
 }

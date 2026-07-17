@@ -21,9 +21,13 @@ public partial class Visitor
 
     public string? AppVersion { get; set; }
 
+    public int? UserId { get; set; }
+
     public DateTime FirstSeenAt { get; set; }
 
     public DateTime LastSeenAt { get; set; }
+
+    public virtual User? User { get; set; }
 
     public virtual ICollection<AnalyticsLog> AnalyticsLogs { get; set; } = new List<AnalyticsLog>();
 
