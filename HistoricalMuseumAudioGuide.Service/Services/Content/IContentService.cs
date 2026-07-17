@@ -28,6 +28,8 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
         // Exhibition Management
         Task<ResponseModel> GetExhibitionsByMuseumIdAsync(int museumId);
         Task<ResponseModel> CreateExhibitionAsync(CreateExhibitionDto exhibitionDto, int? userMuseumId);
+        Task<ResponseModel> UpdateExhibitionAsync(int id, CreateExhibitionDto exhibitionDto, int? userMuseumId);
+        Task<ResponseModel> DeleteExhibitionAsync(int id, int? userMuseumId);
 
         // Map Management
         Task<ResponseModel> GetMuseumMapsAsync(int museumId);
@@ -40,6 +42,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
         // Media Management
         Task<ResponseModel> UploadExhibitImageAsync(int exhibitId, IFormFile file, string caption, int? userMuseumId);
         Task<ResponseModel> UploadExhibitAudioAsync(int exhibitId, string languageCode, IFormFile file, int? userMuseumId);
+        Task<ResponseModel> UploadExhibitionImageAsync(int exhibitionId, IFormFile file, int? userMuseumId);
 
         // Translation Management
         Task<ResponseModel> GetExhibitTranslationsAsync(int exhibitId);

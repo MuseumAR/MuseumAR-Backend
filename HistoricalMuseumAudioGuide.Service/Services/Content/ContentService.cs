@@ -109,6 +109,16 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             await _unitOfWork.Exhibits.AddAsync(exhibit);
             await _unitOfWork.CompleteAsync();
 
+            if (string.IsNullOrEmpty(exhibit.QrcodeData))
+            {
+                string code = !string.IsNullOrEmpty(exhibit.ExhibitCode) ? exhibit.ExhibitCode : $"EX-M{exhibit.MuseumId}-{exhibit.Id}";
+                exhibit.QrcodeData = $"MUSEUM_EX_{exhibit.Id}_{code.ToUpper()}";
+                exhibit.QrcodeImageUrl = $"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={Uri.EscapeDataString(exhibit.QrcodeData)}";
+                
+                _unitOfWork.Exhibits.Update(exhibit);
+                await _unitOfWork.CompleteAsync();
+            }
+
             if (exhibitDto.Translations != null && exhibitDto.Translations.Count > 0)
             {
                 foreach (var transDto in exhibitDto.Translations)
@@ -165,6 +175,13 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
 
             _mapper.Map(exhibitDto, exhibit);
             exhibit.UpdatedAt = DateTime.UtcNow;
+
+            if (string.IsNullOrEmpty(exhibit.QrcodeData))
+            {
+                string code = !string.IsNullOrEmpty(exhibit.ExhibitCode) ? exhibit.ExhibitCode : $"EX-M{exhibit.MuseumId}-{exhibit.Id}";
+                exhibit.QrcodeData = $"MUSEUM_EX_{exhibit.Id}_{code.ToUpper()}";
+                exhibit.QrcodeImageUrl = $"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={Uri.EscapeDataString(exhibit.QrcodeData)}";
+            }
 
             _unitOfWork.Exhibits.Update(exhibit);
             await _unitOfWork.CompleteAsync();
@@ -281,7 +298,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
 
         public async Task<ResponseModel> GetExhibitionsByMuseumIdAsync(int museumId)
         {
-            var exhibitions = await _unitOfWork.Exhibitions.FindAsync(e => e.MuseumId == museumId);
+            var exhibitions = await _unitOfWork.Exhibitions.FindAsync(e => e.MuseumId == museumId, includeProperties: "ExhibitionTranslations");
             var dtos = _mapper.Map<IEnumerable<ExhibitionDto>>(exhibitions);
             return ResponseModel.Success("Exhibitions retrieved successfully", dtos);
         }
@@ -291,11 +308,90 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             var accessCheck = ValidateMuseumAccess(userMuseumId, createExhibitionDto.MuseumId);
             if (accessCheck != null) return accessCheck;
 
+            if (createExhibitionDto.StartDate.HasValue && createExhibitionDto.EndDate.HasValue)
+            {
+                if (createExhibitionDto.StartDate.Value > createExhibitionDto.EndDate.Value)
+                {
+                    return ResponseModel.BadRequest("End date must be after or equal to start date.");
+                }
+            }
+
             var exhibition = _mapper.Map<Exhibition>(createExhibitionDto);
+            
+            exhibition.ExhibitionTranslations = new List<ExhibitionTranslation>
+            {
+                new ExhibitionTranslation { LanguageCode = "vi", Name = createExhibitionDto.Name, Description = createExhibitionDto.Description },
+                new ExhibitionTranslation { LanguageCode = "en", Name = createExhibitionDto.Name, Description = createExhibitionDto.Description }
+            };
+
             await _unitOfWork.Exhibitions.AddAsync(exhibition);
             await _unitOfWork.CompleteAsync();
             var dto = _mapper.Map<ExhibitionDto>(exhibition);
             return ResponseModel.Success("Exhibition created successfully", dto);
+        }
+
+        public async Task<ResponseModel> UpdateExhibitionAsync(int id, CreateExhibitionDto exhibitionDto, int? userMuseumId)
+        {
+            var exhibition = await _unitOfWork.Exhibitions.GetFirstOrDefaultAsync(
+                e => e.Id == id,
+                includeProperties: "ExhibitionTranslations"
+            );
+            if (exhibition == null) return ResponseModel.NotFound("Exhibition not found");
+
+            var accessCheck = ValidateMuseumAccess(userMuseumId, exhibition.MuseumId);
+            if (accessCheck != null) return accessCheck;
+
+            if (exhibitionDto.StartDate.HasValue && exhibitionDto.EndDate.HasValue)
+            {
+                if (exhibitionDto.StartDate.Value > exhibitionDto.EndDate.Value)
+                {
+                    return ResponseModel.BadRequest("End date must be after or equal to start date.");
+                }
+            }
+
+            _mapper.Map(exhibitionDto, exhibition);
+            exhibition.UpdatedAt = DateTime.UtcNow;
+
+            var viTrans = exhibition.ExhibitionTranslations.FirstOrDefault(t => t.LanguageCode == "vi");
+            if (viTrans != null)
+            {
+                viTrans.Name = exhibitionDto.Name;
+                viTrans.Description = exhibitionDto.Description;
+            }
+            else
+            {
+                exhibition.ExhibitionTranslations.Add(new ExhibitionTranslation { LanguageCode = "vi", Name = exhibitionDto.Name, Description = exhibitionDto.Description });
+            }
+
+            var enTrans = exhibition.ExhibitionTranslations.FirstOrDefault(t => t.LanguageCode == "en");
+            if (enTrans != null)
+            {
+                enTrans.Name = exhibitionDto.Name;
+                enTrans.Description = exhibitionDto.Description;
+            }
+            else
+            {
+                exhibition.ExhibitionTranslations.Add(new ExhibitionTranslation { LanguageCode = "en", Name = exhibitionDto.Name, Description = exhibitionDto.Description });
+            }
+
+            _unitOfWork.Exhibitions.Update(exhibition);
+            await _unitOfWork.CompleteAsync();
+
+            return ResponseModel.Success("Exhibition updated successfully");
+        }
+
+        public async Task<ResponseModel> DeleteExhibitionAsync(int id, int? userMuseumId)
+        {
+            var exhibition = await _unitOfWork.Exhibitions.GetByIdAsync(id);
+            if (exhibition == null) return ResponseModel.NotFound("Exhibition not found");
+
+            var accessCheck = ValidateMuseumAccess(userMuseumId, exhibition.MuseumId);
+            if (accessCheck != null) return accessCheck;
+
+            _unitOfWork.Exhibitions.Delete(exhibition);
+            await _unitOfWork.CompleteAsync();
+
+            return ResponseModel.Success("Exhibition deleted successfully");
         }
 
         // --- Map Management ---
@@ -323,8 +419,8 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             {
                 MuseumId = mapDto.MuseumId,
                 MapImageUrl = imageUrl,
-                FloorNumber = 1,
-                MapName = mapDto.MapType,
+                FloorNumber = mapDto.FloorNumber,
+                MapName = mapDto.MapName,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -387,6 +483,25 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             await _unitOfWork.CompleteAsync();
 
             return ResponseModel.Success("Image uploaded successfully", fileUrl);
+        }
+
+        public async Task<ResponseModel> UploadExhibitionImageAsync(int exhibitionId, IFormFile file, int? userMuseumId)
+        {
+            var exhibition = await _unitOfWork.Exhibitions.GetByIdAsync(exhibitionId);
+            if (exhibition == null) return ResponseModel.NotFound("Exhibition not found");
+
+            var accessCheck = ValidateMuseumAccess(userMuseumId, exhibition.MuseumId);
+            if (accessCheck != null) return accessCheck;
+
+            var fileUrl = await _mediaService.UploadFileAsync(file, "exhibitions");
+
+            exhibition.ThumbnailUrl = fileUrl;
+            exhibition.UpdatedAt = DateTime.UtcNow;
+            _unitOfWork.Exhibitions.Update(exhibition);
+
+            await _unitOfWork.CompleteAsync();
+
+            return ResponseModel.Success("Exhibition image uploaded successfully", fileUrl);
         }
 
         public async Task<ResponseModel> UploadExhibitAudioAsync(int exhibitId, string languageCode, IFormFile file, int? userMuseumId)

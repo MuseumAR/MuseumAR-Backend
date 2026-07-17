@@ -82,7 +82,16 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
             // Content Version
             CreateMap<ContentVersion, ContentVersionDto>();
 
-            CreateMap<Exhibition, ExhibitionDto>().ReverseMap();
+            CreateMap<Exhibition, ExhibitionDto>()
+                .ForMember(dest => dest.Name, opt => opt.MapFrom(src => 
+                    src.ExhibitionTranslations.FirstOrDefault(t => t.LanguageCode == "vi").Name ?? 
+                    src.ExhibitionTranslations.FirstOrDefault(t => t.LanguageCode == "en").Name ?? 
+                    (src.ExhibitionTranslations.Any() ? src.ExhibitionTranslations.First().Name : null)))
+                .ForMember(dest => dest.Description, opt => opt.MapFrom(src => 
+                    src.ExhibitionTranslations.FirstOrDefault(t => t.LanguageCode == "vi").Description ?? 
+                    src.ExhibitionTranslations.FirstOrDefault(t => t.LanguageCode == "en").Description ?? 
+                    (src.ExhibitionTranslations.Any() ? src.ExhibitionTranslations.First().Description : null)))
+                .ReverseMap();
             CreateMap<CreateExhibitionDto, Exhibition>();
 
             // AR Asset
