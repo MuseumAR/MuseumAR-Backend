@@ -1,6 +1,8 @@
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Ticketing;
 using HistoricalMuseumAudioGuide.Service.Services;
 using HistoricalMuseumAudioGuide.Service.Services.Ticketing;
+using HistoricalMuseumAudioGuide.Service.Services.Visitor;
+using HistoricalMuseumAudioGuide.Repository.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
@@ -14,10 +16,12 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
     public class TicketingController : ControllerBase
     {
         private readonly ITicketingService _ticketingService;
+        private readonly IVisitorService _visitorService;
 
-        public TicketingController(ITicketingService ticketingService)
+        public TicketingController(ITicketingService ticketingService, IVisitorService visitorService)
         {
             _ticketingService = ticketingService;
+            _visitorService = visitorService;
         }
 
         [HttpGet("types")]
@@ -34,8 +38,12 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim == null) return Unauthorized();
             
-            int visitorId = int.Parse(userIdClaim.Value);
-            var response = await _ticketingService.CreateOrderAsync(visitorId, request);
+            int userId = int.Parse(userIdClaim.Value);
+            var visitorRes = await _visitorService.GetVisitorByUserIdAsync(userId);
+            if (visitorRes.StatusCode != 200 || visitorRes.Data is not Visitor visitor)
+                return NotFound(visitorRes.Message);
+            
+            var response = await _ticketingService.CreateOrderAsync(visitor.Id, request);
             return ResponseParser.Result(response);
         }
 
@@ -62,8 +70,12 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim == null) return Unauthorized();
             
-            int visitorId = int.Parse(userIdClaim.Value);
-            var response = await _ticketingService.GetMyTicketsAsync(visitorId);
+            int userId = int.Parse(userIdClaim.Value);
+            var visitorRes = await _visitorService.GetVisitorByUserIdAsync(userId);
+            if (visitorRes.StatusCode != 200 || visitorRes.Data is not Visitor visitor)
+                return NotFound(visitorRes.Message);
+            
+            var response = await _ticketingService.GetMyTicketsAsync(visitor.Id);
             return ResponseParser.Result(response);
         }
     }

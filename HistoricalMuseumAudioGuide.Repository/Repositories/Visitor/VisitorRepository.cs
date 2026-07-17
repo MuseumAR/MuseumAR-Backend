@@ -16,4 +16,14 @@ public class VisitorRepository : GenericRepository<Entities.Visitor>, IVisitorRe
     {
         return await _dbSet.FirstOrDefaultAsync(v => v.Email == email);
     }
+
+    public async Task<Entities.Visitor?> GetVisitorByUserIdAsync(int userId)
+    {
+        return await _dbSet.FirstOrDefaultAsync(v => v.UserId == userId);
+    }
+
+    public async Task<Entities.Visitor?> GetVisitorByDeviceIdAsync(string deviceId)
+    {
+        return await _dbSet.FirstOrDefaultAsync(v => v.DeviceId == deviceId);
+    }
 }

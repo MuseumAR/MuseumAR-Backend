@@ -103,6 +103,7 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
             CreateMap<CreateBookmarkDto, Bookmark>();
             CreateMap<VisitedExhibit, VisitedExhibitDto>();
             CreateMap<CreateVisitedExhibitDto, VisitedExhibit>();
+            CreateMap<VisitorSyncDto, Entities.Visitor>();
 
             // Maps & Routes
             CreateMap<MuseumMap, MuseumMapDto>()

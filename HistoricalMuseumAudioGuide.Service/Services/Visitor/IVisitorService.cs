@@ -14,4 +14,6 @@ public interface IVisitorService
     Task<ResponseModel> RemoveBookmarkAsync(int visitorId, int exhibitId);
     Task<ResponseModel> GetVisitedExhibitsAsync(int visitorId);
     Task<ResponseModel> TrackVisitedExhibitAsync(int visitorId, CreateVisitedExhibitDto dto);
+    Task<ResponseModel> SyncVisitorAsync(VisitorSyncDto dto, int? userId);
+    Task<ResponseModel> GetVisitorByUserIdAsync(int userId);
 }

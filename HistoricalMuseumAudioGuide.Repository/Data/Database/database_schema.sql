@@ -392,8 +392,10 @@ CREATE TABLE Visitors (
     DeviceType      NVARCHAR(50)    NULL,  -- 'Android', 'iOS'
     DeviceModel     NVARCHAR(100)   NULL,
     AppVersion      NVARCHAR(20)    NULL,
+    UserId          INT             NULL,             -- Linked User account
     FirstSeenAt     DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
-    LastSeenAt      DATETIME2       NOT NULL DEFAULT GETUTCDATE()
+    LastSeenAt      DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
+    CONSTRAINT FK_Visitors_User FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE SET NULL
 );
 
 -- ============================================================
