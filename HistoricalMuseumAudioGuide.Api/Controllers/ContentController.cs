@@ -214,6 +214,33 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
+        [Authorize(Roles = "MuseumManager,ContentManager,SystemAdmin")]
+        [HttpPost("exhibitions/{id}/upload-image")]
+        public async Task<IActionResult> UploadExhibitionImage(int id, IFormFile file)
+        {
+            var userMuseumId = GetCurrentUserMuseumId();
+            var response = await _contentService.UploadExhibitionImageAsync(id, file, userMuseumId);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "MuseumManager,ContentManager,SystemAdmin")]
+        [HttpPut("exhibitions/{id}")]
+        public async Task<IActionResult> UpdateExhibition(int id, CreateExhibitionDto createExhibitionDto)
+        {
+            var userMuseumId = GetCurrentUserMuseumId();
+            var response = await _contentService.UpdateExhibitionAsync(id, createExhibitionDto, userMuseumId);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "MuseumManager,ContentManager,SystemAdmin")]
+        [HttpDelete("exhibitions/{id}")]
+        public async Task<IActionResult> DeleteExhibition(int id)
+        {
+            var userMuseumId = GetCurrentUserMuseumId();
+            var response = await _contentService.DeleteExhibitionAsync(id, userMuseumId);
+            return ResponseParser.Result(response);
+        }
+
         // --- Maps Management (Read - Public, Write - Authorized) ---
 
         [HttpGet("maps")]
