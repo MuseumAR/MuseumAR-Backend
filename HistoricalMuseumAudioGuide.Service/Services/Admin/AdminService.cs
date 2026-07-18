@@ -8,6 +8,8 @@ using HistoricalMuseumAudioGuide.Repository.UnitOfWork;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using HistoricalMuseumAudioGuide.Service.Services;
+using HistoricalMuseumAudioGuide.Service.Services.Media;
+using Microsoft.AspNetCore.Http;
 
 namespace HistoricalMuseumAudioGuide.Service.Services.Admin
 {
@@ -15,14 +17,15 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Admin
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
-
         private readonly IMuseumResolver _museumResolver;
+        private readonly IMediaService _mediaService;
 
-        public AdminService(IUnitOfWork unitOfWork, IMapper mapper, IMuseumResolver museumResolver)
+        public AdminService(IUnitOfWork unitOfWork, IMapper mapper, IMuseumResolver museumResolver, IMediaService mediaService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _museumResolver = museumResolver;
+            _mediaService = mediaService;
         }
 
         public async Task<ResponseModel> GetMuseumProfileAsync()
@@ -47,6 +50,23 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Admin
             _unitOfWork.Museums.Update(museum);
             await _unitOfWork.CompleteAsync();
             return ResponseModel.Success("Museum profile updated successfully");
+        }
+
+        public async Task<ResponseModel> UploadMuseumImageAsync(IFormFile file)
+        {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
+            var museum = await _unitOfWork.Museums.GetByIdAsync(museumId);
+            if (museum == null) return ResponseModel.NotFound("Museum not found");
+
+            var fileUrl = await _mediaService.UploadFileAsync(file, "museums");
+
+            museum.ThumbnailUrl = fileUrl;
+            museum.UpdatedAt = System.DateTime.UtcNow;
+            _unitOfWork.Museums.Update(museum);
+
+            await _unitOfWork.CompleteAsync();
+
+            return ResponseModel.Success("Museum image uploaded successfully", fileUrl);
         }
 
         public async Task<ResponseModel> GetAllTicketTypesAsync()

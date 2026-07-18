@@ -2,6 +2,7 @@ using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Museum;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Ticketing;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.User;
 using HistoricalMuseumAudioGuide.Service.Services;
+using Microsoft.AspNetCore.Http;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -12,6 +13,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Admin
         // Museum Profile Management
         Task<ResponseModel> GetMuseumProfileAsync();
         Task<ResponseModel> UpdateMuseumProfileAsync(UpdateMuseumProfileDto museumDto);
+        Task<ResponseModel> UploadMuseumImageAsync(IFormFile file);
 
         // Ticket Type Management
         Task<ResponseModel> GetAllTicketTypesAsync();
