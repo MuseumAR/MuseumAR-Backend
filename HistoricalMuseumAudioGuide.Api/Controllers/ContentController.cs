@@ -340,7 +340,7 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
-        [Authorize(Roles = "MuseumManager,ContentManager,SystemAdmin")]
+        [Authorize(Roles = "ContentManager")]
         [HttpPost("themes")]
         public async Task<IActionResult> CreateTheme([FromBody] CreateThemeDto themeDto)
         {
@@ -349,7 +349,7 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
-        [Authorize(Roles = "MuseumManager,ContentManager,SystemAdmin")]
+        [Authorize(Roles = "ContentManager")]
         [HttpPut("themes/{id}")]
         public async Task<IActionResult> UpdateTheme(int id, [FromBody] CreateThemeDto themeDto)
         {
@@ -358,7 +358,7 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
-        [Authorize(Roles = "MuseumManager,MuseumContentManager,SystemAdmin")]
+        [Authorize(Roles = "ContentManager")]
         [HttpDelete("themes/{id}")]
         public async Task<IActionResult> DeleteTheme(int id)
         {

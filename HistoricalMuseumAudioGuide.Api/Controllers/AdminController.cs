@@ -6,6 +6,7 @@ using HistoricalMuseumAudioGuide.Service.Services;
 using HistoricalMuseumAudioGuide.Service.Services.Admin;
 using HistoricalMuseumAudioGuide.Service.Services.SystemConfig;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Security.Claims;
@@ -38,6 +39,14 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         public async Task<IActionResult> UpdateMuseumProfile(UpdateMuseumProfileDto dto)
         {
             var response = await _adminService.UpdateMuseumProfileAsync(dto);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "SystemAdmin,MuseumManager")]
+        [HttpPost("museum-profile/upload-image")]
+        public async Task<IActionResult> UploadMuseumImage([FromForm] IFormFile file)
+        {
+            var response = await _adminService.UploadMuseumImageAsync(file);
             return ResponseParser.Result(response);
         }
 
