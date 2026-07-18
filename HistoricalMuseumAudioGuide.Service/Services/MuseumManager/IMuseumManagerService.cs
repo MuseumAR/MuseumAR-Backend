@@ -15,5 +15,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Analytics
         Task<ResponseModel> GetTicketTypesByMuseumAsync(int museumId);
 
         Task<ResponseModel> CreateTicketTypeAsync(int museumId, CreateTicketTypeDto createDto);
+
+        Task<ResponseModel> PublishTicketTypeAsync(int museumId, int ticketTypeId);
     }
 }

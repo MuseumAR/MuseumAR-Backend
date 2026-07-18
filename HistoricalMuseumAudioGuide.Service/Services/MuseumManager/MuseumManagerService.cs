@@ -79,7 +79,26 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Analytics
             await _unitOfWork.CompleteAsync();
 
             var dto = _mapper.Map<TicketTypeDto>(ticketType);
-            return ResponseModel.Success("Ticket type created successfully and is pending approval", dto);
+            return ResponseModel.Success("Ticket type created successfully", dto);
+        }
+
+        public async Task<ResponseModel> PublishTicketTypeAsync(int museumId, int ticketTypeId)
+        {
+            var ticketType = await _unitOfWork.TicketTypes.GetByIdAsync(ticketTypeId);
+            if (ticketType == null)
+                return ResponseModel.NotFound("Ticket type not found.");
+
+            if (ticketType.MuseumId != museumId)
+                return ResponseModel.Forbidden("You are not authorized to publish this ticket type.");
+
+            ticketType.Status = "Approved";
+            ticketType.IsActive = true;
+            ticketType.UpdatedAt = System.DateTime.UtcNow;
+
+            _unitOfWork.TicketTypes.Update(ticketType);
+            await _unitOfWork.CompleteAsync();
+
+            return ResponseModel.Success("Ticket type published successfully.");
         }
     }
 }

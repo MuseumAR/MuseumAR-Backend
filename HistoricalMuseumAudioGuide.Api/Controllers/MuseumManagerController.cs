@@ -52,5 +52,14 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             var result = await _managerService.CreateTicketTypeAsync(museumId, createDto);
             return StatusCode(result.StatusCode, result);
         }
+
+        [Authorize(Roles = "MuseumManager")]
+        [HttpPut("ticket-types/{id}/publish")]
+        public async Task<IActionResult> PublishTicketType(int id)
+        {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
+            var result = await _managerService.PublishTicketTypeAsync(museumId, id);
+            return StatusCode(result.StatusCode, result);
+        }
     }
 }
