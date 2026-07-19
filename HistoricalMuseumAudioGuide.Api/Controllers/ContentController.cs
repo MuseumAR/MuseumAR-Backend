@@ -148,6 +148,14 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
+        [HttpGet("versions")]
+        public async Task<IActionResult> GetContentVersions()
+        {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
+            var response = await _contentService.GetContentVersionsAsync(museumId);
+            return ResponseParser.Result(response);
+        }
+
         // --- AR Asset Management (Read - Public, Write - Authorized) ---
 
         [HttpGet("exhibits/{exhibitId}/ar-assets")]
