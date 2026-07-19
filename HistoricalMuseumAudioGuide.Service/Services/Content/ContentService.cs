@@ -829,13 +829,49 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             var accessCheck = ValidateMuseumAccess(userMuseumId, museumId);
             if (accessCheck != null) return accessCheck;
 
+            // Validate that the ContentVersion exists and belongs to the same museum
+            var version = await _unitOfWork.ContentVersions.GetByIdAsync(versionId);
+            if (version == null)
+            {
+                return ResponseModel.NotFound($"Content version with ID {versionId} not found.");
+            }
+            if (version.MuseumId != museumId)
+            {
+                return ResponseModel.BadRequest("Content version does not belong to the current museum.");
+            }
+
+            // Calculate actual counts from the database
+            var exhibits = await _unitOfWork.Exhibits.FindAsync(e => e.MuseumId == museumId);
+            int exhibitCount = exhibits.Count();
+
+            var arAssets = await _unitOfWork.ExhibitArassets.FindAsync(a => a.Exhibit.MuseumId == museumId);
+            int arAssetCount = arAssets.Count();
+
+            var images = await _unitOfWork.ExhibitImages.FindAsync(i => i.Exhibit.MuseumId == museumId);
+            int imageCount = images.Count();
+
+            var translations = await _unitOfWork.ExhibitTranslations.FindAsync(t => t.Exhibit.MuseumId == museumId && !string.IsNullOrEmpty(t.AudioUrl));
+            int audioCount = translations.Count();
+
+            // Calculate a realistic mock size: 1MB base + 100KB/exhibit + 500KB/image + 2MB/audio + 5MB/arAsset
+            long packageSizeBytes = 1024 * 1024
+                                    + exhibitCount * 100 * 1024
+                                    + imageCount * 500 * 1024
+                                    + audioCount * 2 * 1024 * 1024
+                                    + arAssetCount * 5 * 1024 * 1024;
+
             var package = new OfflinePackage
             {
                 MuseumId = museumId,
                 VersionId = versionId,
                 Status = "Building",
                 CreatedAt = DateTime.UtcNow,
-                PackageSizeBytes = 0 // Mock size
+                PackageSizeBytes = packageSizeBytes,
+                PackageUrl = "", // Satisfy database NOT NULL constraint
+                ExhibitCount = exhibitCount,
+                ArassetCount = arAssetCount,
+                ImageCount = imageCount,
+                AudioCount = audioCount
             };
 
             await _unitOfWork.OfflinePackages.AddAsync(package);
@@ -845,6 +881,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             package.Status = "Available";
             package.PackageUrl = $"/uploads/packages/museum_{museumId}_v{versionId}.zip";
             package.Checksum = Guid.NewGuid().ToString("N");
+            package.BuiltAt = DateTime.UtcNow;
             
             _unitOfWork.OfflinePackages.Update(package);
             await _unitOfWork.CompleteAsync();
