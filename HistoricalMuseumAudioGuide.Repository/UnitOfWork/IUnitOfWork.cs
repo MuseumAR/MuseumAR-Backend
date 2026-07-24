@@ -38,6 +38,7 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         ITicketTypeRepository TicketTypes { get; }
         ITicketRepository Tickets { get; }
         ITransactionRepository Transactions { get; }
+        IGenericRepository<PaymentMethod> PaymentMethods { get; }
         IGenericRepository<Bookmark> Bookmarks { get; }
         IGenericRepository<VisitedExhibit> VisitedExhibits { get; }
         IGenericRepository<MuseumMap> MuseumMaps { get; }

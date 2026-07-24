@@ -24,6 +24,7 @@ public class VisitorRepository : GenericRepository<Entities.Visitor>, IVisitorRe
 
     public async Task<Entities.Visitor?> GetVisitorByDeviceIdAsync(string deviceId)
     {
-        return await _dbSet.FirstOrDefaultAsync(v => v.DeviceId == deviceId);
+        return await _context.Visitors
+            .FirstOrDefaultAsync(v => v.DeviceId == deviceId);
     }
 }

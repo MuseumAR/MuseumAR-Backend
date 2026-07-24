@@ -434,6 +434,8 @@ CREATE TABLE Transactions (
     CONSTRAINT FK_Transactions_Visitor FOREIGN KEY (VisitorId) REFERENCES Visitors(Id),
     CONSTRAINT FK_Transactions_Method FOREIGN KEY (PaymentMethodId) REFERENCES PaymentMethods(Id)
 );
+ALTER TABLE Transactions
+ADD PaymentUrl NVARCHAR(500) NULL;
 
 CREATE TABLE TicketTypes (
     Id              INT IDENTITY(1,1) PRIMARY KEY,

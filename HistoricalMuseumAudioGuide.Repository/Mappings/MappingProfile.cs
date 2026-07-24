@@ -43,7 +43,7 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
             CreateMap<UpdateSystemConfigDto, SystemConfiguration>();
 
             // Ticketing
-            CreateMap<CreateOrderRequestDto, Transaction>();
+            //CreateMap<CreateOrderRequestDto, Transaction>();
             
             CreateMap<Museum, MuseumDto>().ReverseMap();
             CreateMap<CreateMuseumDto, Museum>();
@@ -106,6 +106,9 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
             CreateMap<CreateTicketTypeDto, TicketType>();
             CreateMap<Ticket, TicketDto>()
                 .ForMember(dest => dest.TicketTypeName, opt => opt.MapFrom(src => src.TicketType.Name));
+            CreateMap<UpdateTicketTypeDto, TicketType>()
+            .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
+            CreateMap<TicketType, TicketTypeDto>();
 
             // Visitor
             CreateMap<Bookmark, BookmarkDto>();

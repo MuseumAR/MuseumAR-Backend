@@ -15,11 +15,27 @@ public class TicketTypeRepository : GenericRepository<Entities.TicketType>, ITic
 
     public async Task<IEnumerable<Entities.TicketType>> GetActiveTicketTypesAsync()
     {
-        return await _dbSet.Where(t => t.IsActive && t.Status == "Approved").ToListAsync();
+        return await _dbSet
+            .Where(t => t.IsActive && t.Status == "Approved")
+            .ToListAsync();
     }
 
-    public async Task<IEnumerable<Entities.TicketType>> GetTicketTypesByMuseumIdAsync(int museumId)
+    public async Task<IEnumerable<Entities.TicketType>> GetTicketTypesByMuseumIdAsync(int museumId, bool activeOnly = true)
     {
-        return await _dbSet.Where(t => t.MuseumId == museumId).ToListAsync();
+        var query = _dbSet.Where(t => t.MuseumId == museumId);
+
+        if (activeOnly)
+        {
+            query = query.Where(t => t.IsActive && t.Status == "Approved");
+        }
+
+        return await query.ToListAsync();
+    }
+
+    public async Task<IEnumerable<Entities.TicketType>> GetPendingTicketTypesAsync()
+    {
+        return await _dbSet
+            .Where(t => t.Status == "Pending")
+            .ToListAsync();
     }
 }

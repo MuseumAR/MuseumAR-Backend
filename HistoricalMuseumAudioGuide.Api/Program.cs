@@ -18,6 +18,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using System.Text;
+using PayOS;
+using HistoricalMuseumAudioGuide.Service.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -63,6 +65,9 @@ builder.Services.AddScoped<IContentService, ContentService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IMediaService, MediaService>();
 builder.Services.AddScoped<ITicketingService, TicketingService>();
+builder.Services.AddScoped<ITicketTypeService, TicketTypeService>();
+builder.Services.AddScoped<IBookingService, BookingService>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IMuseumManagerService, MuseumManagerService>();
 builder.Services.AddScoped<IVisitorService, VisitorService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
@@ -89,6 +94,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret ?? throw new InvalidOperationException("JWT Secret is missing")))
         };
     });
+
+// PAYOS
+string clientId = Environment.GetEnvironmentVariable("PAYOS_CLIENT_ID")
+                  ?? builder.Configuration["PAYOS_CLIENT_ID"]!;
+string apiKey = Environment.GetEnvironmentVariable("PAYOS_API_KEY")
+                ?? builder.Configuration["PAYOS_API_KEY"]!;
+string checksumKey = Environment.GetEnvironmentVariable("PAYOS_CHECKSUM_KEY")
+                     ?? builder.Configuration["PAYOS_CHECKSUM_KEY"]!;
+
+PayOSClient payOS = new PayOSClient(clientId, apiKey, checksumKey);
+builder.Services.AddSingleton(payOS);
 
 // AutoMapper
 builder.Services.AddAutoMapper(typeof(MappingProfile));

@@ -25,58 +25,51 @@ public class TicketingService : ITicketingService
         _configuration = configuration;
     }
 
-    public async Task<ResponseModel> GetTicketTypesAsync()
-    {
-        var ticketTypes = await _unitOfWork.TicketTypes.GetActiveTicketTypesAsync();
-        var dtos = _mapper.Map<IEnumerable<TicketTypeDto>>(ticketTypes);
-        return ResponseModel.Success("Get ticket types successfully", dtos);
-    }
+    //public async Task<ResponseModel> CreateOrderAsync(int visitorId, CreateOrderRequestDto request)
+    //{
+    //    var ticketType = await _unitOfWork.TicketTypes.GetByIdAsync(request.TicketTypeId);
+    //    if (ticketType == null || !ticketType.IsActive || ticketType.Status != "Approved")
+    //    {
+    //        return ResponseModel.BadRequest("Invalid or inactive ticket type.");
+    //    }
 
-    public async Task<ResponseModel> CreateOrderAsync(int visitorId, CreateOrderRequestDto request)
-    {
-        var ticketType = await _unitOfWork.TicketTypes.GetByIdAsync(request.TicketTypeId);
-        if (ticketType == null || !ticketType.IsActive || ticketType.Status != "Approved")
-        {
-            return ResponseModel.BadRequest("Invalid or inactive ticket type.");
-        }
+    //    decimal totalAmount = ticketType.Price * request.Quantity;
+    //    string orderCode = DateTime.UtcNow.Ticks.ToString();
 
-        decimal totalAmount = ticketType.Price * request.Quantity;
-        string orderCode = DateTime.UtcNow.Ticks.ToString();
+    //    // 1 represents VNPay payment method in our DB, ideally get it dynamically.
+    //    var transaction = _mapper.Map<Transaction>(request);
+    //    transaction.VisitorId = visitorId;
+    //    transaction.PaymentMethodId = 1; 
+    //    transaction.OrderCode = orderCode;
+    //    transaction.TotalAmount = totalAmount;
+    //    transaction.Currency = "VND";
+    //    transaction.PaymentStatus = "Pending";
+    //    transaction.CreatedAt = DateTime.UtcNow;
+    //    transaction.UpdatedAt = DateTime.UtcNow;
 
-        // 1 represents VNPay payment method in our DB, ideally get it dynamically.
-        var transaction = _mapper.Map<Transaction>(request);
-        transaction.VisitorId = visitorId;
-        transaction.PaymentMethodId = 1; 
-        transaction.OrderCode = orderCode;
-        transaction.TotalAmount = totalAmount;
-        transaction.Currency = "VND";
-        transaction.PaymentStatus = "Pending";
-        transaction.CreatedAt = DateTime.UtcNow;
-        transaction.UpdatedAt = DateTime.UtcNow;
+    //    // Pre-create tickets in Pending state
+    //    for (int i = 0; i < request.Quantity; i++)
+    //    {
+    //        transaction.Tickets.Add(new Ticket
+    //        {
+    //            VisitorId = visitorId,
+    //            TicketTypeId = request.TicketTypeId,
+    //            TicketCode = Guid.NewGuid().ToString("N"),
+    //            PurchaseDate = DateTime.UtcNow,
+    //            Status = "Pending",
+    //            CreatedAt = DateTime.UtcNow,
+    //            UpdatedAt = DateTime.UtcNow
+    //        });
+    //    }
 
-        // Pre-create tickets in Pending state
-        for (int i = 0; i < request.Quantity; i++)
-        {
-            transaction.Tickets.Add(new Ticket
-            {
-                VisitorId = visitorId,
-                TicketTypeId = request.TicketTypeId,
-                TicketCode = Guid.NewGuid().ToString("N"),
-                PurchaseDate = DateTime.UtcNow,
-                Status = "Pending",
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            });
-        }
+    //    await _unitOfWork.Transactions.AddAsync(transaction);
+    //    await _unitOfWork.CompleteAsync();
 
-        await _unitOfWork.Transactions.AddAsync(transaction);
-        await _unitOfWork.CompleteAsync();
+    //    // MOCK FLOW: Instead of VNPay, we return a local mock URL for testing
+    //    string mockPaymentUrl = $"http://localhost:5149/api/ticketing/mock-confirm?orderCode={orderCode}";
 
-        // MOCK FLOW: Instead of VNPay, we return a local mock URL for testing
-        string mockPaymentUrl = $"http://localhost:5149/api/ticketing/mock-confirm?orderCode={orderCode}";
-
-        return ResponseModel.Success("Order created (Mock Mode)", new { paymentUrl = mockPaymentUrl, orderCode });
-    }
+    //    return ResponseModel.Success("Order created (Mock Mode)", new { paymentUrl = mockPaymentUrl, orderCode });
+    //}
 
     public async Task<ResponseModel> ConfirmMockPaymentAsync(string orderCode)
     {
@@ -156,13 +149,13 @@ public class TicketingService : ITicketingService
         return ResponseModel.Success("IPN Handled successfully");
     }
 
-    public async Task<ResponseModel> GetMyTicketsAsync(int visitorId)
-    {
-        var tickets = await _unitOfWork.Tickets.GetTicketsByVisitorIdAsync(visitorId);
-        // Only return Active tickets to the user
-        var activeTickets = tickets.Where(t => t.Status == "Paid");
-        var dtos = _mapper.Map<IEnumerable<TicketDto>>(activeTickets);
+    //public async Task<ResponseModel> GetMyTicketsAsync(int visitorId)
+    //{
+    //    var tickets = await _unitOfWork.Tickets.GetTicketsByVisitorIdAsync(visitorId);
+    //    // Only return Active tickets to the user
+    //    var activeTickets = tickets.Where(t => t.Status == "Paid");
+    //    var dtos = _mapper.Map<IEnumerable<TicketDto>>(activeTickets);
         
-        return ResponseModel.Success("Get tickets successfully", dtos);
-    }
+    //    return ResponseModel.Success("Get tickets successfully", dtos);
+    //}
 }

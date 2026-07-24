@@ -13,6 +13,7 @@ public class TransactionRepository : GenericRepository<Entities.Transaction>, IT
 
     public async Task<Entities.Transaction?> GetByOrderCodeAsync(string orderCode)
     {
-        return await _dbSet.Include(t => t.Tickets).FirstOrDefaultAsync(t => t.OrderCode == orderCode);
+        return await _context.Transactions
+            .FirstOrDefaultAsync(t => t.OrderCode == orderCode);
     }
 }

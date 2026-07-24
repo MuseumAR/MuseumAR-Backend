@@ -43,6 +43,7 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
             TicketTypes = new TicketTypeRepository(_context);
             Tickets = new TicketRepository(_context);
             Transactions = new TransactionRepository(_context);
+            PaymentMethods = new GenericRepository<PaymentMethod>(_context);
             Bookmarks = new GenericRepository<Bookmark>(_context);
             VisitedExhibits = new GenericRepository<VisitedExhibit>(_context);
             MuseumMaps = new GenericRepository<MuseumMap>(_context);
@@ -73,6 +74,7 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         public ITicketTypeRepository TicketTypes { get; private set; }
         public ITicketRepository Tickets { get; private set; }
         public ITransactionRepository Transactions { get; private set; }
+        public IGenericRepository<PaymentMethod> PaymentMethods { get; private set; }
         public IGenericRepository<Bookmark> Bookmarks { get; private set; }
         public IGenericRepository<VisitedExhibit> VisitedExhibits { get; private set; }
         public IGenericRepository<MuseumMap> MuseumMaps { get; private set; }
