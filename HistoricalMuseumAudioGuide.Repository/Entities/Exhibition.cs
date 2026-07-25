@@ -32,4 +32,6 @@ public partial class Exhibition
     public virtual ICollection<TicketType> TicketTypes { get; set; } = new List<TicketType>();
 
     public virtual ICollection<Exhibit> Exhibits { get; set; } = new List<Exhibit>();
+
+    public virtual ICollection<TourRoute> TourRoutes { get; set; } = new List<TourRoute>();
 }

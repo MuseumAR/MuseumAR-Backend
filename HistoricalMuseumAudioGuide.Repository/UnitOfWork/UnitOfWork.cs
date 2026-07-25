@@ -47,6 +47,8 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
             VisitedExhibits = new GenericRepository<VisitedExhibit>(_context);
             MuseumMaps = new GenericRepository<MuseumMap>(_context);
             TourRoutes = new GenericRepository<TourRoute>(_context);
+            TourRouteExhibits = new GenericRepository<TourRouteExhibit>(_context);
+            TourRouteTranslations = new GenericRepository<TourRouteTranslation>(_context);
             AnalyticsLogs = new GenericRepository<AnalyticsLog>(_context);
             AuditLogs = new GenericRepository<AuditLog>(_context);
             SystemConfigurations = new GenericRepository<SystemConfiguration>(_context);
@@ -77,6 +79,8 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         public IGenericRepository<VisitedExhibit> VisitedExhibits { get; private set; }
         public IGenericRepository<MuseumMap> MuseumMaps { get; private set; }
         public IGenericRepository<TourRoute> TourRoutes { get; private set; }
+        public IGenericRepository<TourRouteExhibit> TourRouteExhibits { get; private set; }
+        public IGenericRepository<TourRouteTranslation> TourRouteTranslations { get; private set; }
         public IGenericRepository<AnalyticsLog> AnalyticsLogs { get; private set; }
         public IGenericRepository<AuditLog> AuditLogs { get; private set; }
         public IGenericRepository<SystemConfiguration> SystemConfigurations { get; private set; }

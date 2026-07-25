@@ -37,7 +37,19 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
 
         // Tour Route Management
         Task<ResponseModel> GetTourRoutesAsync(int museumId);
+        Task<ResponseModel> GetTourRouteByIdAsync(int id);
+        Task<ResponseModel> GetTourRoutesByExhibitionAsync(int exhibitionId);
         Task<ResponseModel> CreateTourRouteAsync(CreateTourRouteDto routeDto, int? userMuseumId);
+        Task<ResponseModel> UpdateTourRouteAsync(int id, UpdateTourRouteDto routeDto, int? userMuseumId);
+        Task<ResponseModel> DeleteTourRouteAsync(int id, int? userMuseumId);
+
+        // Tour Route Stops
+        Task<ResponseModel> AddStopToRouteAsync(int routeId, CreateTourRouteStopDto stopDto, int? userMuseumId);
+        Task<ResponseModel> RemoveStopFromRouteAsync(int routeId, int exhibitId, int? userMuseumId);
+        Task<ResponseModel> ReorderRouteStopsAsync(int routeId, List<int> exhibitIdsInOrder, int? userMuseumId);
+
+        // Tour Route Translations
+        Task<ResponseModel> AddOrUpdateRouteTranslationAsync(int routeId, TourRouteTranslationDto dto, int? userMuseumId);
 
         // Media Management
         Task<ResponseModel> UploadExhibitImageAsync(int exhibitId, IFormFile file, string caption, int? userMuseumId);

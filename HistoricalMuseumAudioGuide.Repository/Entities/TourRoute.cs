@@ -17,6 +17,8 @@ public partial class TourRoute
 
     public bool IsDefault { get; set; }
 
+    public int? ExhibitionId { get; set; }
+
     public string Status { get; set; } = null!;
 
     public DateTime CreatedAt { get; set; }
@@ -24,6 +26,8 @@ public partial class TourRoute
     public DateTime UpdatedAt { get; set; }
 
     public virtual AgeGroup? AgeGroup { get; set; }
+
+    public virtual Exhibition? Exhibition { get; set; }
 
     public virtual Museum Museum { get; set; } = null!;
 

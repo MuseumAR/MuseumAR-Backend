@@ -14,6 +14,11 @@ using HistoricalMuseumAudioGuide.Repository.Entities;
 using HistoricalMuseumAudioGuide.Repository.UnitOfWork;
 using HistoricalMuseumAudioGuide.Service.Services.Media;
 using Microsoft.AspNetCore.Http;
+using System.IO;
+using System.IO.Compression;
+using System.Security.Cryptography;
+using System.Text.Json;
+using System.Net.Http;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -433,11 +438,35 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
 
         // --- Tour Route Management ---
 
+        private const string TourRouteIncludes = "TourRouteExhibits.Exhibit.ExhibitTranslations,TourRouteExhibits.Exhibit.Map,TourRouteTranslations,AgeGroup,Exhibition.ExhibitionTranslations";
+
         public async Task<ResponseModel> GetTourRoutesAsync(int museumId)
         {
-            var routes = await _unitOfWork.TourRoutes.FindAsync(r => r.MuseumId == museumId);
+            var routes = await _unitOfWork.TourRoutes.FindAsync(
+                r => r.MuseumId == museumId,
+                TourRouteIncludes);
             var dtos = _mapper.Map<IEnumerable<TourRouteDto>>(routes);
             return ResponseModel.Success("Tour routes retrieved successfully", dtos);
+        }
+
+        public async Task<ResponseModel> GetTourRouteByIdAsync(int id)
+        {
+            var route = await _unitOfWork.TourRoutes.GetFirstOrDefaultAsync(
+                r => r.Id == id,
+                TourRouteIncludes);
+            if (route == null)
+                return ResponseModel.NotFound("Tour route not found");
+            var dto = _mapper.Map<TourRouteDto>(route);
+            return ResponseModel.Success("Tour route retrieved successfully", dto);
+        }
+
+        public async Task<ResponseModel> GetTourRoutesByExhibitionAsync(int exhibitionId)
+        {
+            var routes = await _unitOfWork.TourRoutes.FindAsync(
+                r => r.ExhibitionId == exhibitionId,
+                TourRouteIncludes);
+            var dtos = _mapper.Map<IEnumerable<TourRouteDto>>(routes);
+            return ResponseModel.Success("Tour routes for exhibition retrieved successfully", dtos);
         }
 
         public async Task<ResponseModel> CreateTourRouteAsync(CreateTourRouteDto routeDto, int? userMuseumId)
@@ -446,11 +475,261 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             if (accessCheck != null) return accessCheck;
 
             var route = _mapper.Map<TourRoute>(routeDto);
+            route.Status = "Active";
             route.CreatedAt = DateTime.UtcNow;
+            route.UpdatedAt = DateTime.UtcNow;
+
+            // Add stops
+            if (routeDto.Stops != null && routeDto.Stops.Any())
+            {
+                foreach (var stopDto in routeDto.Stops)
+                {
+                    route.TourRouteExhibits.Add(new TourRouteExhibit
+                    {
+                        ExhibitId = stopDto.ExhibitId,
+                        StopOrder = stopDto.StopOrder,
+                        EstimatedMinutes = stopDto.EstimatedMinutes
+                    });
+                }
+            }
+
+            // Add translations
+            if (routeDto.Translations != null && routeDto.Translations.Any())
+            {
+                foreach (var transDto in routeDto.Translations)
+                {
+                    route.TourRouteTranslations.Add(new TourRouteTranslation
+                    {
+                        LanguageCode = transDto.LanguageCode,
+                        RouteName = transDto.RouteName,
+                        Description = transDto.Description
+                    });
+                }
+            }
+
+            // If no translations provided, create a default one from the Name field
+            if (!route.TourRouteTranslations.Any() && !string.IsNullOrEmpty(routeDto.Name))
+            {
+                route.TourRouteTranslations.Add(new TourRouteTranslation
+                {
+                    LanguageCode = "vi",
+                    RouteName = routeDto.Name
+                });
+            }
+
             await _unitOfWork.TourRoutes.AddAsync(route);
             await _unitOfWork.CompleteAsync();
-            var dto = _mapper.Map<TourRouteDto>(route);
-            return ResponseModel.Success("Tour route created successfully", dto);
+
+            // Re-fetch with includes for response
+            return await GetTourRouteByIdAsync(route.Id);
+        }
+
+        public async Task<ResponseModel> UpdateTourRouteAsync(int id, UpdateTourRouteDto routeDto, int? userMuseumId)
+        {
+            var route = await _unitOfWork.TourRoutes.GetFirstOrDefaultAsync(
+                r => r.Id == id,
+                "TourRouteTranslations");
+            if (route == null)
+                return ResponseModel.NotFound("Tour route not found");
+
+            var accessCheck = ValidateMuseumAccess(userMuseumId, route.MuseumId);
+            if (accessCheck != null) return accessCheck;
+
+            if (routeDto.EstimatedDurationMinutes.HasValue)
+                route.EstimatedMinutes = routeDto.EstimatedDurationMinutes;
+            if (routeDto.AgeGroupId.HasValue)
+                route.AgeGroupId = routeDto.AgeGroupId;
+            if (routeDto.ExhibitionId.HasValue)
+                route.ExhibitionId = routeDto.ExhibitionId;
+            if (routeDto.IsDefault.HasValue)
+                route.IsDefault = routeDto.IsDefault.Value;
+            if (routeDto.ThumbnailUrl != null)
+                route.ThumbnailUrl = routeDto.ThumbnailUrl;
+            if (routeDto.Status != null)
+                route.Status = routeDto.Status;
+
+            // Update the default translation name if provided
+            if (!string.IsNullOrEmpty(routeDto.Name))
+            {
+                var viTrans = route.TourRouteTranslations.FirstOrDefault(t => t.LanguageCode == "vi");
+                if (viTrans != null)
+                    viTrans.RouteName = routeDto.Name;
+                else
+                {
+                    var firstTrans = route.TourRouteTranslations.FirstOrDefault();
+                    if (firstTrans != null)
+                        firstTrans.RouteName = routeDto.Name;
+                }
+            }
+
+            route.UpdatedAt = DateTime.UtcNow;
+            _unitOfWork.TourRoutes.Update(route);
+            await _unitOfWork.CompleteAsync();
+
+            return await GetTourRouteByIdAsync(id);
+        }
+
+        public async Task<ResponseModel> DeleteTourRouteAsync(int id, int? userMuseumId)
+        {
+            var route = await _unitOfWork.TourRoutes.GetFirstOrDefaultAsync(
+                r => r.Id == id,
+                "TourRouteExhibits,TourRouteTranslations");
+            if (route == null)
+                return ResponseModel.NotFound("Tour route not found");
+
+            var accessCheck = ValidateMuseumAccess(userMuseumId, route.MuseumId);
+            if (accessCheck != null) return accessCheck;
+
+            // Delete related stops and translations first
+            foreach (var stop in route.TourRouteExhibits.ToList())
+                _unitOfWork.TourRouteExhibits.Delete(stop);
+            foreach (var trans in route.TourRouteTranslations.ToList())
+                _unitOfWork.TourRouteTranslations.Delete(trans);
+
+            _unitOfWork.TourRoutes.Delete(route);
+            await _unitOfWork.CompleteAsync();
+
+            return ResponseModel.Success("Tour route deleted successfully");
+        }
+
+        // --- Tour Route Stops ---
+
+        public async Task<ResponseModel> AddStopToRouteAsync(int routeId, CreateTourRouteStopDto stopDto, int? userMuseumId)
+        {
+            var route = await _unitOfWork.TourRoutes.GetByIdAsync(routeId);
+            if (route == null)
+                return ResponseModel.NotFound("Tour route not found");
+
+            var accessCheck = ValidateMuseumAccess(userMuseumId, route.MuseumId);
+            if (accessCheck != null) return accessCheck;
+
+            // Check exhibit exists
+            var exhibit = await _unitOfWork.Exhibits.GetByIdAsync(stopDto.ExhibitId);
+            if (exhibit == null)
+                return ResponseModel.NotFound("Exhibit not found");
+
+            // Check if already in route
+            var existing = await _unitOfWork.TourRouteExhibits.GetFirstOrDefaultAsync(
+                s => s.TourRouteId == routeId && s.ExhibitId == stopDto.ExhibitId);
+            if (existing != null)
+                return ResponseModel.Error("Exhibit already exists in this route");
+
+            var stop = new TourRouteExhibit
+            {
+                TourRouteId = routeId,
+                ExhibitId = stopDto.ExhibitId,
+                StopOrder = stopDto.StopOrder,
+                EstimatedMinutes = stopDto.EstimatedMinutes
+            };
+
+            await _unitOfWork.TourRouteExhibits.AddAsync(stop);
+            route.UpdatedAt = DateTime.UtcNow;
+            _unitOfWork.TourRoutes.Update(route);
+            await _unitOfWork.CompleteAsync();
+
+            return await GetTourRouteByIdAsync(routeId);
+        }
+
+        public async Task<ResponseModel> RemoveStopFromRouteAsync(int routeId, int exhibitId, int? userMuseumId)
+        {
+            var route = await _unitOfWork.TourRoutes.GetByIdAsync(routeId);
+            if (route == null)
+                return ResponseModel.NotFound("Tour route not found");
+
+            var accessCheck = ValidateMuseumAccess(userMuseumId, route.MuseumId);
+            if (accessCheck != null) return accessCheck;
+
+            var stop = await _unitOfWork.TourRouteExhibits.GetFirstOrDefaultAsync(
+                s => s.TourRouteId == routeId && s.ExhibitId == exhibitId);
+            if (stop == null)
+                return ResponseModel.NotFound("Stop not found in this route");
+
+            _unitOfWork.TourRouteExhibits.Delete(stop);
+
+            // Re-order remaining stops
+            var remainingStops = await _unitOfWork.TourRouteExhibits.FindAsync(
+                s => s.TourRouteId == routeId && s.ExhibitId != exhibitId);
+            int order = 1;
+            foreach (var s in remainingStops.OrderBy(s => s.StopOrder))
+            {
+                s.StopOrder = order++;
+                _unitOfWork.TourRouteExhibits.Update(s);
+            }
+
+            route.UpdatedAt = DateTime.UtcNow;
+            _unitOfWork.TourRoutes.Update(route);
+            await _unitOfWork.CompleteAsync();
+
+            return await GetTourRouteByIdAsync(routeId);
+        }
+
+        public async Task<ResponseModel> ReorderRouteStopsAsync(int routeId, List<int> exhibitIdsInOrder, int? userMuseumId)
+        {
+            var route = await _unitOfWork.TourRoutes.GetByIdAsync(routeId);
+            if (route == null)
+                return ResponseModel.NotFound("Tour route not found");
+
+            var accessCheck = ValidateMuseumAccess(userMuseumId, route.MuseumId);
+            if (accessCheck != null) return accessCheck;
+
+            var stops = await _unitOfWork.TourRouteExhibits.FindAsync(
+                s => s.TourRouteId == routeId);
+            var stopList = stops.ToList();
+
+            for (int i = 0; i < exhibitIdsInOrder.Count; i++)
+            {
+                var stop = stopList.FirstOrDefault(s => s.ExhibitId == exhibitIdsInOrder[i]);
+                if (stop != null)
+                {
+                    stop.StopOrder = i + 1;
+                    _unitOfWork.TourRouteExhibits.Update(stop);
+                }
+            }
+
+            route.UpdatedAt = DateTime.UtcNow;
+            _unitOfWork.TourRoutes.Update(route);
+            await _unitOfWork.CompleteAsync();
+
+            return await GetTourRouteByIdAsync(routeId);
+        }
+
+        // --- Tour Route Translations ---
+
+        public async Task<ResponseModel> AddOrUpdateRouteTranslationAsync(int routeId, TourRouteTranslationDto dto, int? userMuseumId)
+        {
+            var route = await _unitOfWork.TourRoutes.GetByIdAsync(routeId);
+            if (route == null)
+                return ResponseModel.NotFound("Tour route not found");
+
+            var accessCheck = ValidateMuseumAccess(userMuseumId, route.MuseumId);
+            if (accessCheck != null) return accessCheck;
+
+            var existing = await _unitOfWork.TourRouteTranslations.GetFirstOrDefaultAsync(
+                t => t.TourRouteId == routeId && t.LanguageCode == dto.LanguageCode);
+
+            if (existing != null)
+            {
+                existing.RouteName = dto.RouteName;
+                existing.Description = dto.Description;
+                _unitOfWork.TourRouteTranslations.Update(existing);
+            }
+            else
+            {
+                var translation = new TourRouteTranslation
+                {
+                    TourRouteId = routeId,
+                    LanguageCode = dto.LanguageCode,
+                    RouteName = dto.RouteName,
+                    Description = dto.Description
+                };
+                await _unitOfWork.TourRouteTranslations.AddAsync(translation);
+            }
+
+            route.UpdatedAt = DateTime.UtcNow;
+            _unitOfWork.TourRoutes.Update(route);
+            await _unitOfWork.CompleteAsync();
+
+            return await GetTourRouteByIdAsync(routeId);
         }
 
         // --- Media Management ---
@@ -840,34 +1119,31 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
                 return ResponseModel.BadRequest("Content version does not belong to the current museum.");
             }
 
-            // Calculate actual counts from the database
-            var exhibits = await _unitOfWork.Exhibits.FindAsync(e => e.MuseumId == museumId);
-            int exhibitCount = exhibits.Count();
+            // Fetch museum & content entities for the package
+            var museum = await _unitOfWork.Museums.GetByIdAsync(museumId);
+            var exhibits = (await _unitOfWork.Exhibits.GetExhibitsWithTranslationsAndMetadataAsync(museumId)).ToList();
+            var maps = (await _unitOfWork.MuseumMaps.FindAsync(m => m.MuseumId == museumId)).ToList();
+            var tourRoutes = (await _unitOfWork.TourRoutes.FindAsync(r => r.MuseumId == museumId, "TourRouteExhibits,TourRouteTranslations")).ToList();
+            var categories = (await _unitOfWork.Categories.FindAsync(c => c.MuseumId == museumId, "CategoryTranslations")).ToList();
 
-            var arAssets = await _unitOfWork.ExhibitArassets.FindAsync(a => a.Exhibit.MuseumId == museumId);
-            int arAssetCount = arAssets.Count();
+            var arAssets = (await _unitOfWork.ExhibitArassets.FindAsync(a => a.Exhibit.MuseumId == museumId)).ToList();
+            var images = (await _unitOfWork.ExhibitImages.FindAsync(i => i.Exhibit.MuseumId == museumId)).ToList();
+            var translations = (await _unitOfWork.ExhibitTranslations.FindAsync(t => t.Exhibit.MuseumId == museumId && !string.IsNullOrEmpty(t.AudioUrl))).ToList();
 
-            var images = await _unitOfWork.ExhibitImages.FindAsync(i => i.Exhibit.MuseumId == museumId);
-            int imageCount = images.Count();
+            int exhibitCount = exhibits.Count;
+            int arAssetCount = arAssets.Count;
+            int imageCount = images.Count;
+            int audioCount = translations.Count;
 
-            var translations = await _unitOfWork.ExhibitTranslations.FindAsync(t => t.Exhibit.MuseumId == museumId && !string.IsNullOrEmpty(t.AudioUrl));
-            int audioCount = translations.Count();
-
-            // Calculate a realistic mock size: 1MB base + 100KB/exhibit + 500KB/image + 2MB/audio + 5MB/arAsset
-            long packageSizeBytes = 1024 * 1024
-                                    + exhibitCount * 100 * 1024
-                                    + imageCount * 500 * 1024
-                                    + audioCount * 2 * 1024 * 1024
-                                    + arAssetCount * 5 * 1024 * 1024;
-
+            // Create initial database record with "Building" status
             var package = new OfflinePackage
             {
                 MuseumId = museumId,
                 VersionId = versionId,
                 Status = "Building",
                 CreatedAt = DateTime.UtcNow,
-                PackageSizeBytes = packageSizeBytes,
-                PackageUrl = "", // Satisfy database NOT NULL constraint
+                PackageSizeBytes = 0,
+                PackageUrl = "",
                 ExhibitCount = exhibitCount,
                 ArassetCount = arAssetCount,
                 ImageCount = imageCount,
@@ -877,16 +1153,139 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             await _unitOfWork.OfflinePackages.AddAsync(package);
             await _unitOfWork.CompleteAsync();
 
-            // Mock update
-            package.Status = "Available";
-            package.PackageUrl = $"/uploads/packages/museum_{museumId}_v{versionId}.zip";
-            package.Checksum = Guid.NewGuid().ToString("N");
-            package.BuiltAt = DateTime.UtcNow;
-            
-            _unitOfWork.OfflinePackages.Update(package);
-            await _unitOfWork.CompleteAsync();
+            try
+            {
+                // Ensure output directory exists: wwwroot/uploads/packages
+                var wwwroot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                var packagesDir = Path.Combine(wwwroot, "uploads", "packages");
+                if (!Directory.Exists(packagesDir))
+                {
+                    Directory.CreateDirectory(packagesDir);
+                }
 
-            return ResponseModel.Success("Offline package generated successfully", package.Id);
+                var fileName = $"museum_{museumId}_v{versionId}.zip";
+                var zipFilePath = Path.Combine(packagesDir, fileName);
+
+                using (var httpClient = new HttpClient())
+                {
+                    httpClient.Timeout = TimeSpan.FromSeconds(30);
+
+                    using (var zipFileStream = new FileStream(zipFilePath, FileMode.Create, FileAccess.ReadWrite, FileShare.None))
+                    {
+                        using (var archive = new ZipArchive(zipFileStream, ZipArchiveMode.Create, leaveOpen: true))
+                        {
+                            // 1. Add manifest.json
+                            var manifestDto = new
+                            {
+                                MuseumId = museumId,
+                                MuseumName = museum?.Name,
+                                VersionId = versionId,
+                                VersionNumber = version.VersionNumber,
+                                GeneratedAt = DateTime.UtcNow,
+                                ExhibitCount = exhibitCount,
+                                ArAssetCount = arAssetCount,
+                                ImageCount = imageCount,
+                                AudioCount = audioCount,
+                                Exhibits = _mapper.Map<IEnumerable<ExhibitDto>>(exhibits),
+                                Maps = _mapper.Map<IEnumerable<MuseumMapDto>>(maps),
+                                TourRoutes = _mapper.Map<IEnumerable<TourRouteDto>>(tourRoutes),
+                                Categories = _mapper.Map<IEnumerable<CategoryDto>>(categories)
+                            };
+
+                            var jsonString = JsonSerializer.Serialize(manifestDto, new JsonSerializerOptions { WriteIndented = true });
+                            var manifestEntry = archive.CreateEntry("manifest.json", CompressionLevel.Optimal);
+                            using (var entryStream = manifestEntry.Open())
+                            using (var writer = new StreamWriter(entryStream))
+                            {
+                                await writer.WriteAsync(jsonString);
+                            }
+
+                            // Helper function to download and pack a media file into zip
+                            async Task AddUrlFileToZipAsync(string? url, string folderName, string defaultName)
+                            {
+                                if (string.IsNullOrWhiteSpace(url)) return;
+                                try
+                                {
+                                    if (url.StartsWith("http://") || url.StartsWith("https://"))
+                                    {
+                                        var bytes = await httpClient.GetByteArrayAsync(url);
+                                        var fileExt = Path.GetExtension(new Uri(url).AbsolutePath);
+                                        if (string.IsNullOrEmpty(fileExt)) fileExt = ".jpg";
+                                        var entryName = $"{folderName}/{defaultName}{fileExt}";
+                                        var entry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
+                                        using (var entryStream = entry.Open())
+                                        {
+                                            await entryStream.WriteAsync(bytes, 0, bytes.Length);
+                                        }
+                                    }
+                                    else if (url.StartsWith("/"))
+                                    {
+                                        var localPath = Path.Combine(wwwroot, url.TrimStart('/'));
+                                        if (File.Exists(localPath))
+                                        {
+                                            var entryName = $"{folderName}/{Path.GetFileName(localPath)}";
+                                            archive.CreateEntryFromFile(localPath, entryName, CompressionLevel.Optimal);
+                                        }
+                                    }
+                                }
+                                catch
+                                {
+                                    // Skip unaccessible external media without crashing package generation
+                                }
+                            }
+
+                            // 2. Add Map Images
+                            foreach (var map in maps)
+                            {
+                                await AddUrlFileToZipAsync(map.MapImageUrl, "maps", $"map_{map.Id}");
+                            }
+
+                            // 3. Add Exhibit Images
+                            foreach (var img in images)
+                            {
+                                await AddUrlFileToZipAsync(img.ImageUrl, "images", $"exhibit_{img.ExhibitId}_img_{img.Id}");
+                            }
+
+                            // 4. Add Audio Guides
+                            foreach (var trans in translations)
+                            {
+                                await AddUrlFileToZipAsync(trans.AudioUrl, "audio", $"exhibit_{trans.ExhibitId}_{trans.LanguageCode}");
+                            }
+
+                            // 5. Add AR Assets
+                            foreach (var ar in arAssets)
+                            {
+                                await AddUrlFileToZipAsync(ar.AssetUrl, "ar", $"exhibit_{ar.ExhibitId}_ar_{ar.Id}");
+                            }
+                        }
+
+                        // Calculate final ZIP file size & SHA256 Checksum
+                        zipFileStream.Position = 0;
+                        using var sha256 = SHA256.Create();
+                        var hashBytes = sha256.ComputeHash(zipFileStream);
+                        var checksum = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
+                        long fileSize = zipFileStream.Length;
+
+                        package.Status = "Available";
+                        package.PackageUrl = $"/uploads/packages/{fileName}";
+                        package.PackageSizeBytes = fileSize;
+                        package.Checksum = checksum;
+                        package.BuiltAt = DateTime.UtcNow;
+                    }
+                }
+
+                _unitOfWork.OfflinePackages.Update(package);
+                await _unitOfWork.CompleteAsync();
+
+                return ResponseModel.Success("Offline package ZIP generated successfully", package.Id);
+            }
+            catch (Exception ex)
+            {
+                package.Status = "Failed";
+                _unitOfWork.OfflinePackages.Update(package);
+                await _unitOfWork.CompleteAsync();
+                return ResponseModel.Error($"Failed to generate offline ZIP package: {ex.Message}");
+            }
         }
 
         public async Task<ResponseModel> GetOfflinePackagesByMuseumIdAsync(int museumId)

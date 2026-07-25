@@ -119,8 +119,46 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
                 .ForMember(dest => dest.MapType, opt => opt.MapFrom(src => src.MapName ?? "floor"))
                 .ReverseMap()
                 .ForMember(dest => dest.MapName, opt => opt.MapFrom(src => src.MapType));
-            CreateMap<TourRoute, TourRouteDto>().ReverseMap();
-            CreateMap<CreateTourRouteDto, TourRoute>();
+
+            CreateMap<TourRoute, TourRouteDto>()
+                .ForMember(dest => dest.Name, opt => opt.MapFrom(src =>
+                    src.TourRouteTranslations.FirstOrDefault(t => t.LanguageCode == "vi").RouteName ??
+                    src.TourRouteTranslations.FirstOrDefault(t => t.LanguageCode == "en").RouteName ??
+                    (src.TourRouteTranslations.Any() ? src.TourRouteTranslations.First().RouteName : null)))
+                .ForMember(dest => dest.Description, opt => opt.MapFrom(src =>
+                    src.TourRouteTranslations.FirstOrDefault(t => t.LanguageCode == "vi").Description ??
+                    src.TourRouteTranslations.FirstOrDefault(t => t.LanguageCode == "en").Description ??
+                    (src.TourRouteTranslations.Any() ? src.TourRouteTranslations.First().Description : null)))
+                .ForMember(dest => dest.EstimatedDurationMinutes, opt => opt.MapFrom(src => src.EstimatedMinutes))
+                .ForMember(dest => dest.AgeGroupName, opt => opt.MapFrom(src => src.AgeGroup != null ? src.AgeGroup.GroupName : null))
+                .ForMember(dest => dest.ExhibitionName, opt => opt.MapFrom(src => src.Exhibition != null
+                    ? (src.Exhibition.ExhibitionTranslations.FirstOrDefault(t => t.LanguageCode == "vi").Name ??
+                       src.Exhibition.ExhibitionTranslations.FirstOrDefault(t => t.LanguageCode == "en").Name ??
+                       (src.Exhibition.ExhibitionTranslations.Any() ? src.Exhibition.ExhibitionTranslations.First().Name : null))
+                    : null))
+                .ForMember(dest => dest.Stops, opt => opt.MapFrom(src =>
+                    src.TourRouteExhibits.OrderBy(s => s.StopOrder)))
+                .ForMember(dest => dest.Translations, opt => opt.MapFrom(src => src.TourRouteTranslations));
+
+            CreateMap<CreateTourRouteDto, TourRoute>()
+                .ForMember(dest => dest.EstimatedMinutes, opt => opt.MapFrom(src => src.EstimatedDurationMinutes))
+                .ForMember(dest => dest.TourRouteExhibits, opt => opt.Ignore())
+                .ForMember(dest => dest.TourRouteTranslations, opt => opt.Ignore());
+
+            CreateMap<TourRouteExhibit, TourRouteStopDto>()
+                .ForMember(dest => dest.ExhibitName, opt => opt.MapFrom(src =>
+                    src.Exhibit.ExhibitTranslations.FirstOrDefault(t => t.LanguageCode == "vi").Title ??
+                    src.Exhibit.ExhibitTranslations.FirstOrDefault(t => t.LanguageCode == "en").Title ??
+                    (src.Exhibit.ExhibitTranslations.Any() ? src.Exhibit.ExhibitTranslations.First().Title : null)))
+                .ForMember(dest => dest.ExhibitCode, opt => opt.MapFrom(src => src.Exhibit.ExhibitCode))
+                .ForMember(dest => dest.MapId, opt => opt.MapFrom(src => src.Exhibit.MapId))
+                .ForMember(dest => dest.FloorNumber, opt => opt.MapFrom(src => src.Exhibit.Map != null ? src.Exhibit.Map.FloorNumber : (int?)null))
+                .ForMember(dest => dest.LocationX, opt => opt.MapFrom(src => src.Exhibit.LocationX))
+                .ForMember(dest => dest.LocationY, opt => opt.MapFrom(src => src.Exhibit.LocationY));
+
+            CreateMap<CreateTourRouteStopDto, TourRouteExhibit>();
+
+            CreateMap<TourRouteTranslation, TourRouteTranslationDto>().ReverseMap();
 
             // System Config
             CreateMap<SystemConfiguration, SystemConfigDto>();

@@ -278,12 +278,84 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
+        [HttpGet("routes/{id}")]
+        public async Task<IActionResult> GetTourRoute(int id)
+        {
+            var response = await _contentService.GetTourRouteByIdAsync(id);
+            return ResponseParser.Result(response);
+        }
+
+        [HttpGet("routes/exhibition/{exhibitionId}")]
+        public async Task<IActionResult> GetTourRoutesByExhibition(int exhibitionId)
+        {
+            var response = await _contentService.GetTourRoutesByExhibitionAsync(exhibitionId);
+            return ResponseParser.Result(response);
+        }
+
         [Authorize(Roles = "MuseumManager,ContentManager,SystemAdmin")]
         [HttpPost("routes")]
         public async Task<IActionResult> CreateTourRoute(CreateTourRouteDto createTourRouteDto)
         {
             var userMuseumId = GetCurrentUserMuseumId();
             var response = await _contentService.CreateTourRouteAsync(createTourRouteDto, userMuseumId);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "MuseumManager,ContentManager,SystemAdmin")]
+        [HttpPut("routes/{id}")]
+        public async Task<IActionResult> UpdateTourRoute(int id, UpdateTourRouteDto updateTourRouteDto)
+        {
+            var userMuseumId = GetCurrentUserMuseumId();
+            var response = await _contentService.UpdateTourRouteAsync(id, updateTourRouteDto, userMuseumId);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "MuseumManager,ContentManager,SystemAdmin")]
+        [HttpDelete("routes/{id}")]
+        public async Task<IActionResult> DeleteTourRoute(int id)
+        {
+            var userMuseumId = GetCurrentUserMuseumId();
+            var response = await _contentService.DeleteTourRouteAsync(id, userMuseumId);
+            return ResponseParser.Result(response);
+        }
+
+        // --- Tour Route Stops ---
+
+        [Authorize(Roles = "MuseumManager,ContentManager,SystemAdmin")]
+        [HttpPost("routes/{routeId}/stops")]
+        public async Task<IActionResult> AddStopToRoute(int routeId, CreateTourRouteStopDto stopDto)
+        {
+            var userMuseumId = GetCurrentUserMuseumId();
+            var response = await _contentService.AddStopToRouteAsync(routeId, stopDto, userMuseumId);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "MuseumManager,ContentManager,SystemAdmin")]
+        [HttpDelete("routes/{routeId}/stops/{exhibitId}")]
+        public async Task<IActionResult> RemoveStopFromRoute(int routeId, int exhibitId)
+        {
+            var userMuseumId = GetCurrentUserMuseumId();
+            var response = await _contentService.RemoveStopFromRouteAsync(routeId, exhibitId, userMuseumId);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "MuseumManager,ContentManager,SystemAdmin")]
+        [HttpPut("routes/{routeId}/stops/reorder")]
+        public async Task<IActionResult> ReorderRouteStops(int routeId, [FromBody] List<int> exhibitIdsInOrder)
+        {
+            var userMuseumId = GetCurrentUserMuseumId();
+            var response = await _contentService.ReorderRouteStopsAsync(routeId, exhibitIdsInOrder, userMuseumId);
+            return ResponseParser.Result(response);
+        }
+
+        // --- Tour Route Translations ---
+
+        [Authorize(Roles = "MuseumManager,ContentManager,SystemAdmin")]
+        [HttpPut("routes/{routeId}/translations")]
+        public async Task<IActionResult> AddOrUpdateRouteTranslation(int routeId, TourRouteTranslationDto translationDto)
+        {
+            var userMuseumId = GetCurrentUserMuseumId();
+            var response = await _contentService.AddOrUpdateRouteTranslationAsync(routeId, translationDto, userMuseumId);
             return ResponseParser.Result(response);
         }
 

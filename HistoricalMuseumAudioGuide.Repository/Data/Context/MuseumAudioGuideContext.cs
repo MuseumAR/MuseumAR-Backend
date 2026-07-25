@@ -713,6 +713,10 @@ public partial class MuseumAudioGuideContext : DbContext
                 .HasForeignKey(d => d.AgeGroupId)
                 .HasConstraintName("FK_TourRoutes_AgeGroup");
 
+            entity.HasOne(d => d.Exhibition).WithMany(p => p.TourRoutes)
+                .HasForeignKey(d => d.ExhibitionId)
+                .HasConstraintName("FK_TourRoutes_Exhibition");
+
             entity.HasOne(d => d.Museum).WithMany(p => p.TourRoutes)
                 .HasForeignKey(d => d.MuseumId)
                 .OnDelete(DeleteBehavior.ClientSetNull)

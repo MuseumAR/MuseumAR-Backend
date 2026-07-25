@@ -349,13 +349,15 @@ CREATE TABLE TourRoutes (
     EstimatedMinutes INT            NULL,
     ThumbnailUrl    NVARCHAR(500)   NULL,
     AgeGroupId      INT             NULL,  -- Personalization
+    ExhibitionId    INT             NULL,  -- NULL = general tour, SET = exhibition-specific tour
     IsDefault       BIT             NOT NULL DEFAULT 0,
     Status          NVARCHAR(20)    NOT NULL DEFAULT 'Active'
                     CHECK (Status IN ('Active', 'Inactive')),
     CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
     UpdatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
     CONSTRAINT FK_TourRoutes_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id),
-    CONSTRAINT FK_TourRoutes_AgeGroup FOREIGN KEY (AgeGroupId) REFERENCES AgeGroups(Id)
+    CONSTRAINT FK_TourRoutes_AgeGroup FOREIGN KEY (AgeGroupId) REFERENCES AgeGroups(Id),
+    CONSTRAINT FK_TourRoutes_Exhibition FOREIGN KEY (ExhibitionId) REFERENCES Exhibitions(Id)
 );
 
 CREATE TABLE TourRouteTranslations (
@@ -885,10 +887,10 @@ INSERT INTO Visitors (DeviceId, DisplayName, Email, PreferredLang, DeviceType, D
 -- Tuyến 1: Dành cho Học sinh (AgeGroupId = 1), ước tính 45 phút, là tuyến mặc định (IsDefault = 1)
 -- Tuyến 2: Dành cho Người lớn (AgeGroupId = 2), ước tính 60 phút
 SET IDENTITY_INSERT TourRoutes ON;
-INSERT INTO TourRoutes (Id, MuseumId, EstimatedMinutes, ThumbnailUrl, AgeGroupId, IsDefault, Status, CreatedAt, UpdatedAt)
+INSERT INTO TourRoutes (Id, MuseumId, EstimatedMinutes, ThumbnailUrl, AgeGroupId, ExhibitionId, IsDefault, Status, CreatedAt, UpdatedAt)
 VALUES 
-(1, 1, 45, 'https://cdn.museum.gov.vn/routes/hcm-student-tour.jpg', 1, 1, 'Active', GETUTCDATE(), GETUTCDATE()),
-(2, 1, 60, 'https://cdn.museum.gov.vn/routes/hcm-history-tour.jpg', 2, 0, 'Active', GETUTCDATE(), GETUTCDATE());
+(1, 1, 45, 'https://cdn.museum.gov.vn/routes/hcm-student-tour.jpg', 1, NULL, 1, 'Active', GETUTCDATE(), GETUTCDATE()),
+(2, 1, 60, 'https://cdn.museum.gov.vn/routes/hcm-history-tour.jpg', 2, NULL, 0, 'Active', GETUTCDATE(), GETUTCDATE());
 SET IDENTITY_INSERT TourRoutes OFF;
 
 
