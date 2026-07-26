@@ -3,13 +3,10 @@ using HistoricalMuseumAudioGuide.Repository.Interfaces;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace HistoricalMuseumAudioGuide.Repository.Interfaces;
+namespace HistoricalMuseumAudioGuide.Repository.Repositories.Ticket;
 
-public interface ITicketRepository : IGenericRepository<Ticket>
+public interface ITicketRepository : IGenericRepository<Entities.Ticket>
 {
-    // Thêm danh sách vé vừa tạo thuộc về một đơn hàng
-    Task AddRangeAsync(IEnumerable<Ticket> tickets);
-
-    // Lấy danh sách vé chi tiết thuộc một Transaction
-    Task<IEnumerable<Ticket>> GetTicketsByTransactionIdAsync(int transactionId);
+    Task<IEnumerable<Entities.Ticket>> GetTicketsByVisitorIdAsync(int visitorId);
+    Task<IEnumerable<Entities.Ticket>> GetTicketsByTransactionIdAsync(int transactionId);
 }

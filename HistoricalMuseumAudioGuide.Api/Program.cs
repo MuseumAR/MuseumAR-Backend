@@ -10,16 +10,16 @@ using HistoricalMuseumAudioGuide.Service.Services.Audit;
 using HistoricalMuseumAudioGuide.Service.Services.Auth;
 using HistoricalMuseumAudioGuide.Service.Services.Content;
 using HistoricalMuseumAudioGuide.Service.Services.Media;
+using HistoricalMuseumAudioGuide.Service.Services.Payment;
 using HistoricalMuseumAudioGuide.Service.Services.SystemConfig;
 using HistoricalMuseumAudioGuide.Service.Services.Ticketing;
 using HistoricalMuseumAudioGuide.Service.Services.Visitor;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using PayOS;
 using Scalar.AspNetCore;
 using System.Text;
-using PayOS;
-using HistoricalMuseumAudioGuide.Service.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -65,8 +65,6 @@ builder.Services.AddScoped<IContentService, ContentService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IMediaService, MediaService>();
 builder.Services.AddScoped<ITicketingService, TicketingService>();
-builder.Services.AddScoped<ITicketTypeService, TicketTypeService>();
-builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IMuseumManagerService, MuseumManagerService>();
 builder.Services.AddScoped<IVisitorService, VisitorService>();
@@ -95,16 +93,26 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// PAYOS
-string clientId = Environment.GetEnvironmentVariable("PAYOS_CLIENT_ID")
-                  ?? builder.Configuration["PAYOS_CLIENT_ID"]!;
-string apiKey = Environment.GetEnvironmentVariable("PAYOS_API_KEY")
-                ?? builder.Configuration["PAYOS_API_KEY"]!;
-string checksumKey = Environment.GetEnvironmentVariable("PAYOS_CHECKSUM_KEY")
-                     ?? builder.Configuration["PAYOS_CHECKSUM_KEY"]!;
+// Đăng ký PayOSClient Singleton
+builder.Services.AddSingleton<PayOSClient>(sp =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
 
-PayOSClient payOS = new PayOSClient(clientId, apiKey, checksumKey);
-builder.Services.AddSingleton(payOS);
+    // Đọc ưu tiên từ Biến môi trường (.env), nếu không có mới tìm trong Configuration
+    var clientId = Environment.GetEnvironmentVariable("PAYOS_CLIENT_ID")
+                   ?? config["PAYOS_CLIENT_ID"]
+                   ?? throw new ArgumentNullException("PAYOS_CLIENT_ID missing");
+
+    var apiKey = Environment.GetEnvironmentVariable("PAYOS_API_KEY")
+                 ?? config["PAYOS_API_KEY"]
+                 ?? throw new ArgumentNullException("PAYOS_API_KEY missing");
+
+    var checksumKey = Environment.GetEnvironmentVariable("PAYOS_CHECKSUM_KEY")
+                      ?? config["PAYOS_CHECKSUM_KEY"]
+                      ?? throw new ArgumentNullException("PAYOS_CHECKSUM_KEY missing");
+
+    return new PayOSClient(clientId, apiKey, checksumKey);
+});
 
 // AutoMapper
 builder.Services.AddAutoMapper(typeof(MappingProfile));

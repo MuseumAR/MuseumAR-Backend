@@ -13,16 +13,13 @@ public class TicketRepository : GenericRepository<Entities.Ticket>, ITicketRepos
     {
     }
 
-    public async Task AddRangeAsync(IEnumerable<Entities.Ticket> tickets)
+    public async Task<IEnumerable<Entities.Ticket>> GetTicketsByVisitorIdAsync(int visitorId)
     {
-        await _context.Tickets.AddRangeAsync(tickets);
+        return await _dbSet.Include(t => t.TicketType).Where(t => t.VisitorId == visitorId).ToListAsync();
     }
 
     public async Task<IEnumerable<Entities.Ticket>> GetTicketsByTransactionIdAsync(int transactionId)
     {
-        return await _context.Tickets
-            .Include(t => t.TicketType)
-            .Where(t => t.TransactionId == transactionId)
-            .ToListAsync();
+        return await _dbSet.Where(t => t.TransactionId == transactionId).ToListAsync();
     }
 }
