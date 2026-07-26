@@ -17,4 +17,9 @@ public class TicketRepository : GenericRepository<Entities.Ticket>, ITicketRepos
     {
         return await _dbSet.Include(t => t.TicketType).Where(t => t.VisitorId == visitorId).ToListAsync();
     }
+
+    public async Task<IEnumerable<Entities.Ticket>> GetTicketsByTransactionIdAsync(int transactionId)
+    {
+        return await _dbSet.Where(t => t.TransactionId == transactionId).ToListAsync();
+    }
 }

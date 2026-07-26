@@ -8,4 +8,5 @@ namespace HistoricalMuseumAudioGuide.Repository.Repositories.Ticket;
 public interface ITicketRepository : IGenericRepository<Entities.Ticket>
 {
     Task<IEnumerable<Entities.Ticket>> GetTicketsByVisitorIdAsync(int visitorId);
+    Task<IEnumerable<Entities.Ticket>> GetTicketsByTransactionIdAsync(int transactionId);
 }
