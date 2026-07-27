@@ -109,7 +109,24 @@ public class VisitorService : IVisitorService
     public async Task<ResponseModel> GetVisitorByUserIdAsync(int userId)
     {
         var visitor = await _unitOfWork.Visitors.GetVisitorByUserIdAsync(userId);
-        if (visitor == null) return ResponseModel.NotFound("Visitor profile not found for this user.");
+        if (visitor == null)
+        {
+            var user = await _unitOfWork.Users.GetByIdAsync(userId);
+            if (user == null) return ResponseModel.NotFound("Visitor profile not found for this user.");
+
+            visitor = new Repository.Entities.Visitor
+            {
+                UserId = userId,
+                DeviceId = $"user_{userId}_{Guid.NewGuid():N}",
+                DisplayName = user.FullName,
+                Email = user.Email,
+                PreferredLang = "vi",
+                FirstSeenAt = DateTime.UtcNow.AddHours(7),
+                LastSeenAt = DateTime.UtcNow.AddHours(7)
+            };
+            await _unitOfWork.Visitors.AddAsync(visitor);
+            await _unitOfWork.CompleteAsync();
+        }
         return ResponseModel.Success("Visitor found", visitor);
     }
 

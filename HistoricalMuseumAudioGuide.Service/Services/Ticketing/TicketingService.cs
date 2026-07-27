@@ -38,7 +38,7 @@ public class TicketingService : ITicketingService
     public async Task<ResponseModel> CreateOrderAsync(int visitorId, CreateOrderRequestDto request)
     {
         var ticketType = await _unitOfWork.TicketTypes.GetByIdAsync(request.TicketTypeId);
-        if (ticketType == null || !ticketType.IsActive || ticketType.Status != "Approved")
+        if (ticketType == null || !ticketType.IsActive || (ticketType.Status != "Approved" && ticketType.Status != "Active" && !string.IsNullOrEmpty(ticketType.Status)))
         {
             return ResponseModel.BadRequest("Invalid or inactive ticket type.");
         }
@@ -105,5 +105,26 @@ public class TicketingService : ITicketingService
         var dtos = _mapper.Map<IEnumerable<TicketDto>>(activeTickets);
         
         return ResponseModel.Success("Get tickets successfully", dtos);
+    }
+
+    public async Task<ResponseModel> MockConfirmPaymentAsync(string orderCode)
+    {
+        var transaction = await _unitOfWork.Transactions.GetByOrderCodeAsync(orderCode);
+        if (transaction == null) return ResponseModel.NotFound("Order not found.");
+
+        var now = DateTime.UtcNow.AddHours(7);
+        transaction.PaymentStatus = "Completed";
+        transaction.PaymentDate = now;
+        transaction.UpdatedAt = now;
+
+        var tickets = await _unitOfWork.Tickets.GetTicketsByTransactionIdAsync(transaction.Id);
+        foreach (var ticket in tickets)
+        {
+            ticket.Status = "Paid";
+            ticket.UpdatedAt = now;
+        }
+
+        await _unitOfWork.CompleteAsync();
+        return ResponseModel.Success("Payment mock-confirmed successfully.");
     }
 }
