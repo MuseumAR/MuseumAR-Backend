@@ -52,6 +52,13 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
+        [HttpGet("mock-confirm")]
+        public async Task<IActionResult> MockConfirmPayment([FromQuery] string orderCode)
+        {
+            var response = await _ticketingService.MockConfirmPaymentAsync(orderCode);
+            return ResponseParser.Result(response);
+        }
+
         private async Task<(Visitor? visitor, IActionResult? errorResponse)> GetCurrentVisitorAsync()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);

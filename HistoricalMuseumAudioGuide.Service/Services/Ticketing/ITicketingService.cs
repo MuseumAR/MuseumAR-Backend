@@ -10,4 +10,5 @@ public interface ITicketingService
     Task<ResponseModel> GetTicketTypesAsync();
     Task<ResponseModel> CreateOrderAsync(int visitorId, CreateOrderRequestDto request);
     Task<ResponseModel> GetMyTicketsAsync(int visitorId);
+    Task<ResponseModel> MockConfirmPaymentAsync(string orderCode);
 }
