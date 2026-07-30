@@ -18,6 +18,8 @@ namespace HistoricalMuseumAudioGuide.Repository.Repositories.Exhibit
             return await _dbSet
                 .Include(e => e.ExhibitTranslations)
                 .Include(e => e.ExhibitMetadatum)
+                .Include(e => e.Map)
+                .Include(e => e.Room)
                 .Where(e => e.MuseumId == museumId)
                 .ToListAsync();
         }

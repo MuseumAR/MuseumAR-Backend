@@ -10,6 +10,7 @@ using HistoricalMuseumAudioGuide.Repository.Data.DTOs.TourRoute;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.AgeGroup;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Theme;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Tag;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Room;
 using HistoricalMuseumAudioGuide.Repository.Entities;
 using HistoricalMuseumAudioGuide.Repository.UnitOfWork;
 using HistoricalMuseumAudioGuide.Service.Services.Media;
@@ -69,7 +70,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
         {
             var exhibit = await _unitOfWork.Exhibits.GetFirstOrDefaultAsync(
                 e => e.Id == id,
-                includeProperties: "ExhibitTranslations,ExhibitMetadatum"
+                includeProperties: "ExhibitTranslations,ExhibitMetadatum,Map,Room"
             );
             if (exhibit == null) return ResponseModel.NotFound("Exhibit not found");
 
@@ -299,6 +300,103 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             return ResponseModel.Success("Exhibit unpublished successfully");
         }
 
+        // --- Room Management ---
+
+        public async Task<ResponseModel> GetRoomsByMuseumIdAsync(int museumId)
+        {
+            var rooms = await _unitOfWork.Rooms.FindAsync(
+                r => r.MuseumId == museumId,
+                includeProperties: "Map"
+            );
+            var roomDtos = _mapper.Map<IEnumerable<RoomDto>>(rooms);
+            return ResponseModel.Success("Get rooms successful", roomDtos);
+        }
+
+        public async Task<ResponseModel> CreateRoomAsync(CreateRoomDto roomDto, int? userMuseumId)
+        {
+            var accessCheck = ValidateMuseumAccess(userMuseumId, roomDto.MuseumId);
+            if (accessCheck != null) return accessCheck;
+
+            if (string.IsNullOrWhiteSpace(roomDto.RoomCode) || string.IsNullOrWhiteSpace(roomDto.RoomName))
+            {
+                return ResponseModel.BadRequest("Room code and room name are required.");
+            }
+
+            var existingRoom = await _unitOfWork.Rooms.GetFirstOrDefaultAsync(
+                r => r.MuseumId == roomDto.MuseumId && r.RoomCode.ToLower() == roomDto.RoomCode.Trim().ToLower());
+            if (existingRoom != null)
+            {
+                return ResponseModel.BadRequest($"Room with code '{roomDto.RoomCode}' already exists in this museum.");
+            }
+
+            var room = _mapper.Map<Room>(roomDto);
+            room.RoomCode = roomDto.RoomCode.Trim();
+            room.RoomName = roomDto.RoomName.Trim();
+            room.CreatedAt = DateTime.UtcNow;
+            room.UpdatedAt = DateTime.UtcNow;
+
+            await _unitOfWork.Rooms.AddAsync(room);
+            await _unitOfWork.CompleteAsync();
+
+            return ResponseModel.Success("Room created successfully", room.Id);
+        }
+
+        public async Task<ResponseModel> UpdateRoomAsync(int id, UpdateRoomDto roomDto, int? userMuseumId)
+        {
+            var room = await _unitOfWork.Rooms.GetByIdAsync(id);
+            if (room == null) return ResponseModel.NotFound("Room not found");
+
+            var accessCheck = ValidateMuseumAccess(userMuseumId, room.MuseumId);
+            if (accessCheck != null) return accessCheck;
+
+            if (!string.IsNullOrWhiteSpace(roomDto.RoomCode))
+            {
+                var existingRoom = await _unitOfWork.Rooms.GetFirstOrDefaultAsync(
+                    r => r.MuseumId == room.MuseumId && r.Id != id && r.RoomCode.ToLower() == roomDto.RoomCode.Trim().ToLower());
+                if (existingRoom != null)
+                {
+                    return ResponseModel.BadRequest($"Room with code '{roomDto.RoomCode}' already exists.");
+                }
+                room.RoomCode = roomDto.RoomCode.Trim();
+            }
+
+            if (!string.IsNullOrWhiteSpace(roomDto.RoomName))
+            {
+                room.RoomName = roomDto.RoomName.Trim();
+            }
+
+            if (roomDto.MapId.HasValue) room.MapId = roomDto.MapId;
+            if (roomDto.FloorNumber.HasValue) room.FloorNumber = roomDto.FloorNumber.Value;
+            if (roomDto.Description != null) room.Description = roomDto.Description;
+
+            room.UpdatedAt = DateTime.UtcNow;
+
+            _unitOfWork.Rooms.Update(room);
+            await _unitOfWork.CompleteAsync();
+
+            return ResponseModel.Success("Room updated successfully");
+        }
+
+        public async Task<ResponseModel> DeleteRoomAsync(int id, int? userMuseumId)
+        {
+            var room = await _unitOfWork.Rooms.GetByIdAsync(id);
+            if (room == null) return ResponseModel.NotFound("Room not found");
+
+            var accessCheck = ValidateMuseumAccess(userMuseumId, room.MuseumId);
+            if (accessCheck != null) return accessCheck;
+
+            var hasExhibits = await _unitOfWork.Exhibits.GetFirstOrDefaultAsync(e => e.RoomId == id);
+            if (hasExhibits != null)
+            {
+                return ResponseModel.BadRequest("Cannot delete room because it currently has exhibits assigned to it.");
+            }
+
+            _unitOfWork.Rooms.Delete(room);
+            await _unitOfWork.CompleteAsync();
+
+            return ResponseModel.Success("Room deleted successfully");
+        }
+
         // --- Exhibition Management ---
 
         public async Task<ResponseModel> GetExhibitionsByMuseumIdAsync(int museumId)
@@ -438,7 +536,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
 
         // --- Tour Route Management ---
 
-        private const string TourRouteIncludes = "TourRouteExhibits.Exhibit.ExhibitTranslations,TourRouteExhibits.Exhibit.Map,TourRouteTranslations,AgeGroup,Exhibition.ExhibitionTranslations";
+        private const string TourRouteIncludes = "TourRouteExhibits.Exhibit.ExhibitTranslations,TourRouteExhibits.Exhibit.Room,TourRouteExhibits.Exhibit.Map,TourRouteTranslations,AgeGroup,Exhibition.ExhibitionTranslations";
 
         public async Task<ResponseModel> GetTourRoutesAsync(int museumId)
         {

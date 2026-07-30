@@ -25,9 +25,7 @@ public partial class Exhibit
 
     public int? MapId { get; set; }
 
-    public double? LocationX { get; set; }
-
-    public double? LocationY { get; set; }
+    public int? RoomId { get; set; }
 
     public int SortOrder { get; set; }
 
@@ -60,6 +58,8 @@ public partial class Exhibit
     public virtual ICollection<ExhibitTranslation> ExhibitTranslations { get; set; } = new List<ExhibitTranslation>();
 
     public virtual MuseumMap? Map { get; set; }
+
+    public virtual Room? Room { get; set; }
 
     public virtual Museum Museum { get; set; } = null!;
 

@@ -41,6 +41,7 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         IGenericRepository<Bookmark> Bookmarks { get; }
         IGenericRepository<VisitedExhibit> VisitedExhibits { get; }
         IGenericRepository<MuseumMap> MuseumMaps { get; }
+        IGenericRepository<Room> Rooms { get; }
         IGenericRepository<TourRoute> TourRoutes { get; }
         IGenericRepository<TourRouteExhibit> TourRouteExhibits { get; }
         IGenericRepository<TourRouteTranslation> TourRouteTranslations { get; }

@@ -18,6 +18,7 @@ using HistoricalMuseumAudioGuide.Repository.Data.DTOs.AgeGroup;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Theme;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Tag;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.User;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Room;
 
 namespace HistoricalMuseumAudioGuide.Repository.Mappings
 {
@@ -52,8 +53,18 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
             CreateMap<Exhibit, ExhibitDto>()
                 .ForMember(dest => dest.ExhibitMetadata, opt => opt.MapFrom(src => src.ExhibitMetadatum))
                 .ForMember(dest => dest.Translations, opt => opt.MapFrom(src => src.ExhibitTranslations))
+                .ForMember(dest => dest.MapName, opt => opt.MapFrom(src => src.Map != null ? src.Map.MapName : null))
+                .ForMember(dest => dest.FloorNumber, opt => opt.MapFrom(src => src.Room != null ? (int?)src.Room.FloorNumber : (src.Map != null ? (int?)src.Map.FloorNumber : null)))
+                .ForMember(dest => dest.RoomCode, opt => opt.MapFrom(src => src.Room != null ? src.Room.RoomCode : null))
+                .ForMember(dest => dest.RoomName, opt => opt.MapFrom(src => src.Room != null ? src.Room.RoomName : null))
                 .ReverseMap();
             CreateMap<CreateExhibitDto, Exhibit>()
+                .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
+
+            // Room Mappings
+            CreateMap<Room, RoomDto>().ReverseMap();
+            CreateMap<CreateRoomDto, Room>();
+            CreateMap<UpdateRoomDto, Room>()
                 .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
 
             // Exhibit Translation
@@ -117,6 +128,8 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
             // Maps & Routes
             CreateMap<MuseumMap, MuseumMapDto>()
                 .ForMember(dest => dest.MapType, opt => opt.MapFrom(src => src.MapName ?? "floor"))
+                .ForMember(dest => dest.FloorNumber, opt => opt.MapFrom(src => src.FloorNumber))
+                .ForMember(dest => dest.MapName, opt => opt.MapFrom(src => src.MapName))
                 .ReverseMap()
                 .ForMember(dest => dest.MapName, opt => opt.MapFrom(src => src.MapType));
 
@@ -152,10 +165,11 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
                     (src.Exhibit.ExhibitTranslations.Any() ? src.Exhibit.ExhibitTranslations.First().Title : null)))
                 .ForMember(dest => dest.ExhibitCode, opt => opt.MapFrom(src => src.Exhibit.ExhibitCode))
                 .ForMember(dest => dest.MapId, opt => opt.MapFrom(src => src.Exhibit.MapId))
-                .ForMember(dest => dest.FloorNumber, opt => opt.MapFrom(src => src.Exhibit.Map != null ? src.Exhibit.Map.FloorNumber : (int?)null))
-                .ForMember(dest => dest.LocationX, opt => opt.MapFrom(src => src.Exhibit.LocationX))
-                .ForMember(dest => dest.LocationY, opt => opt.MapFrom(src => src.Exhibit.LocationY));
-
+                .ForMember(dest => dest.FloorNumber, opt => opt.MapFrom(src => src.Exhibit.Room != null ? (int?)src.Exhibit.Room.FloorNumber : (src.Exhibit.Map != null ? (int?)src.Exhibit.Map.FloorNumber : null)))
+                .ForMember(dest => dest.RoomId, opt => opt.MapFrom(src => src.Exhibit.RoomId))
+                .ForMember(dest => dest.RoomCode, opt => opt.MapFrom(src => src.Exhibit.Room != null ? src.Exhibit.Room.RoomCode : null))
+                .ForMember(dest => dest.RoomName, opt => opt.MapFrom(src => src.Exhibit.Room != null ? src.Exhibit.Room.RoomName : null));
+#pragma warning restore CS8602
             CreateMap<CreateTourRouteStopDto, TourRouteExhibit>();
 
             CreateMap<TourRouteTranslation, TourRouteTranslationDto>().ReverseMap();

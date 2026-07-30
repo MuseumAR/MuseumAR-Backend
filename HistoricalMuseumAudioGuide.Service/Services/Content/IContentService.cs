@@ -7,10 +7,10 @@ using HistoricalMuseumAudioGuide.Repository.Data.DTOs.TourRoute;
 using Microsoft.AspNetCore.Http;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Category;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Theme;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Tag;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Room;
 
 namespace HistoricalMuseumAudioGuide.Service.Services.Content
 {
@@ -24,6 +24,12 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
         Task<ResponseModel> DeleteExhibitAsync(int id, int? userMuseumId);
         Task<ResponseModel> PublishExhibitAsync(int id, int? userMuseumId);
         Task<ResponseModel> UnpublishExhibitAsync(int id, int? userMuseumId);
+
+        // Room Management
+        Task<ResponseModel> GetRoomsByMuseumIdAsync(int museumId);
+        Task<ResponseModel> CreateRoomAsync(CreateRoomDto roomDto, int? userMuseumId);
+        Task<ResponseModel> UpdateRoomAsync(int id, UpdateRoomDto roomDto, int? userMuseumId);
+        Task<ResponseModel> DeleteRoomAsync(int id, int? userMuseumId);
 
         // Exhibition Management
         Task<ResponseModel> GetExhibitionsByMuseumIdAsync(int museumId);

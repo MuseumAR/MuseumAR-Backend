@@ -8,6 +8,7 @@ using HistoricalMuseumAudioGuide.Repository.Data.DTOs.TourRoute;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Category;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Theme;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Tag;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Room;
 using HistoricalMuseumAudioGuide.Service.Services;
 using HistoricalMuseumAudioGuide.Service.Services.Content;
 using System.Threading.Tasks;
@@ -107,6 +108,42 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             var userMuseumId = GetCurrentUserMuseumId();
             var response = await _contentService.UnpublishExhibitAsync(id, userMuseumId);
             return ResponseParser.Result(response);
+        }
+
+        // --- Room Management ---
+
+        [HttpGet("rooms/museum/{museumId}")]
+        public async Task<IActionResult> GetRoomsByMuseumId(int museumId)
+        {
+            var result = await _contentService.GetRoomsByMuseumIdAsync(museumId);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpPost("rooms")]
+        [Authorize(Roles = "ContentManager,MuseumAdmin,SystemAdmin")]
+        public async Task<IActionResult> CreateRoom([FromBody] CreateRoomDto roomDto)
+        {
+            int? userMuseumId = GetCurrentUserMuseumId();
+            var result = await _contentService.CreateRoomAsync(roomDto, userMuseumId);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpPut("rooms/{id}")]
+        [Authorize(Roles = "ContentManager,MuseumAdmin,SystemAdmin")]
+        public async Task<IActionResult> UpdateRoom(int id, [FromBody] UpdateRoomDto roomDto)
+        {
+            int? userMuseumId = GetCurrentUserMuseumId();
+            var result = await _contentService.UpdateRoomAsync(id, roomDto, userMuseumId);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpDelete("rooms/{id}")]
+        [Authorize(Roles = "ContentManager,MuseumAdmin,SystemAdmin")]
+        public async Task<IActionResult> DeleteRoom(int id)
+        {
+            int? userMuseumId = GetCurrentUserMuseumId();
+            var result = await _contentService.DeleteRoomAsync(id, userMuseumId);
+            return StatusCode(result.StatusCode, result);
         }
 
         // --- Media Management (Write - ContentManager only, Museum-Scoped) ---
