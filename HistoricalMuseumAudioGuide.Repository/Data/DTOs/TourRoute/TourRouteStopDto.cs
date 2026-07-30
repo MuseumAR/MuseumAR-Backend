@@ -9,6 +9,7 @@ public class TourRouteStopDto
     public int? EstimatedMinutes { get; set; }
     public int? MapId { get; set; }
     public int? FloorNumber { get; set; }
-    public double? LocationX { get; set; }
-    public double? LocationY { get; set; }
+    public int? RoomId { get; set; }
+    public string? RoomCode { get; set; }
+    public string? RoomName { get; set; }
 }

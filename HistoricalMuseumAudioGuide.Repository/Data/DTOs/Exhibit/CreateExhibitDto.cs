@@ -11,6 +11,8 @@ namespace HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibit
         public string? AROverlayUrl { get; set; }
         public string? ARMarkerUrl { get; set; }
         public string Status { get; set; } = "Draft";
+        public int? MapId { get; set; }
+        public int? RoomId { get; set; }
         
         public ExhibitMetadataDto? ExhibitMetadata { get; set; }
         

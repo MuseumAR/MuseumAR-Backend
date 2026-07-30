@@ -46,6 +46,7 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
             Bookmarks = new GenericRepository<Bookmark>(_context);
             VisitedExhibits = new GenericRepository<VisitedExhibit>(_context);
             MuseumMaps = new GenericRepository<MuseumMap>(_context);
+            Rooms = new GenericRepository<Room>(_context);
             TourRoutes = new GenericRepository<TourRoute>(_context);
             TourRouteExhibits = new GenericRepository<TourRouteExhibit>(_context);
             TourRouteTranslations = new GenericRepository<TourRouteTranslation>(_context);
@@ -78,6 +79,7 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         public IGenericRepository<Bookmark> Bookmarks { get; private set; }
         public IGenericRepository<VisitedExhibit> VisitedExhibits { get; private set; }
         public IGenericRepository<MuseumMap> MuseumMaps { get; private set; }
+        public IGenericRepository<Room> Rooms { get; private set; }
         public IGenericRepository<TourRoute> TourRoutes { get; private set; }
         public IGenericRepository<TourRouteExhibit> TourRouteExhibits { get; private set; }
         public IGenericRepository<TourRouteTranslation> TourRouteTranslations { get; private set; }

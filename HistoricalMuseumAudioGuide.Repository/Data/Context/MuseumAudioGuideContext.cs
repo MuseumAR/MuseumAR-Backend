@@ -41,6 +41,8 @@ public partial class MuseumAudioGuideContext : DbContext
 
     public virtual DbSet<ExhibitTranslation> ExhibitTranslations { get; set; }
 
+    public virtual DbSet<Room> Rooms { get; set; }
+
     public virtual DbSet<Exhibition> Exhibitions { get; set; }
 
     public virtual DbSet<ExhibitionTranslation> ExhibitionTranslations { get; set; }
@@ -286,6 +288,10 @@ public partial class MuseumAudioGuideContext : DbContext
                 .HasForeignKey(d => d.MapId)
                 .HasConstraintName("FK_Exhibits_Map");
 
+            entity.HasOne(d => d.Room).WithMany(p => p.Exhibits)
+                .HasForeignKey(d => d.RoomId)
+                .HasConstraintName("FK_Exhibits_Room");
+
             entity.HasOne(d => d.Museum).WithMany(p => p.Exhibits)
                 .HasForeignKey(d => d.MuseumId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
@@ -294,6 +300,26 @@ public partial class MuseumAudioGuideContext : DbContext
             entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.ExhibitUpdatedByNavigations)
                 .HasForeignKey(d => d.UpdatedBy)
                 .HasConstraintName("FK_Exhibits_UpdatedBy");
+        });
+
+        modelBuilder.Entity<Room>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.RoomCode).HasMaxLength(50);
+            entity.Property(e => e.RoomName).HasMaxLength(150);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("(getutcdate())");
+
+            entity.HasOne(d => d.Museum).WithMany()
+                .HasForeignKey(d => d.MuseumId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Rooms_Museum");
+
+            entity.HasOne(d => d.Map).WithMany()
+                .HasForeignKey(d => d.MapId)
+                .HasConstraintName("FK_Rooms_Map");
         });
 
         modelBuilder.Entity<ExhibitArasset>(entity =>

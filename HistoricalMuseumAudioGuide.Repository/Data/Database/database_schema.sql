@@ -121,6 +121,20 @@ CREATE TABLE MuseumMaps (
     CONSTRAINT FK_MuseumMaps_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id) ON DELETE CASCADE
 );
 
+CREATE TABLE Rooms (
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    MuseumId        INT             NOT NULL,
+    MapId           INT             NULL,
+    RoomCode        NVARCHAR(50)    NOT NULL,
+    RoomName        NVARCHAR(150)   NOT NULL,
+    FloorNumber     INT             NOT NULL DEFAULT 1,
+    Description     NVARCHAR(500)   NULL,
+    CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
+    UpdatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
+    CONSTRAINT FK_Rooms_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id),
+    CONSTRAINT FK_Rooms_Map FOREIGN KEY (MapId) REFERENCES MuseumMaps(Id)
+);
+
 CREATE TABLE MapPOIs (
     Id              INT IDENTITY(1,1) PRIMARY KEY,
     MapId           INT             NOT NULL,
@@ -223,8 +237,7 @@ CREATE TABLE Exhibits (
     AROverlayUrl    NVARCHAR(500)   NULL,          -- AR overlay image
     ARMarkerUrl     NVARCHAR(500)   NULL,          -- AR marker/target image
     MapId           INT             NULL,          -- Reference to MuseumMaps for 2D map
-    LocationX       FLOAT           NULL,          -- X coordinate percentage (0-100) on the map
-    LocationY       FLOAT           NULL,          -- Y coordinate percentage (0-100) on the map
+    RoomId          INT             NULL,          -- Reference to Rooms
     SortOrder       INT             NOT NULL DEFAULT 0,
     Status          NVARCHAR(20)    NOT NULL DEFAULT 'Draft'
                     CHECK (Status IN ('Draft', 'Published', 'Unpublished', 'Archived')),
@@ -236,6 +249,7 @@ CREATE TABLE Exhibits (
     CONSTRAINT FK_Exhibits_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id),
     CONSTRAINT FK_Exhibits_Category FOREIGN KEY (CategoryId) REFERENCES Categories(Id),
     CONSTRAINT FK_Exhibits_Map FOREIGN KEY (MapId) REFERENCES MuseumMaps(Id),
+    CONSTRAINT FK_Exhibits_Room FOREIGN KEY (RoomId) REFERENCES Rooms(Id),
     CONSTRAINT FK_Exhibits_CreatedBy FOREIGN KEY (CreatedBy) REFERENCES Users(Id),
     CONSTRAINT FK_Exhibits_UpdatedBy FOREIGN KEY (UpdatedBy) REFERENCES Users(Id)
 );
@@ -817,12 +831,22 @@ VALUES
 (2, N'Người lớn', 18, 59, GETUTCDATE());
 SET IDENTITY_INSERT AgeGroups OFF;
 
+-- 7.1. CHÈN DỮ LIỆU MẪU PHÒNG TRƯNG BÀY (Bảng Rooms)
+SET IDENTITY_INSERT Rooms ON;
+INSERT INTO Rooms (Id, MuseumId, MapId, RoomCode, RoomName, FloorNumber, Description, CreatedAt, UpdatedAt)
+VALUES
+(1, 1, 1, 'P101', N'Phòng 101 - Tiền sử & Sơ sử', 1, N'Trưng bày hiện vật thời kỳ đồ đá và đồ đồng thau', GETUTCDATE(), GETUTCDATE()),
+(2, 1, 1, 'P102', N'Phòng 102 - Văn hóa Đông Sơn', 1, N'Trưng bày trống đồng và vũ khí cổ', GETUTCDATE(), GETUTCDATE()),
+(3, 1, 2, 'P201', N'Phòng 201 - Kháng chiến chống Pháp', 2, N'Trưng bày tài liệu và hiện vật thời kỳ 1858-1954', GETUTCDATE(), GETUTCDATE()),
+(4, 1, 2, 'P202', N'Phòng 202 - Kháng chiến chống Mỹ', 2, N'Trưng bày phương tiện, vũ khí chiến dịch Hồ Chí Minh', GETUTCDATE(), GETUTCDATE());
+SET IDENTITY_INSERT Rooms OFF;
+
 -- 8. CHÈN HIỆN VẬT (Bảng Exhibits - Đối chiếu chính xác các cột vị trí)
 SET IDENTITY_INSERT Exhibits ON;
-INSERT INTO Exhibits (Id, MuseumId, CategoryId, ExhibitCode, QRCodeData, QRCodeImageUrl, ThumbnailUrl, MapId, LocationX, LocationY, SortOrder, Status, PublishedAt, CreatedBy, UpdatedBy, CreatedAt, UpdatedAt)
+INSERT INTO Exhibits (Id, MuseumId, CategoryId, ExhibitCode, QRCodeData, QRCodeImageUrl, ThumbnailUrl, MapId, RoomId, SortOrder, Status, PublishedAt, CreatedBy, UpdatedBy, CreatedAt, UpdatedAt)
 VALUES 
-(1, 1, 1, 'EX-HCM-001', 'MUSEUM_HCM_EX001_SECRET', 'https://cdn.museum.gov.vn/qrs/ex001.png', 'https://cdn.museum.gov.vn/exhibits/mo-chum.jpg', 1, 35.2, 45.8, 1, 'Published', GETUTCDATE(), 3, 3, GETUTCDATE(), GETUTCDATE()),
-(2, 1, 2, 'EX-HCM-002', 'MUSEUM_HCM_EX002_SECRET', 'https://cdn.museum.gov.vn/qrs/ex002.png', 'https://cdn.museum.gov.vn/exhibits/uh1.jpg', 2, 60.1, 22.4, 2, 'Published', GETUTCDATE(), 3, 3, GETUTCDATE(), GETUTCDATE());
+(1, 1, 1, 'EX-HCM-001', 'MUSEUM_HCM_EX001_SECRET', 'https://cdn.museum.gov.vn/qrs/ex001.png', 'https://cdn.museum.gov.vn/exhibits/mo-chum.jpg', 1, 1, 1, 'Published', GETUTCDATE(), 3, 3, GETUTCDATE(), GETUTCDATE()),
+(2, 1, 2, 'EX-HCM-002', 'MUSEUM_HCM_EX002_SECRET', 'https://cdn.museum.gov.vn/qrs/ex002.png', 'https://cdn.museum.gov.vn/exhibits/uh1.jpg', 2, 4, 2, 'Published', GETUTCDATE(), 3, 3, GETUTCDATE(), GETUTCDATE());
 SET IDENTITY_INSERT Exhibits OFF;
 
 -- Bảng ExhibitMetadata phụ thuộc
