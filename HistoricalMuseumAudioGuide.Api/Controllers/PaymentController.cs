@@ -1,4 +1,4 @@
-﻿using HistoricalMuseumAudioGuide.Service.Services;
+using HistoricalMuseumAudioGuide.Service.Services;
 using HistoricalMuseumAudioGuide.Service.Services.Payment;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -34,6 +34,13 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             // BẮT BUỘC: Luôn trả về HTTP 200 OK cho PayOS!
             // Nếu trả về lỗi (400/500), PayOS sẽ tưởng Server của bạn gặp sự cố và bắn lại Webhook nhiều lần liên tục.
             return Ok(response);
+        }
+
+        [HttpGet("check-status/{orderCode}")]
+        public async Task<IActionResult> CheckPaymentStatus(string orderCode)
+        {
+            var response = await _paymentService.CheckPaymentStatusAsync(orderCode);
+            return ResponseParser.Result(response);
         }
     }
 }

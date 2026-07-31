@@ -1,4 +1,4 @@
-﻿using PayOS.Models.Webhooks;
+using PayOS.Models.Webhooks;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -9,5 +9,6 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Payment
     {
         Task<ResponseModel> CreatePaymentLinkAsync(string orderCode);
         Task<ResponseModel> ProcessPayOSWebhookAsync(Webhook webhookBody);
+        Task<ResponseModel> CheckPaymentStatusAsync(string orderCode);
     }
 }

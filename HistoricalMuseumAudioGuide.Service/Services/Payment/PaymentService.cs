@@ -1,4 +1,4 @@
-﻿using HistoricalMuseumAudioGuide.Repository.Entities;
+using HistoricalMuseumAudioGuide.Repository.Entities;
 using HistoricalMuseumAudioGuide.Repository.UnitOfWork;
 using HistoricalMuseumAudioGuide.Service.Services.Payment;
 using Microsoft.Extensions.Configuration;
@@ -150,5 +150,52 @@ public class PaymentService : IPaymentService
             Console.WriteLine($"[WEBHOOK ERROR]: {ex.Message}");
             return ResponseModel.BadRequest($"Webhook failed: {ex.Message}");
         }
+    }
+
+    // =========================================================================
+    // 3. KIỂM TRA TRẠNG THÁI THANH TOÁN (Auto Polling)
+    // =========================================================================
+    public async Task<ResponseModel> CheckPaymentStatusAsync(string orderCode)
+    {
+        var transaction = await _unitOfWork.Transactions.GetByOrderCodeAsync(orderCode);
+        if (transaction == null)
+            return ResponseModel.NotFound("Order not found.");
+
+        if (transaction.PaymentStatus == "Completed")
+        {
+            return ResponseModel.Success("Payment completed", new { isPaid = true, status = "Completed" });
+        }
+
+        if (!string.IsNullOrEmpty(transaction.GatewayTransactionId) && long.TryParse(transaction.GatewayTransactionId, out long payOSOrderCode))
+        {
+            try
+            {
+                var paymentInfo = await _payOS.PaymentRequests.GetAsync(payOSOrderCode);
+                if (paymentInfo != null && string.Equals(paymentInfo.Status.ToString(), "PAID", StringComparison.OrdinalIgnoreCase))
+                {
+                    var now = GetVietnamTime();
+                    transaction.PaymentStatus = "Completed";
+                    transaction.PaymentDate = now;
+                    transaction.UpdatedAt = now;
+
+                    var tickets = await _unitOfWork.Tickets.GetTicketsByTransactionIdAsync(transaction.Id);
+                    foreach (var ticket in tickets)
+                    {
+                        ticket.Status = "Paid";
+                        ticket.UpdatedAt = now;
+                    }
+
+                    await _unitOfWork.CompleteAsync();
+
+                    return ResponseModel.Success("Payment completed via PayOS check", new { isPaid = true, status = "Completed" });
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[CheckPaymentStatus Error]: {ex.Message}");
+            }
+        }
+
+        return ResponseModel.Success("Payment pending", new { isPaid = false, status = transaction.PaymentStatus });
     }
 }
