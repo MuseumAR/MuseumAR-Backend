@@ -163,7 +163,12 @@ public class PaymentService : IPaymentService
 
         if (transaction.PaymentStatus == "Completed")
         {
-            return ResponseModel.Success("Payment completed", new { isPaid = true, status = "Completed" });
+            return ResponseModel.Success("Payment completed", new { isPaid = true, isCancelled = false, status = "Completed" });
+        }
+
+        if (transaction.PaymentStatus == "Cancelled")
+        {
+            return ResponseModel.Success("Payment cancelled", new { isPaid = false, isCancelled = true, status = "Cancelled" });
         }
 
         if (!string.IsNullOrEmpty(transaction.GatewayTransactionId) && long.TryParse(transaction.GatewayTransactionId, out long payOSOrderCode))
@@ -171,23 +176,45 @@ public class PaymentService : IPaymentService
             try
             {
                 var paymentInfo = await _payOS.PaymentRequests.GetAsync(payOSOrderCode);
-                if (paymentInfo != null && string.Equals(paymentInfo.Status.ToString(), "PAID", StringComparison.OrdinalIgnoreCase))
+                if (paymentInfo != null)
                 {
-                    var now = GetVietnamTime();
-                    transaction.PaymentStatus = "Completed";
-                    transaction.PaymentDate = now;
-                    transaction.UpdatedAt = now;
-
-                    var tickets = await _unitOfWork.Tickets.GetTicketsByTransactionIdAsync(transaction.Id);
-                    foreach (var ticket in tickets)
+                    var payOSStatus = paymentInfo.Status.ToString();
+                    if (string.Equals(payOSStatus, "PAID", StringComparison.OrdinalIgnoreCase))
                     {
-                        ticket.Status = "Paid";
-                        ticket.UpdatedAt = now;
+                        var now = GetVietnamTime();
+                        transaction.PaymentStatus = "Completed";
+                        transaction.PaymentDate = now;
+                        transaction.UpdatedAt = now;
+
+                        var tickets = await _unitOfWork.Tickets.GetTicketsByTransactionIdAsync(transaction.Id);
+                        foreach (var ticket in tickets)
+                        {
+                            ticket.Status = "Paid";
+                            ticket.UpdatedAt = now;
+                        }
+
+                        await _unitOfWork.CompleteAsync();
+
+                        return ResponseModel.Success("Payment completed via PayOS check", new { isPaid = true, isCancelled = false, status = "Completed" });
                     }
+                    else if (string.Equals(payOSStatus, "CANCELLED", StringComparison.OrdinalIgnoreCase) ||
+                             string.Equals(payOSStatus, "EXPIRED", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var now = GetVietnamTime();
+                        transaction.PaymentStatus = "Cancelled";
+                        transaction.UpdatedAt = now;
 
-                    await _unitOfWork.CompleteAsync();
+                        var tickets = await _unitOfWork.Tickets.GetTicketsByTransactionIdAsync(transaction.Id);
+                        foreach (var ticket in tickets)
+                        {
+                            ticket.Status = "Cancelled";
+                            ticket.UpdatedAt = now;
+                        }
 
-                    return ResponseModel.Success("Payment completed via PayOS check", new { isPaid = true, status = "Completed" });
+                        await _unitOfWork.CompleteAsync();
+
+                        return ResponseModel.Success($"Payment {payOSStatus.ToLower()} via PayOS check", new { isPaid = false, isCancelled = true, status = "Cancelled" });
+                    }
                 }
             }
             catch (Exception ex)
@@ -196,6 +223,49 @@ public class PaymentService : IPaymentService
             }
         }
 
-        return ResponseModel.Success("Payment pending", new { isPaid = false, status = transaction.PaymentStatus });
+        return ResponseModel.Success("Payment pending", new { isPaid = false, isCancelled = false, status = transaction.PaymentStatus });
+    }
+
+    // =========================================================================
+    // 4. HỦY ĐƠN HÀNG THỦ CÔNG
+    // =========================================================================
+    public async Task<ResponseModel> CancelPaymentAsync(string orderCode)
+    {
+        var transaction = await _unitOfWork.Transactions.GetByOrderCodeAsync(orderCode);
+        if (transaction == null)
+            return ResponseModel.NotFound("Order not found.");
+
+        if (transaction.PaymentStatus == "Completed")
+            return ResponseModel.BadRequest("Cannot cancel a completed order.");
+
+        if (transaction.PaymentStatus == "Cancelled")
+            return ResponseModel.Success("Order is already cancelled.", new { isCancelled = true, status = "Cancelled" });
+
+        var now = GetVietnamTime();
+        transaction.PaymentStatus = "Cancelled";
+        transaction.UpdatedAt = now;
+
+        var tickets = await _unitOfWork.Tickets.GetTicketsByTransactionIdAsync(transaction.Id);
+        foreach (var ticket in tickets)
+        {
+            ticket.Status = "Cancelled";
+            ticket.UpdatedAt = now;
+        }
+
+        await _unitOfWork.CompleteAsync();
+
+        if (!string.IsNullOrEmpty(transaction.GatewayTransactionId) && long.TryParse(transaction.GatewayTransactionId, out long payOSOrderCode))
+        {
+            try
+            {
+                await _payOS.PaymentRequests.CancelAsync(payOSOrderCode, "User cancelled order");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[PayOS Cancel Payment Link Warning]: {ex.Message}");
+            }
+        }
+
+        return ResponseModel.Success("Order cancelled successfully", new { isPaid = false, isCancelled = true, status = "Cancelled" });
     }
 }
