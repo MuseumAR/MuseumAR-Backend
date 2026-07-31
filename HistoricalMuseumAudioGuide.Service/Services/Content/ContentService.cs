@@ -940,6 +940,132 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             return ResponseModel.Success("Translation added/updated successfully");
         }
 
+        public async Task<ResponseModel> GetLanguagesAsync()
+        {
+            return ResponseModel.Success("Get languages successfully", new[]
+            {
+                new { code = "vi", name = "Tiếng Việt" },
+                new { code = "en", name = "English" }
+            });
+        }
+
+        public async Task<ResponseModel> GetRouteTranslationsAsync(int routeId)
+        {
+            var route = await _unitOfWork.TourRoutes.GetFirstOrDefaultAsync(
+                r => r.Id == routeId,
+                includeProperties: "TourRouteTranslations");
+
+            if (route == null) return ResponseModel.NotFound("Tour route not found");
+
+            var dtos = route.TourRouteTranslations.Select(t => new TourRouteTranslationDto
+            {
+                LanguageCode = t.LanguageCode,
+                RouteName = t.RouteName,
+                Description = t.Description
+            });
+
+            return ResponseModel.Success("Get tour route translations successfully", dtos);
+        }
+
+        public async Task<ResponseModel> GetExhibitionTranslationsAsync(int exhibitionId)
+        {
+            var exhibition = await _unitOfWork.Exhibitions.GetFirstOrDefaultAsync(
+                e => e.Id == exhibitionId,
+                includeProperties: "ExhibitionTranslations");
+
+            if (exhibition == null) return ResponseModel.NotFound("Exhibition not found");
+
+            var dtos = exhibition.ExhibitionTranslations.Select(t => new ExhibitionTranslationDto
+            {
+                ExhibitionId = t.ExhibitionId,
+                LanguageCode = t.LanguageCode,
+                Name = t.Name,
+                Description = t.Description
+            });
+
+            return ResponseModel.Success("Get exhibition translations successfully", dtos);
+        }
+
+        public async Task<ResponseModel> AddOrUpdateExhibitionTranslationAsync(int exhibitionId, ExhibitionTranslationDto dto, int? userMuseumId)
+        {
+            var exhibition = await _unitOfWork.Exhibitions.GetFirstOrDefaultAsync(
+                e => e.Id == exhibitionId,
+                includeProperties: "ExhibitionTranslations");
+
+            if (exhibition == null) return ResponseModel.NotFound("Exhibition not found");
+
+            var accessCheck = ValidateMuseumAccess(userMuseumId, exhibition.MuseumId);
+            if (accessCheck != null) return accessCheck;
+
+            var existing = exhibition.ExhibitionTranslations.FirstOrDefault(t => t.LanguageCode == dto.LanguageCode);
+            if (existing != null)
+            {
+                existing.Name = dto.Name;
+                existing.Description = dto.Description;
+            }
+            else
+            {
+                exhibition.ExhibitionTranslations.Add(new ExhibitionTranslation
+                {
+                    ExhibitionId = exhibitionId,
+                    LanguageCode = dto.LanguageCode,
+                    Name = dto.Name,
+                    Description = dto.Description
+                });
+            }
+
+            await _unitOfWork.CompleteAsync();
+            return ResponseModel.Success("Exhibition translation updated successfully");
+        }
+
+        public async Task<ResponseModel> GetCategoryTranslationsAsync(int categoryId)
+        {
+            var category = await _unitOfWork.Categories.GetFirstOrDefaultAsync(
+                c => c.Id == categoryId,
+                includeProperties: "CategoryTranslations");
+
+            if (category == null) return ResponseModel.NotFound("Category not found");
+
+            var dtos = category.CategoryTranslations.Select(t => new CategoryTranslationDto
+            {
+                CategoryId = t.CategoryId,
+                LanguageCode = t.LanguageCode,
+                CategoryName = t.CategoryName,
+                Description = t.Description
+            });
+
+            return ResponseModel.Success("Get category translations successfully", dtos);
+        }
+
+        public async Task<ResponseModel> AddOrUpdateCategoryTranslationAsync(int categoryId, CategoryTranslationDto dto, int? userMuseumId)
+        {
+            var category = await _unitOfWork.Categories.GetFirstOrDefaultAsync(
+                c => c.Id == categoryId,
+                includeProperties: "CategoryTranslations");
+
+            if (category == null) return ResponseModel.NotFound("Category not found");
+
+            var existing = category.CategoryTranslations.FirstOrDefault(t => t.LanguageCode == dto.LanguageCode);
+            if (existing != null)
+            {
+                existing.CategoryName = dto.CategoryName;
+                existing.Description = dto.Description;
+            }
+            else
+            {
+                category.CategoryTranslations.Add(new CategoryTranslation
+                {
+                    CategoryId = categoryId,
+                    LanguageCode = dto.LanguageCode,
+                    CategoryName = dto.CategoryName,
+                    Description = dto.Description
+                });
+            }
+
+            await _unitOfWork.CompleteAsync();
+            return ResponseModel.Success("Category translation updated successfully");
+        }
+
         public async Task<ResponseModel> GetCategoriesAsync(int? museumId)
         {
             var categories = await _unitOfWork.Categories.GetCategoriesWithTranslationsAsync(museumId);

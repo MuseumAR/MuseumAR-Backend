@@ -7,7 +7,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Ticketing;
 
 public interface ITicketingService
 {
-    Task<ResponseModel> GetTicketTypesAsync();
+    Task<ResponseModel> GetTicketTypesAsync(string? lang = null);
     Task<ResponseModel> CreateOrderAsync(int visitorId, CreateOrderRequestDto request);
     Task<ResponseModel> GetMyTicketsAsync(int visitorId);
     Task<ResponseModel> MockConfirmPaymentAsync(string orderCode);

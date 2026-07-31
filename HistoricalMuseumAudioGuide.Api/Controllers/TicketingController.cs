@@ -24,9 +24,9 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         }
 
         [HttpGet("types")]
-        public async Task<IActionResult> GetTicketTypes()
+        public async Task<IActionResult> GetTicketTypes([FromQuery] string? lang)
         {
-            var response = await _ticketingService.GetTicketTypesAsync();
+            var response = await _ticketingService.GetTicketTypesAsync(lang);
             return ResponseParser.Result(response);
         }
 
