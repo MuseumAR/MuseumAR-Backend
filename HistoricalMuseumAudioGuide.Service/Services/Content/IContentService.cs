@@ -54,8 +54,16 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
         Task<ResponseModel> RemoveStopFromRouteAsync(int routeId, int exhibitId, int? userMuseumId);
         Task<ResponseModel> ReorderRouteStopsAsync(int routeId, List<int> exhibitIdsInOrder, int? userMuseumId);
 
+        // Languages
+        Task<ResponseModel> GetLanguagesAsync();
+
         // Tour Route Translations
         Task<ResponseModel> AddOrUpdateRouteTranslationAsync(int routeId, TourRouteTranslationDto dto, int? userMuseumId);
+        Task<ResponseModel> GetRouteTranslationsAsync(int routeId);
+
+        // Exhibition Translations
+        Task<ResponseModel> GetExhibitionTranslationsAsync(int exhibitionId);
+        Task<ResponseModel> AddOrUpdateExhibitionTranslationAsync(int exhibitionId, ExhibitionTranslationDto dto, int? userMuseumId);
 
         // Media Management
         Task<ResponseModel> UploadExhibitImageAsync(int exhibitId, IFormFile file, string caption, int? userMuseumId);
@@ -72,6 +80,8 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
         Task<ResponseModel> CreateCategoryAsync(CreateCategoryDto categoryDto, int? userMuseumId);
         Task<ResponseModel> UpdateCategoryAsync(int id, CreateCategoryDto categoryDto, int? userMuseumId);
         Task<ResponseModel> DeleteCategoryAsync(int id, int? userMuseumId);
+        Task<ResponseModel> GetCategoryTranslationsAsync(int categoryId);
+        Task<ResponseModel> AddOrUpdateCategoryTranslationAsync(int categoryId, CategoryTranslationDto dto, int? userMuseumId);
 
         // Reference Metadata
         Task<ResponseModel> GetThemesAsync(int? museumId);

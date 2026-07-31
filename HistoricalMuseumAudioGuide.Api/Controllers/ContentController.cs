@@ -168,10 +168,26 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
 
         // --- Translation & Versions (Read - Public, Write - Authorized) ---
 
+        [HttpGet("languages")]
+        public async Task<IActionResult> GetLanguages()
+        {
+            var response = await _contentService.GetLanguagesAsync();
+            return ResponseParser.Result(response);
+        }
+
         [HttpGet("exhibits/{id}/translations")]
         public async Task<IActionResult> GetTranslations(int id)
         {
             var response = await _contentService.GetExhibitTranslationsAsync(id);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "ContentManager,MuseumManager,SystemAdmin")]
+        [HttpPost("exhibits/{id}/translations")]
+        public async Task<IActionResult> AddOrUpdateExhibitTranslation(int id, [FromBody] ExhibitTranslationDto dto)
+        {
+            var userMuseumId = GetCurrentUserMuseumId();
+            var response = await _contentService.AddOrUpdateExhibitTranslationAsync(id, dto, userMuseumId);
             return ResponseParser.Result(response);
         }
 
@@ -286,6 +302,22 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
+        [HttpGet("exhibitions/{id}/translations")]
+        public async Task<IActionResult> GetExhibitionTranslations(int id)
+        {
+            var response = await _contentService.GetExhibitionTranslationsAsync(id);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "MuseumManager,ContentManager,SystemAdmin")]
+        [HttpPut("exhibitions/{id}/translations")]
+        public async Task<IActionResult> AddOrUpdateExhibitionTranslation(int id, [FromBody] ExhibitionTranslationDto dto)
+        {
+            var userMuseumId = GetCurrentUserMuseumId();
+            var response = await _contentService.AddOrUpdateExhibitionTranslationAsync(id, dto, userMuseumId);
+            return ResponseParser.Result(response);
+        }
+
         // --- Maps Management (Read - Public, Write - Authorized) ---
 
         [HttpGet("maps")]
@@ -387,6 +419,13 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
 
         // --- Tour Route Translations ---
 
+        [HttpGet("routes/{routeId}/translations")]
+        public async Task<IActionResult> GetRouteTranslations(int routeId)
+        {
+            var response = await _contentService.GetRouteTranslationsAsync(routeId);
+            return ResponseParser.Result(response);
+        }
+
         [Authorize(Roles = "MuseumManager,ContentManager,SystemAdmin")]
         [HttpPut("routes/{routeId}/translations")]
         public async Task<IActionResult> AddOrUpdateRouteTranslation(int routeId, TourRouteTranslationDto translationDto)
@@ -410,6 +449,22 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         public async Task<IActionResult> GetCategory(int id)
         {
             var response = await _contentService.GetCategoryByIdAsync(id);
+            return ResponseParser.Result(response);
+        }
+
+        [HttpGet("categories/{id}/translations")]
+        public async Task<IActionResult> GetCategoryTranslations(int id)
+        {
+            var response = await _contentService.GetCategoryTranslationsAsync(id);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "ContentManager,MuseumManager,SystemAdmin")]
+        [HttpPut("categories/{id}/translations")]
+        public async Task<IActionResult> AddOrUpdateCategoryTranslation(int id, [FromBody] CategoryTranslationDto dto)
+        {
+            var userMuseumId = GetCurrentUserMuseumId();
+            var response = await _contentService.AddOrUpdateCategoryTranslationAsync(id, dto, userMuseumId);
             return ResponseParser.Result(response);
         }
 
