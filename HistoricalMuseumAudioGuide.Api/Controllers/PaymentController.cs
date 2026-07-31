@@ -42,5 +42,12 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             var response = await _paymentService.CheckPaymentStatusAsync(orderCode);
             return ResponseParser.Result(response);
         }
+
+        [HttpPost("cancel/{orderCode}")]
+        public async Task<IActionResult> CancelPayment(string orderCode)
+        {
+            var response = await _paymentService.CancelPaymentAsync(orderCode);
+            return ResponseParser.Result(response);
+        }
     }
 }

@@ -10,5 +10,6 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Payment
         Task<ResponseModel> CreatePaymentLinkAsync(string orderCode);
         Task<ResponseModel> ProcessPayOSWebhookAsync(Webhook webhookBody);
         Task<ResponseModel> CheckPaymentStatusAsync(string orderCode);
+        Task<ResponseModel> CancelPaymentAsync(string orderCode);
     }
 }
