@@ -52,6 +52,17 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
+        [Authorize]
+        [HttpGet("pending-order")]
+        public async Task<IActionResult> GetPendingOrder()
+        {
+            var (visitor, errorResponse) = await GetCurrentVisitorAsync();
+            if (errorResponse != null) return errorResponse;
+
+            var response = await _ticketingService.GetPendingOrderAsync(visitor!.Id);
+            return ResponseParser.Result(response);
+        }
+
         [HttpGet("mock-confirm")]
         public async Task<IActionResult> MockConfirmPayment([FromQuery] string orderCode)
         {
