@@ -49,6 +49,8 @@ public class PaymentService : IPaymentService
         string returnUrl = _configuration["PAYOS_RETURN_URL"] ?? "http://localhost:7225/payment-success";
         string cancelUrl = _configuration["PAYOS_CANCEL_URL"] ?? "http://localhost:7225/payment-cancel";
 
+        int expiredAtUnix = (int)DateTimeOffset.UtcNow.AddMinutes(15).ToUnixTimeSeconds();
+
         var paymentRequest = new CreatePaymentLinkRequest
         {
             OrderCode = payOSOrderCode,
@@ -59,7 +61,8 @@ public class PaymentService : IPaymentService
                 new PaymentLinkItem { Name = "Ve tham quan bao tang", Quantity = 1, Price = amount }
             },
             CancelUrl = cancelUrl,
-            ReturnUrl = returnUrl
+            ReturnUrl = returnUrl,
+            ExpiredAt = expiredAtUnix
         };
 
         try
@@ -82,7 +85,8 @@ public class PaymentService : IPaymentService
         }
         catch (Exception ex)
         {
-            return ResponseModel.Error($"PayOS Create Link Error: {ex.Message}");
+            Console.WriteLine($"[PayOS Create Link Exception]: {ex.Message}");
+            return ResponseModel.BadRequest($"PayOS Create Link Error: {ex.Message}");
         }
     }
 
@@ -169,6 +173,38 @@ public class PaymentService : IPaymentService
         if (transaction.PaymentStatus == "Cancelled")
         {
             return ResponseModel.Success("Payment cancelled", new { isPaid = false, isCancelled = true, status = "Cancelled" });
+        }
+
+        // Check if 15-minute expiration has passed
+        var elapsedSeconds = (GetVietnamTime() - transaction.CreatedAt).TotalSeconds;
+        if (elapsedSeconds > 15 * 60)
+        {
+            var now = GetVietnamTime();
+            transaction.PaymentStatus = "Cancelled";
+            transaction.UpdatedAt = now;
+
+            var tickets = await _unitOfWork.Tickets.GetTicketsByTransactionIdAsync(transaction.Id);
+            foreach (var ticket in tickets)
+            {
+                ticket.Status = "Cancelled";
+                ticket.UpdatedAt = now;
+            }
+
+            await _unitOfWork.CompleteAsync();
+
+            if (!string.IsNullOrEmpty(transaction.GatewayTransactionId) && long.TryParse(transaction.GatewayTransactionId, out long payOSOrderCodeToCancel))
+            {
+                try
+                {
+                    await _payOS.PaymentRequests.CancelAsync(payOSOrderCodeToCancel, "Payment expired (15 minutes)");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[PayOS Expire Link Warning]: {ex.Message}");
+                }
+            }
+
+            return ResponseModel.Success("Payment expired", new { isPaid = false, isCancelled = true, status = "Expired" });
         }
 
         if (!string.IsNullOrEmpty(transaction.GatewayTransactionId) && long.TryParse(transaction.GatewayTransactionId, out long payOSOrderCode))

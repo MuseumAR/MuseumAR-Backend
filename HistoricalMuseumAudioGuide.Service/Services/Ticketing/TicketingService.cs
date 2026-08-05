@@ -85,66 +85,185 @@ public class TicketingService : ITicketingService
         };
     }
 
+    public async Task<ResponseModel> GetPendingOrderAsync(int visitorId)
+    {
+        var now = DateTime.UtcNow.AddHours(7);
+        var pendingTransactions = (await _unitOfWork.Transactions
+            .FindAsync(t => t.VisitorId == visitorId && t.PaymentStatus == "Pending")).ToList();
+
+        bool dbChanged = false;
+        var validPending = new List<Transaction>();
+
+        foreach (var t in pendingTransactions)
+        {
+            var elapsed = (now - t.CreatedAt).TotalSeconds;
+            if (elapsed >= 15 * 60 || elapsed < 0)
+            {
+                t.PaymentStatus = "Cancelled";
+                t.UpdatedAt = now;
+                dbChanged = true;
+
+                var oldTickets = await _unitOfWork.Tickets.GetTicketsByTransactionIdAsync(t.Id);
+                foreach (var ticket in oldTickets)
+                {
+                    ticket.Status = "Cancelled";
+                    ticket.UpdatedAt = now;
+                }
+            }
+            else
+            {
+                validPending.Add(t);
+            }
+        }
+
+        if (dbChanged)
+        {
+            await _unitOfWork.CompleteAsync();
+        }
+
+        var pendingTransaction = validPending.OrderByDescending(t => t.CreatedAt).FirstOrDefault();
+        if (pendingTransaction == null)
+        {
+            return ResponseModel.Success("No active pending order.", null);
+        }
+
+        var elapsedSeconds = (now - pendingTransaction.CreatedAt).TotalSeconds;
+        int remainingSeconds = Math.Max(0, (int)(15 * 60 - elapsedSeconds));
+
+        var pendingTickets = (await _unitOfWork.Tickets.GetTicketsByTransactionIdAsync(pendingTransaction.Id)).ToList();
+        var firstTicket = pendingTickets.FirstOrDefault();
+        int ticketTypeId = firstTicket?.TicketTypeId ?? 0;
+        string ticketTypeName = "";
+
+        if (ticketTypeId > 0)
+        {
+            var ticketType = await _unitOfWork.TicketTypes.GetByIdAsync(ticketTypeId);
+            if (ticketType != null)
+            {
+                ticketTypeName = ticketType.Name;
+            }
+        }
+
+        string? checkoutUrl = null;
+        string? qrCode = null;
+
+        try
+        {
+            var paymentResponse = await _paymentService.CreatePaymentLinkAsync(pendingTransaction.OrderCode);
+            if (paymentResponse.StatusCode == 200 && paymentResponse.Data != null)
+            {
+                var dataObj = paymentResponse.Data;
+                var checkoutProp = dataObj.GetType().GetProperty("CheckoutUrl");
+                var qrProp = dataObj.GetType().GetProperty("QrCode");
+                checkoutUrl = checkoutProp?.GetValue(dataObj)?.ToString();
+                qrCode = qrProp?.GetValue(dataObj)?.ToString();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[GetPendingOrder Warning]: CreatePaymentLink failed: {ex.Message}");
+        }
+
+        var dto = new PendingOrderDto
+        {
+            OrderCode = pendingTransaction.OrderCode,
+            TicketTypeId = ticketTypeId,
+            TicketTypeName = ticketTypeName,
+            Quantity = pendingTickets.Count,
+            TotalAmount = pendingTransaction.TotalAmount,
+            CheckoutUrl = checkoutUrl,
+            QrCode = qrCode,
+            CreatedAt = pendingTransaction.CreatedAt,
+            ExpiresAt = pendingTransaction.CreatedAt.AddMinutes(15),
+            RemainingSeconds = remainingSeconds
+        };
+
+        return ResponseModel.Success("Active pending order retrieved successfully.", dto);
+    }
+
     public async Task<ResponseModel> CreateOrderAsync(int visitorId, CreateOrderRequestDto request)
     {
-        var ticketType = await _unitOfWork.TicketTypes.GetByIdAsync(request.TicketTypeId);
-        if (ticketType == null || !ticketType.IsActive || (ticketType.Status != "Approved" && ticketType.Status != "Active" && !string.IsNullOrEmpty(ticketType.Status)))
+        try
         {
-            return ResponseModel.BadRequest("Invalid or inactive ticket type.");
-        }
+            var now = DateTime.UtcNow.AddHours(7);
 
-        decimal totalAmount = ticketType.Price * request.Quantity;
+            // Check if user already has an active pending transaction (< 15 mins)
+            var pendingRes = await GetPendingOrderAsync(visitorId);
+            if (pendingRes.StatusCode == 200 && pendingRes.Data is PendingOrderDto existingOrder)
+            {
+                return ResponseModel.Success("Active pending order already exists", new
+                {
+                    CheckoutUrl = existingOrder.CheckoutUrl,
+                    QrCode = existingOrder.QrCode,
+                    OrderCode = existingOrder.OrderCode,
+                    Amount = existingOrder.TotalAmount
+                });
+            }
 
-        var now = DateTime.UtcNow.AddHours(7);
-        string orderCode = $"ORD{now:yyMMddHHmmss}{Random.Shared.Next(10, 99)}";
+            var ticketType = await _unitOfWork.TicketTypes.GetByIdAsync(request.TicketTypeId);
+            if (ticketType == null || !ticketType.IsActive || (ticketType.Status != "Approved" && ticketType.Status != "Active" && !string.IsNullOrEmpty(ticketType.Status)))
+            {
+                return ResponseModel.BadRequest("Invalid or inactive ticket type.");
+            }
 
-        // 1 represents VNPay payment method in our DB, ideally get it dynamically.
-        var transaction = _mapper.Map<Transaction>(request);
-        transaction.VisitorId = visitorId;
-        transaction.PaymentMethodId = 1;
-        transaction.OrderCode = orderCode;
-        transaction.TotalAmount = totalAmount;
-        transaction.Currency = "VND";
-        transaction.PaymentStatus = "Pending";
-        transaction.CreatedAt = DateTime.UtcNow.AddHours(7);
-        transaction.UpdatedAt = DateTime.UtcNow.AddHours(7);
+            decimal totalAmount = ticketType.Price * request.Quantity;
 
-        // Pre-create tickets in Pending state
-        for (int i = 0; i < request.Quantity; i++)
-        {
-            transaction.Tickets.Add(new Ticket
+            string orderCode = $"ORD{now:yyMMddHHmmss}{Random.Shared.Next(10, 99)}";
+
+            var transaction = new Transaction
             {
                 VisitorId = visitorId,
-                TicketTypeId = request.TicketTypeId,
-                TicketCode = Guid.NewGuid().ToString("N"),
-                PurchaseDate = DateTime.UtcNow.AddHours(7),
-                Status = "Pending",
-                CreatedAt = DateTime.UtcNow.AddHours(7),
-                UpdatedAt = DateTime.UtcNow.AddHours(7)
-            });
-        }
+                PaymentMethodId = 1,
+                OrderCode = orderCode,
+                TotalAmount = totalAmount,
+                Currency = "VND",
+                PaymentStatus = "Pending",
+                CreatedAt = now,
+                UpdatedAt = now,
+            };
 
-        await _unitOfWork.Transactions.AddAsync(transaction);
-        await _unitOfWork.CompleteAsync();
-
-        // Gọi PayOS Service để tạo Link/QR thanh toán thật
-        var paymentResponse = await _paymentService.CreatePaymentLinkAsync(orderCode);
-
-        // Nếu tạo link PayOS thất bại, đánh dấu đơn hàng là 'Failed' để tránh đơn rác
-        if (paymentResponse.StatusCode != 200)
-        {
-            transaction.PaymentStatus = "Failed";
-            foreach (var ticket in transaction.Tickets)
+            // Pre-create tickets in Pending state
+            for (int i = 0; i < request.Quantity; i++)
             {
-                ticket.Status = "Cancelled";
+                transaction.Tickets.Add(new Ticket
+                {
+                    VisitorId = visitorId,
+                    TicketTypeId = request.TicketTypeId,
+                    TicketCode = Guid.NewGuid().ToString("N"),
+                    PurchaseDate = now,
+                    Status = "Pending",
+                    CreatedAt = now,
+                    UpdatedAt = now
+                });
             }
+
+            await _unitOfWork.Transactions.AddAsync(transaction);
             await _unitOfWork.CompleteAsync();
 
-            return ResponseModel.BadRequest($"Order created, but PayOS link generation failed: {paymentResponse.Message}");
-        }
+            // Gọi PayOS Service để tạo Link/QR thanh toán thật
+            var paymentResponse = await _paymentService.CreatePaymentLinkAsync(orderCode);
 
-        // Trả về CheckoutUrl & QR Code từ PayOS cho Frontend/App
-        return ResponseModel.Success("Order created successfully", paymentResponse.Data);
+            // Nếu tạo link PayOS thất bại, đánh dấu đơn hàng là 'Failed' để tránh đơn rác
+            if (paymentResponse.StatusCode != 200)
+            {
+                transaction.PaymentStatus = "Failed";
+                foreach (var ticket in transaction.Tickets)
+                {
+                    ticket.Status = "Cancelled";
+                }
+                await _unitOfWork.CompleteAsync();
+
+                return ResponseModel.BadRequest($"Order created, but PayOS link generation failed: {paymentResponse.Message}");
+            }
+
+            // Trả về CheckoutUrl & QR Code từ PayOS cho Frontend/App
+            return ResponseModel.Success("Order created successfully", paymentResponse.Data);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[CreateOrderAsync Exception]: {ex}");
+            return ResponseModel.Error($"Failed to create ticket order: {ex.Message}");
+        }
     }
 
     public async Task<ResponseModel> GetMyTicketsAsync(int visitorId)
