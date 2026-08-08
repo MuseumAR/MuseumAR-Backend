@@ -325,6 +325,31 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
+        [HttpGet("exhibitions/{exhibitionId}/exhibits")]
+        public async Task<IActionResult> GetExhibitsByExhibition(int exhibitionId)
+        {
+            var response = await _contentService.GetExhibitsByExhibitionIdAsync(exhibitionId);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "MuseumManager,ContentManager,SystemAdmin")]
+        [HttpPost("exhibitions/{exhibitionId}/exhibits")]
+        public async Task<IActionResult> AssignExhibitsToExhibition(int exhibitionId, [FromBody] List<int> exhibitIds)
+        {
+            var userMuseumId = GetCurrentUserMuseumId();
+            var response = await _contentService.AssignExhibitsToExhibitionAsync(exhibitionId, exhibitIds, userMuseumId);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "MuseumManager,ContentManager,SystemAdmin")]
+        [HttpDelete("exhibitions/{exhibitionId}/exhibits/{exhibitId}")]
+        public async Task<IActionResult> RemoveExhibitFromExhibition(int exhibitionId, int exhibitId)
+        {
+            var userMuseumId = GetCurrentUserMuseumId();
+            var response = await _contentService.RemoveExhibitFromExhibitionAsync(exhibitionId, exhibitId, userMuseumId);
+            return ResponseParser.Result(response);
+        }
+
         // --- Maps Management (Read - Public, Write - Authorized) ---
 
         [HttpGet("maps")]
@@ -341,6 +366,24 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         {
             var userMuseumId = GetCurrentUserMuseumId();
             var response = await _contentService.CreateMuseumMapAsync(createMuseumMapDto, userMuseumId);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "MuseumManager,ContentManager,SystemAdmin")]
+        [HttpPut("maps/{id}")]
+        public async Task<IActionResult> UpdateMuseumMap(int id, [FromForm] UpdateMuseumMapDto updateMuseumMapDto)
+        {
+            var userMuseumId = GetCurrentUserMuseumId();
+            var response = await _contentService.UpdateMuseumMapAsync(id, updateMuseumMapDto, userMuseumId);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "MuseumManager,ContentManager,SystemAdmin")]
+        [HttpDelete("maps/{id}")]
+        public async Task<IActionResult> DeleteMuseumMap(int id)
+        {
+            var userMuseumId = GetCurrentUserMuseumId();
+            var response = await _contentService.DeleteMuseumMapAsync(id, userMuseumId);
             return ResponseParser.Result(response);
         }
 

@@ -37,10 +37,15 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
         Task<ResponseModel> CreateExhibitionAsync(CreateExhibitionDto exhibitionDto, int? userMuseumId);
         Task<ResponseModel> UpdateExhibitionAsync(int id, CreateExhibitionDto exhibitionDto, int? userMuseumId);
         Task<ResponseModel> DeleteExhibitionAsync(int id, int? userMuseumId);
+        Task<ResponseModel> GetExhibitsByExhibitionIdAsync(int exhibitionId);
+        Task<ResponseModel> AssignExhibitsToExhibitionAsync(int exhibitionId, List<int> exhibitIds, int? userMuseumId);
+        Task<ResponseModel> RemoveExhibitFromExhibitionAsync(int exhibitionId, int exhibitId, int? userMuseumId);
 
         // Map Management
         Task<ResponseModel> GetMuseumMapsAsync(int museumId);
         Task<ResponseModel> CreateMuseumMapAsync(CreateMuseumMapDto mapDto, int? userMuseumId);
+        Task<ResponseModel> UpdateMuseumMapAsync(int id, UpdateMuseumMapDto mapDto, int? userMuseumId);
+        Task<ResponseModel> DeleteMuseumMapAsync(int id, int? userMuseumId);
 
         // Tour Route Management
         Task<ResponseModel> GetTourRoutesAsync(int museumId);

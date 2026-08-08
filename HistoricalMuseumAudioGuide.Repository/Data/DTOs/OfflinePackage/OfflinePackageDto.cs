@@ -14,8 +14,12 @@ public class OfflinePackageDto
     public int MuseumId { get; set; }
     public int VersionId { get; set; }
     public string? PackageUrl { get; set; }
+    public long? PackageSizeBytes { get; set; }
     public string? Checksum { get; set; }
     public string? Status { get; set; }
+    public int? ExhibitCount { get; set; }
     public int? ArassetCount { get; set; }
+    public int? ImageCount { get; set; }
+    public int? AudioCount { get; set; }
     public DateTime CreatedAt { get; set; }
 }

@@ -577,6 +577,82 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             return ResponseModel.Success("Exhibition deleted successfully");
         }
 
+        public async Task<ResponseModel> GetExhibitsByExhibitionIdAsync(int exhibitionId)
+        {
+            var exhibition = await _unitOfWork.Exhibitions.GetFirstOrDefaultAsync(
+                e => e.Id == exhibitionId,
+                includeProperties: "Exhibits.ExhibitTranslations,Exhibits.ExhibitMetadatum,Exhibits.Room"
+            );
+
+            if (exhibition == null) return ResponseModel.NotFound("Exhibition not found");
+
+            var exhibitDtos = _mapper.Map<IEnumerable<ExhibitDto>>(exhibition.Exhibits);
+            return ResponseModel.Success("Exhibits for exhibition retrieved successfully", exhibitDtos);
+        }
+
+        public async Task<ResponseModel> AssignExhibitsToExhibitionAsync(int exhibitionId, List<int> exhibitIds, int? userMuseumId)
+        {
+            if (exhibitIds == null || exhibitIds.Count == 0)
+            {
+                return ResponseModel.BadRequest("Danh sách ID hiện vật không được để trống.");
+            }
+
+            var exhibition = await _unitOfWork.Exhibitions.GetFirstOrDefaultAsync(
+                e => e.Id == exhibitionId,
+                includeProperties: "Exhibits"
+            );
+
+            if (exhibition == null) return ResponseModel.NotFound("Exhibition not found");
+
+            var accessCheck = ValidateMuseumAccess(userMuseumId, exhibition.MuseumId);
+            if (accessCheck != null) return accessCheck;
+
+            var exhibitsToAdd = await _unitOfWork.Exhibits.FindAsync(e => exhibitIds.Contains(e.Id));
+            int addedCount = 0;
+
+            foreach (var exhibit in exhibitsToAdd)
+            {
+                if (!exhibition.Exhibits.Any(e => e.Id == exhibit.Id))
+                {
+                    exhibition.Exhibits.Add(exhibit);
+                    addedCount++;
+                }
+            }
+
+            if (addedCount > 0)
+            {
+                _unitOfWork.Exhibitions.Update(exhibition);
+                await _unitOfWork.CompleteAsync();
+            }
+
+            return ResponseModel.Success($"Đã gán thành công {addedCount} hiện vật vào triển lãm.");
+        }
+
+        public async Task<ResponseModel> RemoveExhibitFromExhibitionAsync(int exhibitionId, int exhibitId, int? userMuseumId)
+        {
+            var exhibition = await _unitOfWork.Exhibitions.GetFirstOrDefaultAsync(
+                e => e.Id == exhibitionId,
+                includeProperties: "Exhibits"
+            );
+
+            if (exhibition == null) return ResponseModel.NotFound("Exhibition not found");
+
+            var accessCheck = ValidateMuseumAccess(userMuseumId, exhibition.MuseumId);
+            if (accessCheck != null) return accessCheck;
+
+            var exhibitToRemove = exhibition.Exhibits.FirstOrDefault(e => e.Id == exhibitId);
+            if (exhibitToRemove == null)
+            {
+                return ResponseModel.NotFound("Hiện vật không có trong triển lãm này.");
+            }
+
+            exhibition.Exhibits.Remove(exhibitToRemove);
+            _unitOfWork.Exhibitions.Update(exhibition);
+            await _unitOfWork.CompleteAsync();
+
+            return ResponseModel.Success("Đã gỡ hiện vật khỏi triển lãm thành công.");
+        }
+
         // --- Map Management ---
 
         public async Task<ResponseModel> GetMuseumMapsAsync(int museumId)
@@ -612,6 +688,50 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             await _unitOfWork.CompleteAsync();
             var dto = _mapper.Map<MuseumMapDto>(map);
             return ResponseModel.Success("Map created successfully", dto);
+        }
+
+        public async Task<ResponseModel> UpdateMuseumMapAsync(int id, UpdateMuseumMapDto mapDto, int? userMuseumId)
+        {
+            var map = await _unitOfWork.MuseumMaps.GetByIdAsync(id);
+            if (map == null) return ResponseModel.NotFound("Map not found.");
+
+            var accessCheck = ValidateMuseumAccess(userMuseumId, map.MuseumId);
+            if (accessCheck != null) return accessCheck;
+
+            if (!string.IsNullOrWhiteSpace(mapDto.MapType))
+            {
+                map.MapName = mapDto.MapType;
+            }
+            if (mapDto.FloorNumber.HasValue)
+            {
+                map.FloorNumber = mapDto.FloorNumber.Value;
+            }
+            if (mapDto.MapImage != null && mapDto.MapImage.Length > 0)
+            {
+                var newImageUrl = await _mediaService.UploadFileAsync(mapDto.MapImage, "maps");
+                map.MapImageUrl = newImageUrl;
+            }
+
+            map.UpdatedAt = DateTime.UtcNow;
+            _unitOfWork.MuseumMaps.Update(map);
+            await _unitOfWork.CompleteAsync();
+
+            var dto = _mapper.Map<MuseumMapDto>(map);
+            return ResponseModel.Success("Map updated successfully", dto);
+        }
+
+        public async Task<ResponseModel> DeleteMuseumMapAsync(int id, int? userMuseumId)
+        {
+            var map = await _unitOfWork.MuseumMaps.GetByIdAsync(id);
+            if (map == null) return ResponseModel.NotFound("Map not found.");
+
+            var accessCheck = ValidateMuseumAccess(userMuseumId, map.MuseumId);
+            if (accessCheck != null) return accessCheck;
+
+            _unitOfWork.MuseumMaps.Delete(map);
+            await _unitOfWork.CompleteAsync();
+
+            return ResponseModel.Success("Map deleted successfully.");
         }
 
         // --- Tour Route Management ---
@@ -1425,14 +1545,18 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
 
             // Fetch museum & content entities for the package
             var museum = await _unitOfWork.Museums.GetByIdAsync(museumId);
-            var exhibits = (await _unitOfWork.Exhibits.GetExhibitsWithTranslationsAndMetadataAsync(museumId)).ToList();
+            var allExhibits = (await _unitOfWork.Exhibits.GetExhibitsWithTranslationsAndMetadataAsync(museumId)).ToList();
+            var exhibits = allExhibits.Where(e => string.Equals(e.Status, "Published", StringComparison.OrdinalIgnoreCase)).ToList();
             var maps = (await _unitOfWork.MuseumMaps.FindAsync(m => m.MuseumId == museumId)).ToList();
             var tourRoutes = (await _unitOfWork.TourRoutes.FindAsync(r => r.MuseumId == museumId, "TourRouteExhibits,TourRouteTranslations")).ToList();
             var categories = (await _unitOfWork.Categories.FindAsync(c => c.MuseumId == museumId, "CategoryTranslations")).ToList();
 
-            var arAssets = (await _unitOfWork.ExhibitArassets.FindAsync(a => a.Exhibit.MuseumId == museumId)).ToList();
-            var images = (await _unitOfWork.ExhibitImages.FindAsync(i => i.Exhibit.MuseumId == museumId)).ToList();
-            var translations = (await _unitOfWork.ExhibitTranslations.FindAsync(t => t.Exhibit.MuseumId == museumId && !string.IsNullOrEmpty(t.AudioUrl))).ToList();
+            var exhibitIds = exhibits.Select(e => e.Id).ToList();
+            var arAssets = (await _unitOfWork.ExhibitArassets.FindAsync(a => exhibitIds.Contains(a.ExhibitId))).ToList();
+            var images = (await _unitOfWork.ExhibitImages.FindAsync(i => exhibitIds.Contains(i.ExhibitId))).ToList();
+            var translations = exhibits.SelectMany(e => e.ExhibitTranslations ?? new List<Repository.Entities.ExhibitTranslation>())
+                                       .Where(t => !string.IsNullOrWhiteSpace(t.AudioUrl))
+                                       .ToList();
 
             int exhibitCount = exhibits.Count;
             int arAssetCount = arAssets.Count;
@@ -1510,31 +1634,55 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
                                 if (string.IsNullOrWhiteSpace(url)) return;
                                 try
                                 {
-                                    if (url.StartsWith("http://") || url.StartsWith("https://"))
+                                    string trimmedUrl = url.Trim();
+
+                                    // If URL is an absolute HTTP/HTTPS URL
+                                    if (trimmedUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                                        trimmedUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                                     {
-                                        var bytes = await httpClient.GetByteArrayAsync(url);
-                                        var fileExt = Path.GetExtension(new Uri(url).AbsolutePath);
-                                        if (string.IsNullOrEmpty(fileExt)) fileExt = ".jpg";
-                                        var entryName = $"{folderName}/{defaultName}{fileExt}";
-                                        var entry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
+                                        var uri = new Uri(trimmedUrl);
+                                        var pathPart = uri.AbsolutePath.TrimStart('/');
+                                        var localFileFromUri = Path.Combine(wwwroot, pathPart.Replace('/', Path.DirectorySeparatorChar));
+
+                                        // 1. Try reading directly from local wwwroot if file exists locally
+                                        if (File.Exists(localFileFromUri))
+                                        {
+                                            var fileExt = Path.GetExtension(localFileFromUri);
+                                            if (string.IsNullOrEmpty(fileExt)) fileExt = ".jpg";
+                                            var entryName = $"{folderName}/{defaultName}{fileExt}";
+                                            archive.CreateEntryFromFile(localFileFromUri, entryName, CompressionLevel.Optimal);
+                                            return;
+                                        }
+
+                                        // 2. Otherwise download via HTTP
+                                        var bytes = await httpClient.GetByteArrayAsync(trimmedUrl);
+                                        var ext = Path.GetExtension(uri.AbsolutePath);
+                                        if (string.IsNullOrEmpty(ext)) ext = ".jpg";
+                                        var httpEntryName = $"{folderName}/{defaultName}{ext}";
+                                        var entry = archive.CreateEntry(httpEntryName, CompressionLevel.Optimal);
                                         using (var entryStream = entry.Open())
                                         {
                                             await entryStream.WriteAsync(bytes, 0, bytes.Length);
                                         }
                                     }
-                                    else if (url.StartsWith("/"))
+                                    else
                                     {
-                                        var localPath = Path.Combine(wwwroot, url.TrimStart('/'));
+                                        // Handle local relative paths (e.g. "/uploads/...", "uploads/...", "uploads\...")
+                                        var cleanPath = trimmedUrl.TrimStart('/', '\\').Replace('/', Path.DirectorySeparatorChar);
+                                        var localPath = Path.Combine(wwwroot, cleanPath);
+
                                         if (File.Exists(localPath))
                                         {
-                                            var entryName = $"{folderName}/{Path.GetFileName(localPath)}";
+                                            var fileExt = Path.GetExtension(localPath);
+                                            if (string.IsNullOrEmpty(fileExt)) fileExt = ".jpg";
+                                            var entryName = $"{folderName}/{defaultName}{fileExt}";
                                             archive.CreateEntryFromFile(localPath, entryName, CompressionLevel.Optimal);
                                         }
                                     }
                                 }
                                 catch
                                 {
-                                    // Skip unaccessible external media without crashing package generation
+                                    // Skip inaccessible external media without crashing package generation
                                 }
                             }
 
@@ -1544,19 +1692,27 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
                                 await AddUrlFileToZipAsync(map.MapImageUrl, "maps", $"map_{map.Id}");
                             }
 
-                            // 3. Add Exhibit Images
+                            // 3. Add Exhibit Primary Thumbnails & AR Overlays/Markers
+                            foreach (var exhibit in exhibits)
+                            {
+                                await AddUrlFileToZipAsync(exhibit.ThumbnailUrl, "images", $"exhibit_{exhibit.Id}_thumb");
+                                await AddUrlFileToZipAsync(exhibit.AroverlayUrl, "ar", $"exhibit_{exhibit.Id}_overlay");
+                                await AddUrlFileToZipAsync(exhibit.ArmarkerUrl, "ar", $"exhibit_{exhibit.Id}_marker");
+                            }
+
+                            // 4. Add Exhibit Gallery Images
                             foreach (var img in images)
                             {
                                 await AddUrlFileToZipAsync(img.ImageUrl, "images", $"exhibit_{img.ExhibitId}_img_{img.Id}");
                             }
 
-                            // 4. Add Audio Guides
+                            // 5. Add Audio Guides
                             foreach (var trans in translations)
                             {
                                 await AddUrlFileToZipAsync(trans.AudioUrl, "audio", $"exhibit_{trans.ExhibitId}_{trans.LanguageCode}");
                             }
 
-                            // 5. Add AR Assets
+                            // 6. Add AR Assets
                             foreach (var ar in arAssets)
                             {
                                 await AddUrlFileToZipAsync(ar.AssetUrl, "ar", $"exhibit_{ar.ExhibitId}_ar_{ar.Id}");
