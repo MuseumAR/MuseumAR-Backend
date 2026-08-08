@@ -63,6 +63,13 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
+        [HttpGet("exhibits/scan-qr")]
+        public async Task<IActionResult> ScanExhibitQr([FromQuery] string qrData, [FromQuery] string? lang = "vi", [FromQuery] int? visitorId = null)
+        {
+            var response = await _contentService.ScanExhibitQrAsync(qrData, lang, visitorId);
+            return ResponseParser.Result(response);
+        }
+
         // --- Exhibit Management (Write - ContentManager only, Museum-Scoped) ---
 
         [Authorize(Roles = "ContentManager")]

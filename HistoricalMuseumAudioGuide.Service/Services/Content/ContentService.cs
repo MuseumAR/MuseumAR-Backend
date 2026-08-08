@@ -78,6 +78,86 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             return ResponseModel.Success("Get exhibit successful", exhibitDto);
         }
 
+        public async Task<ResponseModel> ScanExhibitQrAsync(string qrData, string? lang = "vi", int? visitorId = null)
+        {
+            if (string.IsNullOrWhiteSpace(qrData))
+            {
+                return ResponseModel.BadRequest("Mã QR dữ liệu không được để trống.");
+            }
+
+            var exhibit = await _unitOfWork.Exhibits.GetExhibitByQrDataAsync(qrData.Trim());
+            if (exhibit == null)
+            {
+                return ResponseModel.NotFound("Không tìm thấy hiện vật phù hợp với mã QR này.");
+            }
+
+            string targetLang = string.IsNullOrWhiteSpace(lang) ? "vi" : lang.Trim().ToLower();
+
+            var translation = exhibit.ExhibitTranslations?.FirstOrDefault(t => t.LanguageCode.ToLower() == targetLang)
+                ?? exhibit.ExhibitTranslations?.FirstOrDefault(t => t.LanguageCode.ToLower() == "vi")
+                ?? exhibit.ExhibitTranslations?.FirstOrDefault();
+
+            string title = translation?.Title ?? exhibit.ExhibitCode ?? $"Hiện vật #{exhibit.Id}";
+            string description = translation?.Description ?? "Chưa có bài thuyết minh cho hiện vật này.";
+            string? audioUrl = translation?.AudioUrl;
+
+            var images = exhibit.ExhibitImages?.Select(i => i.ImageUrl).Where(u => !string.IsNullOrEmpty(u)).ToList() ?? new List<string>();
+            if (images.Count == 0 && !string.IsNullOrEmpty(exhibit.ThumbnailUrl))
+            {
+                images.Add(exhibit.ThumbnailUrl);
+            }
+
+            var arAssets = exhibit.ExhibitArassets?.Select(a => new ArAssetScanDto
+            {
+                AssetId = a.Id,
+                AssetType = a.AssetType,
+                AssetUrl = a.AssetUrl,
+                FileSizeBytes = a.FileSizeBytes,
+                Description = a.Description
+            }).ToList() ?? new List<ArAssetScanDto>();
+
+            string? categoryName = exhibit.Category?.CategoryTranslations?.FirstOrDefault(ct => ct.LanguageCode.ToLower() == targetLang)?.CategoryName
+                ?? exhibit.Category?.CategoryTranslations?.FirstOrDefault()?.CategoryName;
+
+            var result = new ExhibitScanResultDto
+            {
+                ExhibitId = exhibit.Id,
+                ExhibitCode = exhibit.ExhibitCode ?? $"EX{exhibit.Id:D3}",
+                QrcodeData = exhibit.QrcodeData ?? qrData,
+                Title = title,
+                Description = description,
+                AudioUrl = audioUrl,
+                LanguageCode = translation?.LanguageCode ?? targetLang,
+                CategoryName = categoryName,
+                RoomName = exhibit.Room?.RoomName,
+                ThumbnailUrl = exhibit.ThumbnailUrl,
+                AroverlayUrl = exhibit.AroverlayUrl,
+                ArmarkerUrl = exhibit.ArmarkerUrl,
+                Images = images,
+                ArAssets = arAssets
+            };
+
+            if (visitorId.HasValue && visitorId.Value > 0)
+            {
+                try
+                {
+                    await _unitOfWork.VisitedExhibits.AddAsync(new Repository.Entities.VisitedExhibit
+                    {
+                        VisitorId = visitorId.Value,
+                        ExhibitId = exhibit.Id,
+                        VisitedAt = DateTime.UtcNow.AddHours(7)
+                    });
+                    await _unitOfWork.CompleteAsync();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[ScanExhibitQr Warning]: Could not track visited exhibit: {ex.Message}");
+                }
+            }
+
+            return ResponseModel.Success("Scan exhibit QR successful", result);
+        }
+
         public async Task<ResponseModel> CreateExhibitAsync(CreateExhibitDto exhibitDto, int? userMuseumId)
         {
             var accessCheck = ValidateMuseumAccess(userMuseumId, exhibitDto.MuseumId);

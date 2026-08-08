@@ -35,4 +35,13 @@ public class TicketRepository : GenericRepository<Entities.Ticket>, ITicketRepos
                 .ThenInclude(tr => tr!.PaymentMethod)
             .FirstOrDefaultAsync(t => t.Id == id && t.VisitorId == visitorId);
     }
+
+    public async Task<Entities.Ticket?> GetTicketByCodeAsync(string ticketCode)
+    {
+        return await _dbSet
+            .Include(t => t.TicketType)
+            .Include(t => t.Visitor)
+                .ThenInclude(v => v.User)
+            .FirstOrDefaultAsync(t => t.TicketCode == ticketCode);
+    }
 }

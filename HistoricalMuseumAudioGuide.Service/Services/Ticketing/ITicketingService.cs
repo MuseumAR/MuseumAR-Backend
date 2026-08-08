@@ -13,4 +13,6 @@ public interface ITicketingService
     Task<ResponseModel> GetTicketDetailAsync(int visitorId, int ticketId);
     Task<ResponseModel> MockConfirmPaymentAsync(string orderCode);
     Task<ResponseModel> GetPendingOrderAsync(int visitorId);
+    Task<ResponseModel> ValidateTicketAsync(string ticketCode);
+    Task<ResponseModel> CheckInTicketAsync(string ticketCode);
 }
