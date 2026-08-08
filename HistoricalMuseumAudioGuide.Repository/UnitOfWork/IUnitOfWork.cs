@@ -54,6 +54,8 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         IGenericRepository<TagGroup> TagGroups { get; }
         IGenericRepository<Tag> Tags { get; }
         IGenericRepository<RefreshToken> RefreshTokens { get; }
+        IGenericRepository<Waypoint> Waypoints { get; }
+        IGenericRepository<WaypointEdge> WaypointEdges { get; }
         
         Task<int> CompleteAsync();
     }

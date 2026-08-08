@@ -276,6 +276,58 @@ public class TicketingService : ITicketingService
         return ResponseModel.Success("Get tickets successfully", dtos);
     }
 
+    public async Task<ResponseModel> GetTicketDetailAsync(int visitorId, int ticketId)
+    {
+        var ticket = await _unitOfWork.Tickets.GetTicketDetailByIdAsync(ticketId, visitorId);
+        if (ticket == null)
+        {
+            return ResponseModel.NotFound("Ticket not found.");
+        }
+
+        var exhibitionName = ticket.TicketType?.Exhibition?.ExhibitionTranslations?.FirstOrDefault(t => t.LanguageCode == "vi")?.Name
+            ?? ticket.TicketType?.Exhibition?.ExhibitionTranslations?.FirstOrDefault()?.Name;
+
+        var detailDto = new TicketDetailDto
+        {
+            Id = ticket.Id,
+            TicketCode = ticket.TicketCode,
+            Status = ticket.Status,
+            PurchaseDate = ticket.PurchaseDate,
+            ValidDate = ticket.ValidDate,
+            TicketType = new TicketDetailTypeDto
+            {
+                Id = ticket.TicketType?.Id ?? 0,
+                Name = ticket.TicketType?.Name ?? "Vé tham quan",
+                Price = ticket.TicketType?.Price ?? 0,
+                Description = ticket.TicketType?.Description
+            },
+            Museum = new TicketDetailMuseumDto
+            {
+                Id = ticket.TicketType?.Museum?.Id ?? ticket.TicketType?.MuseumId ?? 1,
+                Name = ticket.TicketType?.Museum?.Name ?? "Bảo tàng Lịch sử TP.HCM",
+                Address = ticket.TicketType?.Museum?.Address ?? "2 Nguyễn Bỉnh Khiêm, Quận 1, TP.HCM"
+            },
+            Exhibition = ticket.TicketType?.Exhibition != null ? new TicketDetailExhibitionDto
+            {
+                Id = ticket.TicketType.Exhibition.Id,
+                Name = exhibitionName ?? $"Triển lãm #{ticket.TicketType.Exhibition.Id}"
+            } : null,
+            Order = new TicketDetailOrderDto
+            {
+                OrderCode = ticket.Transaction?.OrderCode ?? ticket.TicketCode,
+                TotalAmount = ticket.Transaction?.TotalAmount ?? ticket.TicketType?.Price ?? 0,
+                Currency = ticket.Transaction?.Currency ?? "VND",
+                PaymentStatus = ticket.Transaction?.PaymentStatus ?? (ticket.Status == "Paid" ? "Completed" : ticket.Status),
+                PaymentMethod = ticket.Transaction?.PaymentMethod?.Name ?? "PayOS",
+                PaidAt = ticket.Transaction?.PaymentDate ?? ticket.PurchaseDate
+            },
+            QrCodeData = ticket.TicketCode,
+            QrCodeImageUrl = null
+        };
+
+        return ResponseModel.Success("Get ticket detail successfully.", detailDto);
+    }
+
     public async Task<ResponseModel> MockConfirmPaymentAsync(string orderCode)
     {
         var transaction = await _unitOfWork.Transactions.GetByOrderCodeAsync(orderCode);

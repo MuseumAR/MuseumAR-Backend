@@ -10,6 +10,7 @@ using HistoricalMuseumAudioGuide.Service.Services.Audit;
 using HistoricalMuseumAudioGuide.Service.Services.Auth;
 using HistoricalMuseumAudioGuide.Service.Services.Content;
 using HistoricalMuseumAudioGuide.Service.Services.Media;
+using HistoricalMuseumAudioGuide.Service.Services.Navigation;
 using HistoricalMuseumAudioGuide.Service.Services.Payment;
 using HistoricalMuseumAudioGuide.Service.Services.SystemConfig;
 using HistoricalMuseumAudioGuide.Service.Services.Ticketing;
@@ -72,6 +73,7 @@ builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<ISystemConfigService, SystemConfigService>();
 builder.Services.AddScoped<IMuseumResolver, MuseumResolver>();
+builder.Services.AddScoped<INavigationService, NavigationService>();
 
 // Configure JWT Authentication
 var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") ?? builder.Configuration["Jwt:Secret"];

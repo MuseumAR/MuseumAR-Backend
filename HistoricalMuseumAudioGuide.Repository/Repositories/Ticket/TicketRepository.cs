@@ -22,4 +22,17 @@ public class TicketRepository : GenericRepository<Entities.Ticket>, ITicketRepos
     {
         return await _dbSet.Where(t => t.TransactionId == transactionId).ToListAsync();
     }
+
+    public async Task<Entities.Ticket?> GetTicketDetailByIdAsync(int id, int visitorId)
+    {
+        return await _dbSet
+            .Include(t => t.TicketType)
+                .ThenInclude(tt => tt.Museum)
+            .Include(t => t.TicketType)
+                .ThenInclude(tt => tt.Exhibition)
+                    .ThenInclude(e => e!.ExhibitionTranslations)
+            .Include(t => t.Transaction)
+                .ThenInclude(tr => tr!.PaymentMethod)
+            .FirstOrDefaultAsync(t => t.Id == id && t.VisitorId == visitorId);
+    }
 }

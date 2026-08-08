@@ -53,6 +53,17 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         }
 
         [Authorize]
+        [HttpGet("my-tickets/{id}")]
+        public async Task<IActionResult> GetTicketDetail(int id)
+        {
+            var (visitor, errorResponse) = await GetCurrentVisitorAsync();
+            if (errorResponse != null) return errorResponse;
+
+            var response = await _ticketingService.GetTicketDetailAsync(visitor!.Id, id);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize]
         [HttpGet("pending-order")]
         public async Task<IActionResult> GetPendingOrder()
         {

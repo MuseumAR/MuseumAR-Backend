@@ -94,6 +94,10 @@ public partial class MuseumAudioGuideContext : DbContext
 
     public virtual DbSet<Visitor> Visitors { get; set; }
 
+    public virtual DbSet<Waypoint> Waypoints { get; set; }
+
+    public virtual DbSet<WaypointEdge> WaypointEdges { get; set; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         if (!optionsBuilder.IsConfigured)
@@ -888,6 +892,32 @@ public partial class MuseumAudioGuideContext : DbContext
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.SetNull)
                 .HasConstraintName("FK_Visitors_User");
+        });
+
+        modelBuilder.Entity<Waypoint>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasMaxLength(50);
+            entity.Property(e => e.Type).HasMaxLength(50);
+            entity.Property(e => e.Label).HasMaxLength(100);
+
+            entity.HasOne(d => d.Room)
+                .WithMany()
+                .HasForeignKey(d => d.RoomId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<WaypointEdge>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.FromWaypointId).HasMaxLength(50);
+            entity.Property(e => e.ToWaypointId).HasMaxLength(50);
+            entity.Property(e => e.EdgeType).HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<Room>(entity =>
+        {
+            entity.Property(e => e.WaypointId).HasMaxLength(50);
         });
 
         OnModelCreatingPartial(modelBuilder);
