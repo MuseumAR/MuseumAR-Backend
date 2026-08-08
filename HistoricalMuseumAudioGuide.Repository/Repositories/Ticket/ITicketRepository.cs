@@ -10,4 +10,5 @@ public interface ITicketRepository : IGenericRepository<Entities.Ticket>
     Task<IEnumerable<Entities.Ticket>> GetTicketsByVisitorIdAsync(int visitorId);
     Task<IEnumerable<Entities.Ticket>> GetTicketsByTransactionIdAsync(int transactionId);
     Task<Entities.Ticket?> GetTicketDetailByIdAsync(int id, int visitorId);
+    Task<Entities.Ticket?> GetTicketByCodeAsync(string ticketCode);
 }

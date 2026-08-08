@@ -81,6 +81,20 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
+        [HttpGet("validate/{ticketCode}")]
+        public async Task<IActionResult> ValidateTicket(string ticketCode)
+        {
+            var response = await _ticketingService.ValidateTicketAsync(ticketCode);
+            return ResponseParser.Result(response);
+        }
+
+        [HttpPost("check-in")]
+        public async Task<IActionResult> CheckInTicket([FromBody] CheckInRequestDto request)
+        {
+            var response = await _ticketingService.CheckInTicketAsync(request.TicketCode);
+            return ResponseParser.Result(response);
+        }
+
         private async Task<(Visitor? visitor, IActionResult? errorResponse)> GetCurrentVisitorAsync()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);

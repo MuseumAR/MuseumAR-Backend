@@ -26,4 +26,9 @@ public class VisitorRepository : GenericRepository<Entities.Visitor>, IVisitorRe
     {
         return await _dbSet.FirstOrDefaultAsync(v => v.DeviceId == deviceId);
     }
+
+    public async Task<Entities.Visitor?> GetVisitorWithUserByIdAsync(int id)
+    {
+        return await _dbSet.Include(v => v.User).FirstOrDefaultAsync(v => v.Id == id);
+    }
 }

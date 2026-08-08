@@ -1,7 +1,9 @@
 using HistoricalMuseumAudioGuide.Repository.Entities;
 using HistoricalMuseumAudioGuide.Repository.UnitOfWork;
+using HistoricalMuseumAudioGuide.Service.Services.Email;
 using HistoricalMuseumAudioGuide.Service.Services.Payment;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using PayOS;
 using PayOS.Models.V2.PaymentRequests;
 using PayOS.Models.Webhooks;
@@ -17,12 +19,69 @@ public class PaymentService : IPaymentService
     private readonly IUnitOfWork _unitOfWork;
     private readonly PayOSClient _payOS;
     private readonly IConfiguration _configuration;
+    private readonly IServiceProvider _serviceProvider;
 
-    public PaymentService(IUnitOfWork unitOfWork, PayOSClient payOS, IConfiguration configuration)
+    public PaymentService(IUnitOfWork unitOfWork, PayOSClient payOS, IConfiguration configuration, IServiceProvider serviceProvider)
     {
         _unitOfWork = unitOfWork;
         _payOS = payOS;
         _configuration = configuration;
+        _serviceProvider = serviceProvider;
+    }
+
+    private void TriggerTicketEmail(int visitorId, int transactionId, string orderCode, decimal totalAmount)
+    {
+        var scopeFactory = _serviceProvider.GetRequiredService<IServiceScopeFactory>();
+        _ = Task.Run(async () =>
+        {
+            using var scope = scopeFactory.CreateScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
+
+            try
+            {
+                var visitor = await unitOfWork.Visitors.GetVisitorWithUserByIdAsync(visitorId);
+                string? email = !string.IsNullOrWhiteSpace(visitor?.Email) ? visitor.Email : visitor?.User?.Email;
+                if (string.IsNullOrWhiteSpace(email) && visitor?.UserId != null)
+                {
+                    var user = await unitOfWork.Users.GetByIdAsync(visitor.UserId.Value);
+                    email = user?.Email;
+                }
+
+                if (string.IsNullOrWhiteSpace(email))
+                {
+                    Console.WriteLine($"[TriggerTicketEmail Warning]: VisitorId {visitorId} does not have a valid email address.");
+                    return;
+                }
+
+                string visitorName = !string.IsNullOrWhiteSpace(visitor?.User?.FullName)
+                    ? visitor.User.FullName
+                    : (!string.IsNullOrWhiteSpace(visitor?.DisplayName) ? visitor.DisplayName : "Quý khách");
+
+                var tickets = (await unitOfWork.Tickets.GetTicketsByTransactionIdAsync(transactionId)).ToList();
+                int ticketCount = tickets.Count > 0 ? tickets.Count : 1;
+
+                string ticketTypeName = "Vé tham quan";
+                var firstTicket = tickets.FirstOrDefault();
+                if (firstTicket != null)
+                {
+                    var type = await unitOfWork.TicketTypes.GetByIdAsync(firstTicket.TicketTypeId);
+                    if (type != null) ticketTypeName = type.Name;
+                }
+
+                await emailService.SendTicketConfirmationEmailAsync(
+                    email,
+                    visitorName,
+                    orderCode,
+                    totalAmount,
+                    ticketCount,
+                    ticketTypeName);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[TriggerTicketEmail Exception]: {ex.Message}");
+            }
+        });
     }
 
     private static DateTime GetVietnamTime() => DateTime.UtcNow.AddHours(7);
@@ -146,6 +205,7 @@ public class PaymentService : IPaymentService
             }
 
             await _unitOfWork.CompleteAsync();
+            TriggerTicketEmail(transaction.VisitorId, transaction.Id, transaction.OrderCode, transaction.TotalAmount);
 
             return ResponseModel.Success("Order and tickets updated to 'Paid' successfully!");
         }
@@ -230,6 +290,7 @@ public class PaymentService : IPaymentService
                         }
 
                         await _unitOfWork.CompleteAsync();
+                        TriggerTicketEmail(transaction.VisitorId, transaction.Id, transaction.OrderCode, transaction.TotalAmount);
 
                         return ResponseModel.Success("Payment completed via PayOS check", new { isPaid = true, isCancelled = false, status = "Completed" });
                     }

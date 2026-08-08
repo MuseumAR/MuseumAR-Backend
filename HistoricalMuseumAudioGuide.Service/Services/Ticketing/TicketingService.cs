@@ -11,6 +11,10 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
+using HistoricalMuseumAudioGuide.Service.Services.Email;
+
+using Microsoft.Extensions.DependencyInjection;
+
 namespace HistoricalMuseumAudioGuide.Service.Services.Ticketing;
 
 public class TicketingService : ITicketingService
@@ -19,13 +23,70 @@ public class TicketingService : ITicketingService
     private readonly IMapper _mapper;
     private readonly IConfiguration _configuration;
     private readonly IPaymentService _paymentService;
+    private readonly IServiceProvider _serviceProvider;
 
-    public TicketingService(IUnitOfWork unitOfWork, IMapper mapper, IConfiguration configuration, IPaymentService paymentService)
+    public TicketingService(IUnitOfWork unitOfWork, IMapper mapper, IConfiguration configuration, IPaymentService paymentService, IServiceProvider serviceProvider)
     {
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _configuration = configuration;
         _paymentService = paymentService;
+        _serviceProvider = serviceProvider;
+    }
+
+    private void TriggerTicketEmail(int visitorId, int transactionId, string orderCode, decimal totalAmount)
+    {
+        var scopeFactory = _serviceProvider.GetRequiredService<IServiceScopeFactory>();
+        _ = Task.Run(async () =>
+        {
+            using var scope = scopeFactory.CreateScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
+
+            try
+            {
+                var visitor = await unitOfWork.Visitors.GetVisitorWithUserByIdAsync(visitorId);
+                string? email = !string.IsNullOrWhiteSpace(visitor?.Email) ? visitor.Email : visitor?.User?.Email;
+                if (string.IsNullOrWhiteSpace(email) && visitor?.UserId != null)
+                {
+                    var user = await unitOfWork.Users.GetByIdAsync(visitor.UserId.Value);
+                    email = user?.Email;
+                }
+
+                if (string.IsNullOrWhiteSpace(email))
+                {
+                    Console.WriteLine($"[TriggerTicketEmail Warning]: VisitorId {visitorId} does not have a valid email address.");
+                    return;
+                }
+
+                string visitorName = !string.IsNullOrWhiteSpace(visitor?.User?.FullName)
+                    ? visitor.User.FullName
+                    : (!string.IsNullOrWhiteSpace(visitor?.DisplayName) ? visitor.DisplayName : "Quý khách");
+
+                var tickets = (await unitOfWork.Tickets.GetTicketsByTransactionIdAsync(transactionId)).ToList();
+                int ticketCount = tickets.Count > 0 ? tickets.Count : 1;
+
+                string ticketTypeName = "Vé tham quan";
+                var firstTicket = tickets.FirstOrDefault();
+                if (firstTicket != null)
+                {
+                    var type = await unitOfWork.TicketTypes.GetByIdAsync(firstTicket.TicketTypeId);
+                    if (type != null) ticketTypeName = type.Name;
+                }
+
+                await emailService.SendTicketConfirmationEmailAsync(
+                    email,
+                    visitorName,
+                    orderCode,
+                    totalAmount,
+                    ticketCount,
+                    ticketTypeName);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[TriggerTicketEmail Exception]: {ex.Message}");
+            }
+        });
     }
 
     public async Task<ResponseModel> GetTicketTypesAsync(string? lang = null)
@@ -223,13 +284,15 @@ public class TicketingService : ITicketingService
             };
 
             // Pre-create tickets in Pending state
+            string ticketRandomGroup = Random.Shared.Next(1000, 9999).ToString();
             for (int i = 0; i < request.Quantity; i++)
             {
+                string ticketCode = $"TK-{now:yyMMdd}-{ticketRandomGroup}-{(i + 1):D2}";
                 transaction.Tickets.Add(new Ticket
                 {
                     VisitorId = visitorId,
                     TicketTypeId = request.TicketTypeId,
-                    TicketCode = Guid.NewGuid().ToString("N"),
+                    TicketCode = ticketCode,
                     PurchaseDate = now,
                     Status = "Pending",
                     CreatedAt = now,
@@ -346,6 +409,119 @@ public class TicketingService : ITicketingService
         }
 
         await _unitOfWork.CompleteAsync();
+        TriggerTicketEmail(transaction.VisitorId, transaction.Id, transaction.OrderCode, transaction.TotalAmount);
         return ResponseModel.Success("Payment mock-confirmed successfully.");
+    }
+
+    public async Task<ResponseModel> ValidateTicketAsync(string ticketCode)
+    {
+        if (string.IsNullOrWhiteSpace(ticketCode))
+        {
+            return ResponseModel.BadRequest("Ticket code cannot be empty.");
+        }
+
+        var ticket = await _unitOfWork.Tickets.GetTicketByCodeAsync(ticketCode.Trim());
+        if (ticket == null)
+        {
+            return ResponseModel.Success("Ticket validation completed.", new ValidateTicketResponseDto
+            {
+                TicketId = 0,
+                TicketCode = ticketCode,
+                Status = "NotFound",
+                IsValid = false,
+                Message = "Mã vé không tồn tại trong hệ thống!",
+                TicketTypeName = "N/A",
+                Price = 0,
+                VisitorName = "N/A",
+                VisitorEmail = null,
+                PurchaseDate = DateTime.MinValue,
+                ValidDate = null,
+                UsedAt = null
+            });
+        }
+
+        string visitorName = ticket.Visitor?.User?.FullName ?? ticket.Visitor?.DisplayName ?? "Khách tham quan";
+        string? visitorEmail = ticket.Visitor?.Email ?? ticket.Visitor?.User?.Email;
+        string ticketTypeName = ticket.TicketType?.Name ?? "Vé tham quan";
+        decimal price = ticket.TicketType?.Price ?? 0;
+
+        bool isValid = ticket.Status == "Paid" || ticket.Status == "Active";
+        string message = ticket.Status switch
+        {
+            "Paid" or "Active" => "Vé hợp lệ! Có thể thực hiện Check-in.",
+            "Used" => $"Vé này đã được Check-in sử dụng trước đó vào lúc {ticket.UpdatedAt:dd/MM/yyyy HH:mm}!",
+            "Cancelled" => "Vé này đã bị hủy hoặc hết hạn thanh toán!",
+            "Pending" => "Vé này chưa được xác nhận thanh toán!",
+            _ => $"Trạng thái vé: {ticket.Status}"
+        };
+
+        var responseDto = new ValidateTicketResponseDto
+        {
+            TicketId = ticket.Id,
+            TicketCode = ticket.TicketCode,
+            Status = ticket.Status,
+            IsValid = isValid,
+            Message = message,
+            TicketTypeName = ticketTypeName,
+            Price = price,
+            VisitorName = visitorName,
+            VisitorEmail = visitorEmail,
+            PurchaseDate = ticket.PurchaseDate,
+            ValidDate = ticket.ValidDate,
+            UsedAt = ticket.Status == "Used" ? ticket.UpdatedAt : null
+        };
+
+        return ResponseModel.Success("Ticket validated successfully.", responseDto);
+    }
+
+    public async Task<ResponseModel> CheckInTicketAsync(string ticketCode)
+    {
+        if (string.IsNullOrWhiteSpace(ticketCode))
+        {
+            return ResponseModel.BadRequest("Ticket code cannot be empty.");
+        }
+
+        var ticket = await _unitOfWork.Tickets.GetTicketByCodeAsync(ticketCode.Trim());
+        if (ticket == null)
+        {
+            return ResponseModel.NotFound("Mã vé không tồn tại trong hệ thống!");
+        }
+
+        if (ticket.Status == "Used")
+        {
+            return ResponseModel.BadRequest($"Vé này đã được check-in sử dụng trước đó vào {ticket.UpdatedAt:dd/MM/yyyy HH:mm}!");
+        }
+
+        if (ticket.Status != "Paid" && ticket.Status != "Active")
+        {
+            return ResponseModel.BadRequest($"Không thể check-in vé có trạng thái '{ticket.Status}'. Vé phải ở trạng thái Đã thanh toán (Paid).");
+        }
+
+        var now = DateTime.UtcNow.AddHours(7);
+        ticket.Status = "Used";
+        ticket.UpdatedAt = now;
+
+        await _unitOfWork.CompleteAsync();
+
+        string visitorName = ticket.Visitor?.User?.FullName ?? ticket.Visitor?.DisplayName ?? "Khách tham quan";
+        string ticketTypeName = ticket.TicketType?.Name ?? "Vé tham quan";
+
+        var responseDto = new ValidateTicketResponseDto
+        {
+            TicketId = ticket.Id,
+            TicketCode = ticket.TicketCode,
+            Status = ticket.Status,
+            IsValid = true,
+            Message = "Check-in thành công! Chúc quý khách có buổi tham quan vui vẻ.",
+            TicketTypeName = ticketTypeName,
+            Price = ticket.TicketType?.Price ?? 0,
+            VisitorName = visitorName,
+            VisitorEmail = ticket.Visitor?.Email ?? ticket.Visitor?.User?.Email,
+            PurchaseDate = ticket.PurchaseDate,
+            ValidDate = ticket.ValidDate,
+            UsedAt = now
+        };
+
+        return ResponseModel.Success("Check-in ticket successfully.", responseDto);
     }
 }
