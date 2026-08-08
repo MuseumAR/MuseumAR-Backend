@@ -23,6 +23,14 @@ public partial class Room
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    public int? DoorWaypointId { get; set; }
+
+    public string? WaypointId { get; set; }
+
+    public double? CenterX { get; set; }
+
+    public double? CenterY { get; set; }
+
     public virtual Museum Museum { get; set; } = null!;
 
     public virtual MuseumMap? Map { get; set; }

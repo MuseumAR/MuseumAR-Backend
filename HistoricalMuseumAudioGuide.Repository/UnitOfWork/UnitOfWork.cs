@@ -59,6 +59,8 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
             TagGroups = new GenericRepository<TagGroup>(_context);
             Tags = new GenericRepository<Tag>(_context);
             RefreshTokens = new GenericRepository<RefreshToken>(_context);
+            Waypoints = new GenericRepository<Waypoint>(_context);
+            WaypointEdges = new GenericRepository<WaypointEdge>(_context);
         }
         public IAnalyticsRepository Analytics { get; private set; }
         public IMuseumRepository Museums { get; private set; }
@@ -92,6 +94,8 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         public IGenericRepository<TagGroup> TagGroups { get; private set; }
         public IGenericRepository<Tag> Tags { get; private set; }
         public IGenericRepository<RefreshToken> RefreshTokens { get; private set; }
+        public IGenericRepository<Waypoint> Waypoints { get; private set; }
+        public IGenericRepository<WaypointEdge> WaypointEdges { get; private set; }
  
         public async Task<int> CompleteAsync()
         {
