@@ -4,4 +4,5 @@ public class CreateOrderRequestDto
 {
     public int TicketTypeId { get; set; }
     public int Quantity { get; set; }
+    public int? PromotionId { get; set; }
 }

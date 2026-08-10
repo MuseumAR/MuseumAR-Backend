@@ -201,6 +201,7 @@ public class PaymentService : IPaymentService
             foreach (var ticket in tickets)
             {
                 ticket.Status = "Paid";
+                ticket.ValidDate = now.AddDays(1); // Vé có hiệu lực trong vòng 24 giờ
                 ticket.UpdatedAt = now;
             }
 

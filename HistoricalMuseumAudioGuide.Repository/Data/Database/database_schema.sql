@@ -467,6 +467,24 @@ CREATE TABLE TicketTypes (
     CONSTRAINT FK_TicketTypes_Exhibition FOREIGN KEY (ExhibitionId) REFERENCES Exhibitions(Id)
 );
 
+CREATE TABLE TicketPromotions (
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    TicketTypeId    INT             NOT NULL,
+    Name            NVARCHAR(200)   NOT NULL,
+    NameEn          NVARCHAR(200)   NULL,
+    Description     NVARCHAR(500)   NULL,
+    DescriptionEn   NVARCHAR(500)   NULL,
+    DiscountType    NVARCHAR(20)    NOT NULL DEFAULT 'Percentage'
+                    CHECK (DiscountType IN ('Percentage', 'FixedAmount')),
+    DiscountValue   DECIMAL(18,2)   NOT NULL,
+    StartDate       DATETIME2       NOT NULL,
+    EndDate         DATETIME2       NOT NULL,
+    IsActive        BIT             NOT NULL DEFAULT 1,
+    CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
+    UpdatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
+    CONSTRAINT FK_TicketPromotions_TicketType FOREIGN KEY (TicketTypeId) REFERENCES TicketTypes(Id) ON DELETE CASCADE
+);
+
 CREATE TABLE Tickets (
     Id              INT IDENTITY(1,1) PRIMARY KEY,
     VisitorId       INT             NOT NULL,

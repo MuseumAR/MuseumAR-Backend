@@ -92,7 +92,36 @@ public class TicketingService : ITicketingService
     public async Task<ResponseModel> GetTicketTypesAsync(string? lang = null)
     {
         var ticketTypes = await _unitOfWork.TicketTypes.GetActiveTicketTypesAsync();
-        var dtos = _mapper.Map<IEnumerable<TicketTypeDto>>(ticketTypes);
+        var dtos = _mapper.Map<IEnumerable<TicketTypeDto>>(ticketTypes).ToList();
+
+        // Batch-load active promotions for all ticket types using the repository
+        var ticketTypePrices = dtos.ToDictionary(d => d.Id, d => d.Price);
+        var activePromotions = (await _unitOfWork.TicketPromotions
+            .GetActivePromotionsForTicketTypesAsync(ticketTypePrices.Keys)).ToList();
+
+        var promotionsGrouped = activePromotions
+            .GroupBy(p => p.TicketTypeId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        foreach (var dto in dtos)
+        {
+            dto.OriginalPrice = dto.Price;
+            if (promotionsGrouped.TryGetValue(dto.Id, out var promos))
+            {
+                var promoDtos = _mapper.Map<List<TicketPromotionDto>>(promos);
+                
+                // Apply language translation for promotions
+                if (string.Equals(lang, "en", StringComparison.OrdinalIgnoreCase))
+                {
+                    foreach (var promoDto in promoDtos)
+                    {
+                        if (!string.IsNullOrEmpty(promoDto.NameEn)) promoDto.Name = promoDto.NameEn;
+                        if (!string.IsNullOrEmpty(promoDto.DescriptionEn)) promoDto.Description = promoDto.DescriptionEn;
+                    }
+                }
+                dto.ActivePromotions = promoDtos;
+            }
+        }
 
         if (string.Equals(lang, "en", StringComparison.OrdinalIgnoreCase))
         {
@@ -119,6 +148,18 @@ public class TicketingService : ITicketingService
         }
 
         return ResponseModel.Success("Get ticket types successfully", dtos);
+    }
+
+    /// <summary>
+    /// Tính giá sau khi áp dụng promotion
+    /// </summary>
+    private static decimal CalculateDiscountedPrice(Repository.Entities.TicketPromotion promo, decimal originalPrice)
+    {
+        decimal discounted = promo.DiscountType == "Percentage"
+            ? originalPrice * (1 - promo.DiscountValue / 100m)
+            : originalPrice - promo.DiscountValue;
+
+        return Math.Max(0, Math.Round(discounted, 0)); // Không cho giá âm, làm tròn VND
     }
 
     private static string TranslateTicketTypeName(string? name)
@@ -269,6 +310,21 @@ public class TicketingService : ITicketingService
 
             decimal totalAmount = ticketType.Price * request.Quantity;
 
+            // Nếu visitor có chọn promotion cụ thể
+            if (request.PromotionId.HasValue)
+            {
+                var selectedPromo = await _unitOfWork.TicketPromotions
+                    .GetActivePromotionByIdAndTicketTypeIdAsync(request.PromotionId.Value, request.TicketTypeId);
+
+                if (selectedPromo == null)
+                {
+                    return ResponseModel.BadRequest("Selected ticket promotion is invalid, paused, or expired.");
+                }
+
+                decimal discountedUnitPrice = CalculateDiscountedPrice(selectedPromo, ticketType.Price);
+                totalAmount = discountedUnitPrice * request.Quantity;
+            }
+
             string orderCode = $"ORD{now:yyMMddHHmmss}{Random.Shared.Next(10, 99)}";
 
             var transaction = new Transaction
@@ -405,6 +461,7 @@ public class TicketingService : ITicketingService
         foreach (var ticket in tickets)
         {
             ticket.Status = "Paid";
+            ticket.ValidDate = now.AddDays(1); // Vé có hiệu lực trong vòng 24 giờ
             ticket.UpdatedAt = now;
         }
 

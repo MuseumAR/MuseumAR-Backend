@@ -80,6 +80,8 @@ public partial class MuseumAudioGuideContext : DbContext
 
     public virtual DbSet<TicketType> TicketTypes { get; set; }
 
+    public virtual DbSet<TicketPromotion> TicketPromotions { get; set; }
+
     public virtual DbSet<TourRoute> TourRoutes { get; set; }
 
     public virtual DbSet<TourRouteExhibit> TourRouteExhibits { get; set; }
@@ -726,6 +728,28 @@ public partial class MuseumAudioGuideContext : DbContext
                 .HasForeignKey(d => d.MuseumId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_TicketTypes_Museum");
+        });
+
+        modelBuilder.Entity<TicketPromotion>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.NameEn).HasMaxLength(200);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.DescriptionEn).HasMaxLength(500);
+            entity.Property(e => e.DiscountType)
+                .HasMaxLength(20)
+                .HasDefaultValue("Percentage");
+            entity.Property(e => e.DiscountValue).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("(getutcdate())");
+
+            entity.HasOne(d => d.TicketType).WithMany(p => p.Promotions)
+                .HasForeignKey(d => d.TicketTypeId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_TicketPromotions_TicketType");
         });
 
         modelBuilder.Entity<TourRoute>(entity =>

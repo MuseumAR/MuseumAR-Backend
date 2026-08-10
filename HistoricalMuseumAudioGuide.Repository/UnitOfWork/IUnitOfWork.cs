@@ -12,6 +12,7 @@ using HistoricalMuseumAudioGuide.Repository.Repositories.OfflinePackage;
 using HistoricalMuseumAudioGuide.Repository.Repositories.Role;
 using HistoricalMuseumAudioGuide.Repository.Repositories.Ticket;
 using HistoricalMuseumAudioGuide.Repository.Repositories.TicketType;
+using HistoricalMuseumAudioGuide.Repository.Repositories.TicketPromotion;
 using HistoricalMuseumAudioGuide.Repository.Repositories.Transaction;
 using HistoricalMuseumAudioGuide.Repository.Repositories.User;
 using HistoricalMuseumAudioGuide.Repository.Repositories.Visitor;
@@ -56,6 +57,7 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         IGenericRepository<RefreshToken> RefreshTokens { get; }
         IGenericRepository<Waypoint> Waypoints { get; }
         IGenericRepository<WaypointEdge> WaypointEdges { get; }
+        ITicketPromotionRepository TicketPromotions { get; }
         
         Task<int> CompleteAsync();
     }
