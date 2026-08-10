@@ -11,4 +11,8 @@ public class TicketTypeDto
     public int MuseumId { get; set; }
     public int? ExhibitionId { get; set; }
     public string Status { get; set; } = null!;
+
+    // Promotion fields
+    public System.Collections.Generic.List<TicketPromotionDto>? ActivePromotions { get; set; }
+    public decimal? OriginalPrice { get; set; }
 }

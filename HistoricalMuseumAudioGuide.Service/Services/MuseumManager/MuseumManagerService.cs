@@ -100,5 +100,133 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Analytics
 
             return ResponseModel.Success("Ticket type published successfully.");
         }
+
+        public async Task<ResponseModel> CreateTicketPromotionAsync(int museumId, int ticketTypeId, CreateTicketPromotionDto dto)
+        {
+            var ticketType = await _unitOfWork.TicketTypes.GetByIdAsync(ticketTypeId);
+            if (ticketType == null)
+                return ResponseModel.NotFound("Ticket type not found.");
+
+            if (ticketType.MuseumId != museumId)
+                return ResponseModel.Forbidden("You are not authorized to manage promotions for this ticket type.");
+
+            if (dto.StartDate >= dto.EndDate)
+                return ResponseModel.BadRequest("Start date must be before end date.");
+
+            if (dto.DiscountValue <= 0)
+                return ResponseModel.BadRequest("Discount value must be greater than 0.");
+
+            if (dto.DiscountType == "Percentage" && dto.DiscountValue > 100)
+                return ResponseModel.BadRequest("Percentage discount cannot exceed 100%.");
+
+            if (dto.DiscountType == "FixedAmount" && dto.DiscountValue > ticketType.Price)
+                return ResponseModel.BadRequest("Fixed amount discount cannot exceed ticket price.");
+
+            var promotion = _mapper.Map<HistoricalMuseumAudioGuide.Repository.Entities.TicketPromotion>(dto);
+            promotion.TicketTypeId = ticketTypeId;
+            promotion.CreatedAt = System.DateTime.UtcNow;
+            promotion.UpdatedAt = System.DateTime.UtcNow;
+
+            await _unitOfWork.TicketPromotions.AddAsync(promotion);
+            await _unitOfWork.CompleteAsync();
+
+            var resultDto = _mapper.Map<TicketPromotionDto>(promotion);
+            return ResponseModel.Success("Ticket promotion created successfully.", resultDto);
+        }
+
+        public async Task<ResponseModel> GetTicketPromotionsByTicketTypeAsync(int museumId, int ticketTypeId)
+        {
+            var ticketType = await _unitOfWork.TicketTypes.GetByIdAsync(ticketTypeId);
+            if (ticketType == null)
+                return ResponseModel.NotFound("Ticket type not found.");
+
+            if (ticketType.MuseumId != museumId)
+                return ResponseModel.Forbidden("You are not authorized to view promotions for this ticket type.");
+
+            var promotions = await _unitOfWork.TicketPromotions.GetPromotionsByTicketTypeIdAsync(ticketTypeId);
+            var dtos = _mapper.Map<IEnumerable<TicketPromotionDto>>(promotions);
+            return ResponseModel.Success("Retrieve ticket promotions successfully.", dtos);
+        }
+
+        public async Task<ResponseModel> GetTicketPromotionByIdAsync(int museumId, int promotionId)
+        {
+            var promotion = await _unitOfWork.TicketPromotions.GetByIdAsync(promotionId);
+            if (promotion == null)
+                return ResponseModel.NotFound("Ticket promotion not found.");
+
+            var ticketType = await _unitOfWork.TicketTypes.GetByIdAsync(promotion.TicketTypeId);
+            if (ticketType == null || ticketType.MuseumId != museumId)
+                return ResponseModel.Forbidden("You are not authorized to view this promotion.");
+
+            var dto = _mapper.Map<TicketPromotionDto>(promotion);
+            return ResponseModel.Success("Retrieve ticket promotion detail successfully.", dto);
+        }
+
+        public async Task<ResponseModel> UpdateTicketPromotionAsync(int museumId, int promotionId, UpdateTicketPromotionDto dto)
+        {
+            var promotion = await _unitOfWork.TicketPromotions.GetByIdAsync(promotionId);
+            if (promotion == null)
+                return ResponseModel.NotFound("Ticket promotion not found.");
+
+            var ticketType = await _unitOfWork.TicketTypes.GetByIdAsync(promotion.TicketTypeId);
+            if (ticketType == null || ticketType.MuseumId != museumId)
+                return ResponseModel.Forbidden("You are not authorized to update this promotion.");
+
+            if (dto.StartDate >= dto.EndDate)
+                return ResponseModel.BadRequest("Start date must be before end date.");
+
+            if (dto.DiscountValue <= 0)
+                return ResponseModel.BadRequest("Discount value must be greater than 0.");
+
+            if (dto.DiscountType == "Percentage" && dto.DiscountValue > 100)
+                return ResponseModel.BadRequest("Percentage discount cannot exceed 100%.");
+
+            if (dto.DiscountType == "FixedAmount" && dto.DiscountValue > ticketType.Price)
+                return ResponseModel.BadRequest("Fixed amount discount cannot exceed ticket price.");
+
+            _mapper.Map(dto, promotion);
+            promotion.UpdatedAt = System.DateTime.UtcNow;
+
+            _unitOfWork.TicketPromotions.Update(promotion);
+            await _unitOfWork.CompleteAsync();
+
+            var resultDto = _mapper.Map<TicketPromotionDto>(promotion);
+            return ResponseModel.Success("Ticket promotion updated successfully.", resultDto);
+        }
+
+        public async Task<ResponseModel> DeleteTicketPromotionAsync(int museumId, int promotionId)
+        {
+            var promotion = await _unitOfWork.TicketPromotions.GetByIdAsync(promotionId);
+            if (promotion == null)
+                return ResponseModel.NotFound("Ticket promotion not found.");
+
+            var ticketType = await _unitOfWork.TicketTypes.GetByIdAsync(promotion.TicketTypeId);
+            if (ticketType == null || ticketType.MuseumId != museumId)
+                return ResponseModel.Forbidden("You are not authorized to delete this promotion.");
+
+            _unitOfWork.TicketPromotions.Delete(promotion);
+            await _unitOfWork.CompleteAsync();
+
+            return ResponseModel.Success("Ticket promotion deleted successfully.");
+        }
+
+        public async Task<ResponseModel> ToggleTicketPromotionAsync(int museumId, int promotionId, bool isActive)
+        {
+            var promotion = await _unitOfWork.TicketPromotions.GetByIdAsync(promotionId);
+            if (promotion == null)
+                return ResponseModel.NotFound("Ticket promotion not found.");
+
+            var ticketType = await _unitOfWork.TicketTypes.GetByIdAsync(promotion.TicketTypeId);
+            if (ticketType == null || ticketType.MuseumId != museumId)
+                return ResponseModel.Forbidden("You are not authorized to manage this promotion.");
+
+            promotion.IsActive = isActive;
+            promotion.UpdatedAt = System.DateTime.UtcNow;
+
+            _unitOfWork.TicketPromotions.Update(promotion);
+            await _unitOfWork.CompleteAsync();
+
+            return ResponseModel.Success($"Ticket promotion {(isActive ? "activated" : "deactivated")} successfully.");
+        }
     }
 }

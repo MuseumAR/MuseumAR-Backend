@@ -61,5 +61,83 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             var result = await _managerService.PublishTicketTypeAsync(museumId, id);
             return StatusCode(result.StatusCode, result);
         }
+
+        // ═══ PROMOTION ENDPOINTS ═══
+
+        /// <summary>
+        /// Tạo chương trình khuyến mãi cho một loại vé
+        /// POST: api/MuseumManager/ticket-types/{ticketTypeId}/promotions
+        /// </summary>
+        [Authorize(Roles = "MuseumManager")]
+        [HttpPost("ticket-types/{ticketTypeId}/promotions")]
+        public async Task<IActionResult> CreateTicketPromotion(int ticketTypeId, [FromBody] CreateTicketPromotionDto dto)
+        {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
+            var result = await _managerService.CreateTicketPromotionAsync(museumId, ticketTypeId, dto);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        /// <summary>
+        /// Xem danh sách khuyến mãi của một loại vé
+        /// GET: api/MuseumManager/ticket-types/{ticketTypeId}/promotions
+        /// </summary>
+        [HttpGet("ticket-types/{ticketTypeId}/promotions")]
+        public async Task<IActionResult> GetTicketPromotions(int ticketTypeId)
+        {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
+            var result = await _managerService.GetTicketPromotionsByTicketTypeAsync(museumId, ticketTypeId);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        /// <summary>
+        /// Xem chi tiết một chương trình khuyến mãi
+        /// GET: api/MuseumManager/promotions/{promotionId}
+        /// </summary>
+        [HttpGet("promotions/{promotionId}")]
+        public async Task<IActionResult> GetTicketPromotionDetail(int promotionId)
+        {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
+            var result = await _managerService.GetTicketPromotionByIdAsync(museumId, promotionId);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        /// <summary>
+        /// Cập nhật thông tin chương trình khuyến mãi
+        /// PUT: api/MuseumManager/promotions/{promotionId}
+        /// </summary>
+        [Authorize(Roles = "MuseumManager")]
+        [HttpPut("promotions/{promotionId}")]
+        public async Task<IActionResult> UpdateTicketPromotion(int promotionId, [FromBody] UpdateTicketPromotionDto dto)
+        {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
+            var result = await _managerService.UpdateTicketPromotionAsync(museumId, promotionId, dto);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        /// <summary>
+        /// Xóa hoàn toàn một chương trình khuyến mãi
+        /// DELETE: api/MuseumManager/promotions/{promotionId}
+        /// </summary>
+        [Authorize(Roles = "MuseumManager")]
+        [HttpDelete("promotions/{promotionId}")]
+        public async Task<IActionResult> DeleteTicketPromotion(int promotionId)
+        {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
+            var result = await _managerService.DeleteTicketPromotionAsync(museumId, promotionId);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        /// <summary>
+        /// Bật/tắt chương trình khuyến mãi
+        /// PUT: api/MuseumManager/promotions/{promotionId}/toggle?isActive=true|false
+        /// </summary>
+        [Authorize(Roles = "MuseumManager")]
+        [HttpPut("promotions/{promotionId}/toggle")]
+        public async Task<IActionResult> ToggleTicketPromotion(int promotionId, [FromQuery] bool isActive)
+        {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
+            var result = await _managerService.ToggleTicketPromotionAsync(museumId, promotionId, isActive);
+            return StatusCode(result.StatusCode, result);
+        }
     }
 }

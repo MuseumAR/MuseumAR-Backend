@@ -115,6 +115,9 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
             // Ticketing
             CreateMap<TicketType, TicketTypeDto>();
             CreateMap<CreateTicketTypeDto, TicketType>();
+            CreateMap<TicketPromotion, TicketPromotionDto>();
+            CreateMap<CreateTicketPromotionDto, TicketPromotion>();
+            CreateMap<UpdateTicketPromotionDto, TicketPromotion>();
             CreateMap<Ticket, TicketDto>()
                 .ForMember(dest => dest.TicketTypeName, opt => opt.MapFrom(src => src.TicketType.Name));
 
