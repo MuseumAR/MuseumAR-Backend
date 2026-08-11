@@ -127,7 +127,7 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         }
 
         [HttpPost("rooms")]
-        [Authorize(Roles = "ContentManager,MuseumAdmin,SystemAdmin")]
+        [Authorize(Roles = "ContentManager")]
         public async Task<IActionResult> CreateRoom([FromBody] CreateRoomDto roomDto)
         {
             int? userMuseumId = GetCurrentUserMuseumId();
@@ -136,7 +136,7 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         }
 
         [HttpPut("rooms/{id}")]
-        [Authorize(Roles = "ContentManager,MuseumAdmin,SystemAdmin")]
+        [Authorize(Roles = "ContentManager")]
         public async Task<IActionResult> UpdateRoom(int id, [FromBody] UpdateRoomDto roomDto)
         {
             int? userMuseumId = GetCurrentUserMuseumId();
@@ -145,7 +145,7 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         }
 
         [HttpDelete("rooms/{id}")]
-        [Authorize(Roles = "ContentManager,MuseumAdmin,SystemAdmin")]
+        [Authorize(Roles = "ContentManager")]
         public async Task<IActionResult> DeleteRoom(int id)
         {
             int? userMuseumId = GetCurrentUserMuseumId();
@@ -270,6 +270,13 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         {
             var museumId = await _museumResolver.GetMuseumIdAsync();
             var response = await _contentService.GetExhibitionsByMuseumIdAsync(museumId);
+            return ResponseParser.Result(response);
+        }
+
+        [HttpGet("exhibitions/{id}")]
+        public async Task<IActionResult> GetExhibition(int id)
+        {
+            var response = await _contentService.GetExhibitionByIdAsync(id);
             return ResponseParser.Result(response);
         }
 

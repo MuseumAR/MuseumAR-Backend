@@ -9,6 +9,8 @@ public partial class Waypoint
 
     public int MuseumId { get; set; }
 
+    public int? MapId { get; set; }
+
     public int FloorNumber { get; set; } = 1;
 
     public double X { get; set; }
@@ -22,6 +24,8 @@ public partial class Waypoint
     public string? Label { get; set; }
 
     public virtual Museum Museum { get; set; } = null!;
+
+    public virtual MuseumMap? Map { get; set; }
 
     public virtual Room? Room { get; set; }
 }
