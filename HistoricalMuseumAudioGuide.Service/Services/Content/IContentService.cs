@@ -34,6 +34,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
 
         // Exhibition Management
         Task<ResponseModel> GetExhibitionsByMuseumIdAsync(int museumId);
+        Task<ResponseModel> GetExhibitionByIdAsync(int id);
         Task<ResponseModel> CreateExhibitionAsync(CreateExhibitionDto exhibitionDto, int? userMuseumId);
         Task<ResponseModel> UpdateExhibitionAsync(int id, CreateExhibitionDto exhibitionDto, int? userMuseumId);
         Task<ResponseModel> DeleteExhibitionAsync(int id, int? userMuseumId);

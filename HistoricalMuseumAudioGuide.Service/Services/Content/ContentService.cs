@@ -486,6 +486,14 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             return ResponseModel.Success("Exhibitions retrieved successfully", dtos);
         }
 
+        public async Task<ResponseModel> GetExhibitionByIdAsync(int id)
+        {
+            var exhibition = await _unitOfWork.Exhibitions.GetFirstOrDefaultAsync(e => e.Id == id, includeProperties: "ExhibitionTranslations,Exhibits");
+            if (exhibition == null) return ResponseModel.NotFound("Exhibition not found");
+            var dto = _mapper.Map<ExhibitionDto>(exhibition);
+            return ResponseModel.Success("Exhibition retrieved successfully", dto);
+        }
+
         public async Task<ResponseModel> CreateExhibitionAsync(CreateExhibitionDto createExhibitionDto, int? userMuseumId)
         {
             var accessCheck = ValidateMuseumAccess(userMuseumId, createExhibitionDto.MuseumId);
@@ -607,7 +615,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             var accessCheck = ValidateMuseumAccess(userMuseumId, exhibition.MuseumId);
             if (accessCheck != null) return accessCheck;
 
-            var exhibitsToAdd = await _unitOfWork.Exhibits.FindAsync(e => exhibitIds.Contains(e.Id));
+            var exhibitsToAdd = await _unitOfWork.Exhibits.FindAsync(e => exhibitIds.Contains(e.Id) && e.MuseumId == exhibition.MuseumId);
             int addedCount = 0;
 
             foreach (var exhibit in exhibitsToAdd)
@@ -846,17 +854,23 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             if (routeDto.Status != null)
                 route.Status = routeDto.Status;
 
-            // Update the default translation name if provided
-            if (!string.IsNullOrEmpty(routeDto.Name))
+            // Update the default translation name and description if provided
+            if (!string.IsNullOrEmpty(routeDto.Name) || routeDto.Description != null)
             {
                 var viTrans = route.TourRouteTranslations.FirstOrDefault(t => t.LanguageCode == "vi");
                 if (viTrans != null)
-                    viTrans.RouteName = routeDto.Name;
+                {
+                    if (!string.IsNullOrEmpty(routeDto.Name)) viTrans.RouteName = routeDto.Name;
+                    if (routeDto.Description != null) viTrans.Description = routeDto.Description;
+                }
                 else
                 {
                     var firstTrans = route.TourRouteTranslations.FirstOrDefault();
                     if (firstTrans != null)
-                        firstTrans.RouteName = routeDto.Name;
+                    {
+                        if (!string.IsNullOrEmpty(routeDto.Name)) firstTrans.RouteName = routeDto.Name;
+                        if (routeDto.Description != null) firstTrans.Description = routeDto.Description;
+                    }
                 }
             }
 

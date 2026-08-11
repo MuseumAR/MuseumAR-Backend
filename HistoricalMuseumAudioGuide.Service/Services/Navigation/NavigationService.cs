@@ -36,7 +36,7 @@ public class NavigationService : INavigationService
         var museumId = map?.MuseumId ?? 0;
         var floorNumber = map?.FloorNumber ?? 1;
 
-        var waypoints = (await _unitOfWork.Waypoints.FindAsync(w => w.MuseumId == museumId && w.FloorNumber == floorNumber)).ToList();
+        var waypoints = (await _unitOfWork.Waypoints.FindAsync(w => w.MapId == mapId || (w.MapId == null && w.MuseumId == museumId && w.FloorNumber == floorNumber))).ToList();
         var wpIds = waypoints.Select(w => w.Id).ToHashSet();
 
         var edges = (await _unitOfWork.WaypointEdges.FindAsync(e => e.MuseumId == museumId && (wpIds.Contains(e.FromWaypointId) || wpIds.Contains(e.ToWaypointId)))).ToList();
@@ -60,6 +60,7 @@ public class NavigationService : INavigationService
         {
             Id = wpId,
             MuseumId = museumId,
+            MapId = dto.MapId > 0 ? dto.MapId : map?.Id,
             FloorNumber = dto.FloorNumber,
             X = dto.LocationX,
             Y = dto.LocationY,
@@ -409,11 +410,13 @@ public class NavigationService : INavigationService
     {
         Id = w.Id,
         MuseumId = w.MuseumId,
+        MapId = w.MapId ?? 0,
         FloorNumber = w.FloorNumber,
         LocationX = w.X,
         LocationY = w.Y,
         WaypointType = w.Type,
         RoomId = w.RoomId,
+        Code = w.Label,
         Name = w.Label
     };
 

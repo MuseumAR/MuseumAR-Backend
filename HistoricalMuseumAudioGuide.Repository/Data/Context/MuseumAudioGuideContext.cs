@@ -925,6 +925,11 @@ public partial class MuseumAudioGuideContext : DbContext
             entity.Property(e => e.Type).HasMaxLength(50);
             entity.Property(e => e.Label).HasMaxLength(100);
 
+            entity.HasOne(d => d.Map)
+                .WithMany()
+                .HasForeignKey(d => d.MapId)
+                .OnDelete(DeleteBehavior.NoAction);
+
             entity.HasOne(d => d.Room)
                 .WithMany()
                 .HasForeignKey(d => d.RoomId)

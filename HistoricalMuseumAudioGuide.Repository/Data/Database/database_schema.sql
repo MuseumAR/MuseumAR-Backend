@@ -129,6 +129,7 @@ CREATE TABLE Rooms (
     RoomName        NVARCHAR(150)   NOT NULL,
     FloorNumber     INT             NOT NULL DEFAULT 1,
     Description     NVARCHAR(500)   NULL,
+    DoorWaypointId  NVARCHAR(50)    NULL,
     CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
     UpdatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
     CONSTRAINT FK_Rooms_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id),
@@ -144,6 +145,40 @@ CREATE TABLE MapPOIs (
     Description     NVARCHAR(250)   NULL,
     CONSTRAINT FK_MapPOIs_Map FOREIGN KEY (MapId) REFERENCES MuseumMaps(Id) ON DELETE CASCADE
 );
+
+CREATE TABLE Waypoints (
+    Id              NVARCHAR(50)    PRIMARY KEY,
+    MuseumId        INT             NOT NULL,
+    MapId           INT             NULL,
+    FloorNumber     INT             NOT NULL DEFAULT 1,
+    LocationX       FLOAT           NOT NULL,
+    LocationY       FLOAT           NOT NULL,
+    WaypointType    NVARCHAR(50)    NOT NULL DEFAULT 'HALLWAY',
+    RoomId          INT             NULL,
+    Code            NVARCHAR(50)    NULL,
+    Name            NVARCHAR(100)   NULL,
+    CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
+    UpdatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
+    CONSTRAINT FK_Waypoints_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id),
+    CONSTRAINT FK_Waypoints_MuseumMaps FOREIGN KEY (MapId) REFERENCES MuseumMaps(Id) ON DELETE NO ACTION,
+    CONSTRAINT FK_Waypoints_Rooms FOREIGN KEY (RoomId) REFERENCES Rooms(Id) ON DELETE SET NULL
+);
+
+CREATE TABLE WaypointEdges (
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    MuseumId        INT             NOT NULL DEFAULT 1,
+    FromWaypointId  NVARCHAR(50)    NOT NULL,
+    ToWaypointId    NVARCHAR(50)    NOT NULL,
+    Distance        FLOAT           NOT NULL DEFAULT 1.0,
+    EdgeType        NVARCHAR(50)    NOT NULL DEFAULT 'WALK',
+    IsBidirectional BIT             NOT NULL DEFAULT 1,
+    CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
+    CONSTRAINT FK_WaypointEdges_FromWaypoint FOREIGN KEY (FromWaypointId) REFERENCES Waypoints(Id),
+    CONSTRAINT FK_WaypointEdges_ToWaypoint FOREIGN KEY (ToWaypointId) REFERENCES Waypoints(Id)
+);
+
+ALTER TABLE Rooms
+ADD CONSTRAINT FK_Rooms_Waypoints FOREIGN KEY (DoorWaypointId) REFERENCES Waypoints(Id) ON DELETE SET NULL;
 
 -- ============================================================
 -- 4.2. THEMES, EXHIBITIONS & EVENTS (Themes as Exhibition categories)
