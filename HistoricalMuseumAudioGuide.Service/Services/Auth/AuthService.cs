@@ -3,6 +3,7 @@ using Google.Apis.Auth;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Auth;
 using HistoricalMuseumAudioGuide.Repository.UnitOfWork;
 using HistoricalMuseumAudioGuide.Service.Services.Audit;
+using HistoricalMuseumAudioGuide.Service.Services.Email;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using HistoricalMuseumAudioGuide.Repository.Entities;
@@ -22,13 +23,15 @@ public class AuthService : IAuthService
     private readonly IConfiguration _configuration;
     private readonly IAuditService _auditService;
     private readonly IMapper _mapper;
+    private readonly IEmailService _emailService;
 
-    public AuthService(IUnitOfWork unitOfWork, IConfiguration configuration, IAuditService auditService, IMapper mapper)
+    public AuthService(IUnitOfWork unitOfWork, IConfiguration configuration, IAuditService auditService, IMapper mapper, IEmailService emailService)
     {
         _unitOfWork = unitOfWork;
         _configuration = configuration;
         _auditService = auditService;
         _mapper = mapper;
+        _emailService = emailService;
     }
 
     public async Task<ResponseModel> LoginAsync(LoginRequestDto request)
@@ -79,10 +82,15 @@ public class AuthService : IAuthService
             return ResponseModel.Error("System Error: Default role 'Visitor' not found.");
         }
 
+        var verificationToken = Random.Shared.Next(100000, 999999).ToString();
+
         var user = _mapper.Map<User>(request);
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
         user.RoleId = visitorRole.Id;
         user.Status = "Active";
+        user.IsEmailConfirmed = false;
+        user.EmailVerificationToken = verificationToken;
+        user.VerificationTokenExpiresAt = DateTime.UtcNow.AddHours(24);
         user.CreatedAt = DateTime.UtcNow;
         user.UpdatedAt = DateTime.UtcNow;
 
@@ -94,11 +102,104 @@ public class AuthService : IAuthService
             action: "AssignRole", 
             entityType: "User", 
             newValues: $"Assigned role 'Visitor' to new user {user.Email}", 
-            ipAddress: "System", // Ideally get from HttpContext
+            ipAddress: "System",
             userAgent: "System"
         );
 
+        // Send email verification asynchronously
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _emailService.SendEmailVerificationAsync(user.Email, user.FullName, verificationToken);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[RegisterAsync Email Error]: {ex.Message}");
+            }
+        });
+
         return ResponseModel.Success("User registered successfully.", user.Id);
+    }
+
+    public async Task<ResponseModel> VerifyEmailAsync(VerifyEmailRequestDto request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Token))
+        {
+            return ResponseModel.BadRequest("Email và mã xác thực không được để trống.");
+        }
+
+        var user = await _unitOfWork.Users.GetUserByEmailAsync(request.Email.Trim());
+        if (user == null)
+        {
+            return ResponseModel.NotFound("Không tìm thấy người dùng với email này.");
+        }
+
+        if (user.IsEmailConfirmed)
+        {
+            return ResponseModel.Success("Email đã được xác thực trước đó.", true);
+        }
+
+        if (user.EmailVerificationToken != request.Token.Trim())
+        {
+            return ResponseModel.BadRequest("Mã xác thực không chính xác.");
+        }
+
+        if (user.VerificationTokenExpiresAt.HasValue && user.VerificationTokenExpiresAt.Value < DateTime.UtcNow)
+        {
+            return ResponseModel.BadRequest("Mã xác thực đã hết hạn. Vui lòng bấm gửi lại mã xác nhận.");
+        }
+
+        user.IsEmailConfirmed = true;
+        user.EmailVerificationToken = null;
+        user.VerificationTokenExpiresAt = null;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        _unitOfWork.Users.Update(user);
+        await _unitOfWork.CompleteAsync();
+
+        return ResponseModel.Success("Xác thực email thành công! Bây giờ bạn có thể mua vé tham quan.", true);
+    }
+
+    public async Task<ResponseModel> ResendVerificationEmailAsync(ResendVerificationRequestDto request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email))
+        {
+            return ResponseModel.BadRequest("Email không được để trống.");
+        }
+
+        var user = await _unitOfWork.Users.GetUserByEmailAsync(request.Email.Trim());
+        if (user == null)
+        {
+            return ResponseModel.NotFound("Không tìm thấy người dùng với email này.");
+        }
+
+        if (user.IsEmailConfirmed)
+        {
+            return ResponseModel.Success("Email đã được xác thực trước đó.", true);
+        }
+
+        var newToken = Random.Shared.Next(100000, 999999).ToString();
+        user.EmailVerificationToken = newToken;
+        user.VerificationTokenExpiresAt = DateTime.UtcNow.AddHours(24);
+        user.UpdatedAt = DateTime.UtcNow;
+
+        _unitOfWork.Users.Update(user);
+        await _unitOfWork.CompleteAsync();
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _emailService.SendEmailVerificationAsync(user.Email, user.FullName, newToken);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ResendVerification Error]: {ex.Message}");
+            }
+        });
+
+        return ResponseModel.Success("Mã xác thực mới đã được gửi tới email của bạn.", true);
     }
 
     public async Task<ResponseModel> ForgotPasswordAsync(string email)
