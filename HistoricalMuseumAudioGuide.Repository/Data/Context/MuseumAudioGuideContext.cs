@@ -851,6 +851,8 @@ public partial class MuseumAudioGuideContext : DbContext
             entity.Property(e => e.FullName).HasMaxLength(100);
             entity.Property(e => e.PasswordHash).HasMaxLength(500);
             entity.Property(e => e.PasswordResetToken).HasMaxLength(100);
+            entity.Property(e => e.IsEmailConfirmed).HasDefaultValue(false);
+            entity.Property(e => e.EmailVerificationToken).HasMaxLength(100);
             entity.Property(e => e.PhoneNumber).HasMaxLength(20);
             entity.Property(e => e.Status)
                 .HasMaxLength(20)

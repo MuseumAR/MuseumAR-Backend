@@ -134,4 +134,84 @@ public class EmailService : IEmailService
             Console.WriteLine($"[EmailService Error]: Failed to send ticket confirmation email to {toEmail}: {ex.Message}");
         }
     }
+
+    public async Task SendEmailVerificationAsync(string toEmail, string userName, string tokenCode)
+    {
+        if (string.IsNullOrWhiteSpace(toEmail))
+        {
+            Console.WriteLine("[EmailService Warning]: Recipient email is empty. Skipping email verification dispatch.");
+            return;
+        }
+
+        var smtpHost = _configuration["SMTP_HOST"] ?? _configuration["EmailSettings:SmtpServer"];
+        var smtpPortStr = _configuration["SMTP_PORT"] ?? _configuration["EmailSettings:SmtpPort"];
+        var smtpUser = _configuration["SMTP_USER"] ?? _configuration["EmailSettings:Username"];
+        var smtpPass = _configuration["SMTP_PASS"] ?? _configuration["EmailSettings:Password"];
+        var fromEmail = _configuration["SMTP_FROM"] ?? _configuration["EmailSettings:FromEmail"] ?? smtpUser ?? "noreply@museumar.com";
+
+        if (string.IsNullOrWhiteSpace(smtpUser) || string.IsNullOrWhiteSpace(smtpPass) || string.IsNullOrWhiteSpace(smtpHost))
+        {
+            Console.WriteLine($"[EmailService Info]: SMTP credentials not fully configured. Email verification token [{tokenCode}] for {toEmail} recorded locally.");
+            return;
+        }
+
+        int smtpPort = int.TryParse(smtpPortStr, out int p) ? p : 587;
+
+        try
+        {
+            using var message = new MailMessage();
+            message.From = new MailAddress(fromEmail, "Museum Audio Guide");
+            message.To.Add(new MailAddress(toEmail));
+            message.Subject = "Xác nhận địa chỉ Email - Museum AR";
+            message.IsBodyHtml = true;
+
+            message.Body = $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset=""utf-8"">
+    <style>
+        body {{ font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f6f8; margin: 0; padding: 20px; }}
+        .container {{ max-width: 550px; background: #ffffff; margin: 0 auto; border-radius: 12px; padding: 30px; border: 1px solid #e0e0e0; }}
+        .header {{ text-align: center; border-bottom: 2px solid #6366f1; padding-bottom: 15px; margin-bottom: 20px; }}
+        .header h2 {{ color: #1e293b; margin: 0; font-size: 22px; }}
+        .content {{ color: #334155; line-height: 1.6; font-size: 15px; }}
+        .code-box {{ background: #f1f5f9; border-radius: 8px; padding: 15px; text-align: center; font-size: 28px; font-weight: bold; letter-spacing: 5px; color: #4338ca; margin: 20px 0; border: 1px dashed #6366f1; }}
+        .footer {{ text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px; border-top: 1px solid #f1f5f9; padding-top: 15px; }}
+    </style>
+</head>
+<body>
+    <div class=""container"">
+        <div class=""header"">
+            <h2>🏛️ Bảo tàng Lịch sử - Museum AR</h2>
+        </div>
+        <div class=""content"">
+            <p>Xin chào <strong>{userName}</strong>,</p>
+            <p>Cảm ơn bạn đã đăng ký tài khoản tại <strong>Museum AR</strong>. Để thực hiện mua vé tham quan, vui lòng nhập mã xác thực email bên dưới:</p>
+            
+            <div class=""code-box"">{tokenCode}</div>
+            
+            <p style=""font-size: 13px; color: #64748b;"">* Mã xác thực này có hiệu lực trong vòng 24 giờ. Vui lòng không chia sẻ mã này cho bất kỳ ai.</p>
+        </div>
+        <div class=""footer"">
+            <p>Email tự động từ Hệ thống Thuyết minh Bảo tàng Museum AR. Vui lòng không phản hồi email này.</p>
+        </div>
+    </div>
+</body>
+</html>";
+
+            using var smtpClient = new SmtpClient(smtpHost, smtpPort)
+            {
+                Credentials = new NetworkCredential(smtpUser, smtpPass),
+                EnableSsl = true
+            };
+
+            await smtpClient.SendMailAsync(message);
+            Console.WriteLine($"[EmailService]: Verification email sent successfully to {toEmail}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[EmailService Error]: Failed to send verification email to {toEmail}: {ex.Message}");
+        }
+    }
 }

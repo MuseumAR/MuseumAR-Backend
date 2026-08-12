@@ -11,4 +11,6 @@ public interface IEmailService
         decimal totalAmount,
         int ticketCount,
         string ticketTypeName);
+
+    Task SendEmailVerificationAsync(string toEmail, string userName, string tokenCode);
 }

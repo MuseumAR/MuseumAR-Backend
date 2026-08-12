@@ -1,11 +1,13 @@
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Ticketing;
 using HistoricalMuseumAudioGuide.Repository.Entities;
+using HistoricalMuseumAudioGuide.Repository.UnitOfWork;
 using HistoricalMuseumAudioGuide.Service.Services;
 using HistoricalMuseumAudioGuide.Service.Services.Ticketing;
 using HistoricalMuseumAudioGuide.Service.Services.Visitor;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -19,12 +21,21 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         private readonly ITicketingService _ticketingService;
         private readonly IVisitorService _visitorService;
         private readonly IWebHostEnvironment _environment;
+        private readonly IConfiguration _configuration;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public TicketingController(ITicketingService ticketingService, IVisitorService visitorService, IWebHostEnvironment environment)
+        public TicketingController(
+            ITicketingService ticketingService,
+            IVisitorService visitorService,
+            IWebHostEnvironment environment,
+            IConfiguration configuration,
+            IUnitOfWork unitOfWork)
         {
             _ticketingService = ticketingService;
             _visitorService = visitorService;
             _environment = environment;
+            _configuration = configuration;
+            _unitOfWork = unitOfWork;
         }
 
         [HttpGet("types")]
@@ -40,6 +51,17 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         {
             var (visitor, errorResponse) = await GetCurrentVisitorAsync();
             if (errorResponse != null) return errorResponse;
+
+            // Safety switch & Email verification check for ticket order
+            bool requireVerification = _configuration.GetValue<bool>("Auth:RequireEmailVerification", true);
+            if (requireVerification && visitor!.UserId.HasValue)
+            {
+                var user = await _unitOfWork.Users.GetByIdAsync(visitor.UserId.Value);
+                if (user != null && !user.IsEmailConfirmed)
+                {
+                    return BadRequest(ResponseModel.BadRequest("Vui lòng xác thực Email trước khi mua vé. Hệ thống đã gửi mã xác thực tới email của bạn."));
+                }
+            }
 
             var response = await _ticketingService.CreateOrderAsync(visitor!.Id, request);
             return ResponseParser.Result(response);
