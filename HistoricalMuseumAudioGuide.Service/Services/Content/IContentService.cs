@@ -17,8 +17,8 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
     public interface IContentService
     {
         // Exhibit Management
-        Task<ResponseModel> GetAllExhibitsAsync(int museumId);
-        Task<ResponseModel> GetExhibitByIdAsync(int id);
+        Task<ResponseModel> GetAllExhibitsAsync(int museumId, bool includeUnpublished = false);
+        Task<ResponseModel> GetExhibitByIdAsync(int id, bool includeUnpublished = false);
         Task<ResponseModel> ScanExhibitQrAsync(string qrData, string? lang = "vi", int? visitorId = null);
         Task<ResponseModel> CreateExhibitAsync(CreateExhibitDto exhibitDto, int? userMuseumId);
         Task<ResponseModel> UpdateExhibitAsync(int id, CreateExhibitDto exhibitDto, int? userMuseumId);
@@ -47,6 +47,12 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
         Task<ResponseModel> CreateMuseumMapAsync(CreateMuseumMapDto mapDto, int? userMuseumId);
         Task<ResponseModel> UpdateMuseumMapAsync(int id, UpdateMuseumMapDto mapDto, int? userMuseumId);
         Task<ResponseModel> DeleteMuseumMapAsync(int id, int? userMuseumId);
+
+        // Map POI Management
+        Task<ResponseModel> GetMapPoisAsync(int mapId);
+        Task<ResponseModel> CreateMapPoiAsync(CreateMapPoiDto dto, int? userMuseumId);
+        Task<ResponseModel> UpdateMapPoiAsync(int id, UpdateMapPoiDto dto, int? userMuseumId);
+        Task<ResponseModel> DeleteMapPoiAsync(int id, int? userMuseumId);
 
         // Tour Route Management
         Task<ResponseModel> GetTourRoutesAsync(int museumId);

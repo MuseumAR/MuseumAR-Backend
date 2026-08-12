@@ -4,7 +4,9 @@ using HistoricalMuseumAudioGuide.Service.Services;
 using HistoricalMuseumAudioGuide.Service.Services.Ticketing;
 using HistoricalMuseumAudioGuide.Service.Services.Visitor;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
@@ -16,11 +18,13 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
     {
         private readonly ITicketingService _ticketingService;
         private readonly IVisitorService _visitorService;
+        private readonly IWebHostEnvironment _environment;
 
-        public TicketingController(ITicketingService ticketingService, IVisitorService visitorService)
+        public TicketingController(ITicketingService ticketingService, IVisitorService visitorService, IWebHostEnvironment environment)
         {
             _ticketingService = ticketingService;
             _visitorService = visitorService;
+            _environment = environment;
         }
 
         [HttpGet("types")]
@@ -74,9 +78,15 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
+        [Authorize]
         [HttpGet("mock-confirm")]
         public async Task<IActionResult> MockConfirmPayment([FromQuery] string orderCode)
         {
+            if (!_environment.IsDevelopment())
+            {
+                return NotFound(ResponseModel.NotFound("Endpoint mock-confirm chỉ áp dụng ở môi trường Development."));
+            }
+
             var response = await _ticketingService.MockConfirmPaymentAsync(orderCode);
             return ResponseParser.Result(response);
         }
@@ -88,6 +98,7 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
+        [Authorize]
         [HttpPost("check-in")]
         public async Task<IActionResult> CheckInTicket([FromBody] CheckInRequestDto request)
         {

@@ -17,4 +17,8 @@ public partial class WaypointEdge
     public string EdgeType { get; set; } = "WALK";
 
     public bool IsBidirectional { get; set; } = true;
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
