@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace HistoricalMuseumAudioGuide.Repository.Entities;
@@ -12,6 +12,8 @@ public partial class MuseumMap
     public int FloorNumber { get; set; }
 
     public string? MapName { get; set; }
+
+    public string? MapType { get; set; }
 
     public string MapImageUrl { get; set; } = null!;
 

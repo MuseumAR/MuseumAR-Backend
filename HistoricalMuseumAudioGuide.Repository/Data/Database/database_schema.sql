@@ -112,6 +112,7 @@ CREATE TABLE MuseumMaps (
     MuseumId        INT             NOT NULL,
     FloorNumber     INT             NOT NULL DEFAULT 1,
     MapName         NVARCHAR(100)   NULL, -- e.g., 'Ground Floor', '2nd Floor - Modern History'
+    MapType         NVARCHAR(50)    NULL,
     MapImageUrl     NVARCHAR(500)   NOT NULL,
     Width           INT             NULL, -- Original image width for coordinate calculations
     Height          INT             NULL,

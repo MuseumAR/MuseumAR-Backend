@@ -131,11 +131,15 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
 
             // Maps & Routes
             CreateMap<MuseumMap, MuseumMapDto>()
-                .ForMember(dest => dest.MapType, opt => opt.MapFrom(src => src.MapName ?? "floor"))
-                .ForMember(dest => dest.FloorNumber, opt => opt.MapFrom(src => src.FloorNumber))
-                .ForMember(dest => dest.MapName, opt => opt.MapFrom(src => src.MapName))
+                .ForMember(dest => dest.MapType, opt => opt.MapFrom(src => src.MapType ?? src.MapName ?? "floor"))
+                .ReverseMap();
+
+            CreateMap<MapPoi, MapPoiDto>()
+                .ForMember(dest => dest.PoiType, opt => opt.MapFrom(src => src.Poitype))
                 .ReverseMap()
-                .ForMember(dest => dest.MapName, opt => opt.MapFrom(src => src.MapType));
+                .ForMember(dest => dest.Poitype, opt => opt.MapFrom(src => src.PoiType));
+            CreateMap<CreateMapPoiDto, MapPoi>()
+                .ForMember(dest => dest.Poitype, opt => opt.MapFrom(src => src.PoiType));
 
             CreateMap<TourRoute, TourRouteDto>()
                 .ForMember(dest => dest.Name, opt => opt.MapFrom(src =>

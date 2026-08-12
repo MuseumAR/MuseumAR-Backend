@@ -34,9 +34,8 @@ public class NavigationService : INavigationService
     {
         var map = await _unitOfWork.MuseumMaps.GetByIdAsync(mapId);
         var museumId = map?.MuseumId ?? 0;
-        var floorNumber = map?.FloorNumber ?? 1;
 
-        var waypoints = (await _unitOfWork.Waypoints.FindAsync(w => w.MapId == mapId || (w.MapId == null && w.MuseumId == museumId && w.FloorNumber == floorNumber))).ToList();
+        var waypoints = (await _unitOfWork.Waypoints.FindAsync(w => w.MapId == mapId)).ToList();
         var wpIds = waypoints.Select(w => w.Id).ToHashSet();
 
         var edges = (await _unitOfWork.WaypointEdges.FindAsync(e => e.MuseumId == museumId && (wpIds.Contains(e.FromWaypointId) || wpIds.Contains(e.ToWaypointId)))).ToList();
@@ -66,19 +65,23 @@ public class NavigationService : INavigationService
             Y = dto.LocationY,
             Type = dto.WaypointType ?? "HALLWAY",
             RoomId = dto.RoomId,
-            Label = dto.Name ?? dto.Code
+            Code = dto.Code ?? dto.Name,
+            Label = dto.Name ?? dto.Code,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
 
         await _unitOfWork.Waypoints.AddAsync(entity);
         await _unitOfWork.CompleteAsync();
 
-        // Check if room needs DoorWaypointId
+        // Check if room needs WaypointId / DoorWaypointId
         if (dto.RoomId.HasValue)
         {
             var room = await _unitOfWork.Rooms.GetByIdAsync(dto.RoomId.Value);
             if (room != null)
             {
                 room.WaypointId = entity.Id;
+                room.DoorWaypointId = entity.Id;
                 _unitOfWork.Rooms.Update(room);
                 await _unitOfWork.CompleteAsync();
             }
@@ -97,7 +100,9 @@ public class NavigationService : INavigationService
         entity.Y = dto.LocationY;
         entity.Type = dto.WaypointType ?? entity.Type;
         entity.RoomId = dto.RoomId;
+        entity.Code = dto.Code ?? entity.Code;
         entity.Label = dto.Name ?? dto.Code ?? entity.Label;
+        entity.UpdatedAt = DateTime.UtcNow;
 
         _unitOfWork.Waypoints.Update(entity);
         await _unitOfWork.CompleteAsync();
@@ -134,7 +139,9 @@ public class NavigationService : INavigationService
             ToWaypointId = dto.ToWaypointId,
             Distance = dto.Distance > 0 ? dto.Distance : 1.0,
             EdgeType = dto.EdgeType ?? "WALK",
-            IsBidirectional = dto.IsBidirectional
+            IsBidirectional = dto.IsBidirectional,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
 
         await _unitOfWork.WaypointEdges.AddAsync(entity);
@@ -416,8 +423,10 @@ public class NavigationService : INavigationService
         LocationY = w.Y,
         WaypointType = w.Type,
         RoomId = w.RoomId,
-        Code = w.Label,
-        Name = w.Label
+        Code = w.Code ?? w.Label,
+        Name = w.Label ?? w.Code,
+        CreatedAt = w.CreatedAt,
+        UpdatedAt = w.UpdatedAt
     };
 
     private WaypointEdgeDto MapToEdgeDto(WaypointEdge e) => new WaypointEdgeDto
@@ -428,6 +437,8 @@ public class NavigationService : INavigationService
         ToWaypointId = e.ToWaypointId,
         Distance = e.Distance,
         EdgeType = e.EdgeType,
-        IsBidirectional = e.IsBidirectional
+        IsBidirectional = e.IsBidirectional,
+        CreatedAt = e.CreatedAt,
+        UpdatedAt = e.UpdatedAt
     };
 }

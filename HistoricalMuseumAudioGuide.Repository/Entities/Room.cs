@@ -23,7 +23,7 @@ public partial class Room
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-    public int? DoorWaypointId { get; set; }
+    public string? DoorWaypointId { get; set; }
 
     public string? WaypointId { get; set; }
 

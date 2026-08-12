@@ -918,12 +918,20 @@ public partial class MuseumAudioGuideContext : DbContext
                 .HasConstraintName("FK_Visitors_User");
         });
 
+        modelBuilder.Entity<MuseumMap>(entity =>
+        {
+            entity.Property(e => e.MapType).HasMaxLength(50);
+        });
+
         modelBuilder.Entity<Waypoint>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasMaxLength(50);
+            entity.Property(e => e.Code).HasMaxLength(50);
             entity.Property(e => e.Type).HasMaxLength(50);
             entity.Property(e => e.Label).HasMaxLength(100);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("(getutcdate())");
 
             entity.HasOne(d => d.Map)
                 .WithMany()
@@ -942,11 +950,14 @@ public partial class MuseumAudioGuideContext : DbContext
             entity.Property(e => e.FromWaypointId).HasMaxLength(50);
             entity.Property(e => e.ToWaypointId).HasMaxLength(50);
             entity.Property(e => e.EdgeType).HasMaxLength(50);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("(getutcdate())");
         });
 
         modelBuilder.Entity<Room>(entity =>
         {
             entity.Property(e => e.WaypointId).HasMaxLength(50);
+            entity.Property(e => e.DoorWaypointId).HasMaxLength(50);
         });
 
         OnModelCreatingPartial(modelBuilder);
