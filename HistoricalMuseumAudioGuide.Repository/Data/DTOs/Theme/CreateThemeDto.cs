@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace HistoricalMuseumAudioGuide.Repository.Data.DTOs.Theme
 {
     public class CreateThemeDto
@@ -5,5 +7,6 @@ namespace HistoricalMuseumAudioGuide.Repository.Data.DTOs.Theme
         public int? MuseumId { get; set; }
         public string ThemeName { get; set; } = null!;
         public string? Description { get; set; }
+        public ICollection<ThemeTranslationDto>? Translations { get; set; }
     }
 }

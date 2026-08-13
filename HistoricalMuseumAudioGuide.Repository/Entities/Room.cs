@@ -36,4 +36,6 @@ public partial class Room
     public virtual MuseumMap? Map { get; set; }
 
     public virtual ICollection<Exhibit> Exhibits { get; set; } = new List<Exhibit>();
+
+    public virtual ICollection<RoomTranslation> RoomTranslations { get; set; } = new List<RoomTranslation>();
 }

@@ -43,6 +43,8 @@ public partial class MuseumAudioGuideContext : DbContext
 
     public virtual DbSet<Room> Rooms { get; set; }
 
+    public virtual DbSet<RoomTranslation> RoomTranslations { get; set; }
+
     public virtual DbSet<Exhibition> Exhibitions { get; set; }
 
     public virtual DbSet<ExhibitionTranslation> ExhibitionTranslations { get; set; }
@@ -52,6 +54,8 @@ public partial class MuseumAudioGuideContext : DbContext
     public virtual DbSet<MapPoi> MapPois { get; set; }
 
     public virtual DbSet<Museum> Museums { get; set; }
+
+    public virtual DbSet<MuseumTranslation> MuseumTranslations { get; set; }
 
 
     public virtual DbSet<MuseumMap> MuseumMaps { get; set; }
@@ -72,9 +76,13 @@ public partial class MuseumAudioGuideContext : DbContext
 
     public virtual DbSet<Theme> Themes { get; set; }
 
+    public virtual DbSet<ThemeTranslation> ThemeTranslations { get; set; }
+
     public virtual DbSet<TagGroup> TagGroups { get; set; }
 
     public virtual DbSet<Tag> Tags { get; set; }
+
+    public virtual DbSet<TagTranslation> TagTranslations { get; set; }
 
     public virtual DbSet<Ticket> Tickets { get; set; }
 
@@ -328,6 +336,24 @@ public partial class MuseumAudioGuideContext : DbContext
                 .HasConstraintName("FK_Rooms_Map");
         });
 
+        modelBuilder.Entity<RoomTranslation>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasIndex(e => new { e.RoomId, e.LanguageCode }, "UQ_RoomTrans").IsUnique();
+
+            entity.Property(e => e.RoomName).HasMaxLength(150);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.LanguageCode)
+                .HasMaxLength(10)
+                .IsUnicode(false);
+
+            entity.HasOne(d => d.Room).WithMany(p => p.RoomTranslations)
+                .HasForeignKey(d => d.RoomId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_RoomTrans_Room");
+        });
+
         modelBuilder.Entity<ExhibitArasset>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__ExhibitA__3214EC07649477FB");
@@ -366,7 +392,9 @@ public partial class MuseumAudioGuideContext : DbContext
 
             entity.Property(e => e.ExhibitId).ValueGeneratedNever();
             entity.Property(e => e.Era).HasMaxLength(100);
+            entity.Property(e => e.EraEn).HasMaxLength(100);
             entity.Property(e => e.HistoricalEvent).HasMaxLength(200);
+            entity.Property(e => e.HistoricalEventEn).HasMaxLength(200);
 
             entity.HasOne(d => d.AgeGroup).WithMany(p => p.ExhibitMetadata)
                 .HasForeignKey(d => d.AgeGroupId)
@@ -500,6 +528,26 @@ public partial class MuseumAudioGuideContext : DbContext
             entity.Property(e => e.ThumbnailUrl).HasMaxLength(500);
             entity.Property(e => e.UpdatedAt).HasDefaultValueSql("(getutcdate())");
             entity.Property(e => e.Website).HasMaxLength(500);
+        });
+
+        modelBuilder.Entity<MuseumTranslation>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasIndex(e => new { e.MuseumId, e.LanguageCode }, "UQ_MuseumTrans").IsUnique();
+
+            entity.Property(e => e.Name).HasMaxLength(200);
+            entity.Property(e => e.Description);
+            entity.Property(e => e.Address).HasMaxLength(500);
+            entity.Property(e => e.OpeningHours).HasMaxLength(500);
+            entity.Property(e => e.LanguageCode)
+                .HasMaxLength(10)
+                .IsUnicode(false);
+
+            entity.HasOne(d => d.Museum).WithMany(p => p.MuseumTranslations)
+                .HasForeignKey(d => d.MuseumId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_MuseumTrans_Museum");
         });
 
 
@@ -641,6 +689,20 @@ public partial class MuseumAudioGuideContext : DbContext
                 .HasConstraintName("FK_Themes_Museum");
         });
 
+        modelBuilder.Entity<ThemeTranslation>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.ThemeId, e.LanguageCode }, "UQ_ThemeTrans").IsUnique();
+            entity.Property(e => e.LanguageCode)
+                .HasMaxLength(10)
+                .IsUnicode(false);
+            entity.Property(e => e.ThemeName).HasMaxLength(100);
+            entity.Property(e => e.Description).HasMaxLength(255);
+            entity.HasOne(d => d.Theme).WithMany(p => p.ThemeTranslations)
+                .HasForeignKey(d => d.ThemeId)
+                .HasConstraintName("FK_ThemeTrans_Theme");
+        });
+
         modelBuilder.Entity<TagGroup>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -675,6 +737,19 @@ public partial class MuseumAudioGuideContext : DbContext
                         j.HasKey("ExhibitId", "TagId");
                         j.ToTable("ExhibitTags");
                     });
+        });
+
+        modelBuilder.Entity<TagTranslation>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.TagId, e.LanguageCode }, "UQ_TagTrans").IsUnique();
+            entity.Property(e => e.LanguageCode)
+                .HasMaxLength(10)
+                .IsUnicode(false);
+            entity.Property(e => e.TagName).HasMaxLength(100);
+            entity.HasOne(d => d.Tag).WithMany(p => p.TagTranslations)
+                .HasForeignKey(d => d.TagId)
+                .HasConstraintName("FK_TagTrans_Tag");
         });
 
         modelBuilder.Entity<Ticket>(entity =>
@@ -712,8 +787,10 @@ public partial class MuseumAudioGuideContext : DbContext
 
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
             entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.DescriptionEn).HasMaxLength(500);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.Name).HasMaxLength(100);
+            entity.Property(e => e.NameEn).HasMaxLength(100);
             entity.Property(e => e.Price).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.Status)
                 .HasMaxLength(20)

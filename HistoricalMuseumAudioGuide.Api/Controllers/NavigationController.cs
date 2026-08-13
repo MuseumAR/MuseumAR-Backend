@@ -82,14 +82,17 @@ public class NavigationController : ControllerBase
 
     [HttpGet("route")]
     [AllowAnonymous]
-    public async Task<IActionResult> Navigate([FromQuery] int fromRoomId, [FromQuery] int toRoomId)
+    public async Task<IActionResult> Navigate(
+        [FromQuery] int fromRoomId,
+        [FromQuery] int toRoomId,
+        [FromQuery] string? lang = null)
     {
         if (fromRoomId <= 0 || toRoomId <= 0)
         {
             return BadRequest(ResponseModel.BadRequest("Phòng đi và phòng đến không hợp lệ."));
         }
 
-        var result = await _navigationService.NavigateAsync(fromRoomId, toRoomId);
+        var result = await _navigationService.NavigateAsync(fromRoomId, toRoomId, lang);
         if (result == null)
         {
             return NotFound(ResponseModel.NotFound("Không tìm thấy thông tin phòng."));

@@ -18,4 +18,6 @@ public partial class Theme
     public virtual Museum? Museum { get; set; }
 
     public virtual ICollection<Exhibition> Exhibitions { get; set; } = new List<Exhibition>();
+
+    public virtual ICollection<ThemeTranslation> ThemeTranslations { get; set; } = new List<ThemeTranslation>();
 }

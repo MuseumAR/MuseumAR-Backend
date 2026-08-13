@@ -18,4 +18,6 @@ public partial class Tag
     public virtual TagGroup TagGroup { get; set; } = null!;
 
     public virtual ICollection<Exhibit> Exhibits { get; set; } = new List<Exhibit>();
+
+    public virtual ICollection<TagTranslation> TagTranslations { get; set; } = new List<TagTranslation>();
 }

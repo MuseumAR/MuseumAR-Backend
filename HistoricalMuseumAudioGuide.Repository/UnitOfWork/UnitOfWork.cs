@@ -48,6 +48,8 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
             VisitedExhibits = new GenericRepository<VisitedExhibit>(_context);
             MuseumMaps = new GenericRepository<MuseumMap>(_context);
             Rooms = new GenericRepository<Room>(_context);
+            RoomTranslations = new GenericRepository<RoomTranslation>(_context);
+            MuseumTranslations = new GenericRepository<MuseumTranslation>(_context);
             TourRoutes = new GenericRepository<TourRoute>(_context);
             TourRouteExhibits = new GenericRepository<TourRouteExhibit>(_context);
             TourRouteTranslations = new GenericRepository<TourRouteTranslation>(_context);
@@ -55,10 +57,12 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
             AuditLogs = new GenericRepository<AuditLog>(_context);
             SystemConfigurations = new GenericRepository<SystemConfiguration>(_context);
             Themes = new GenericRepository<Theme>(_context);
+            ThemeTranslations = new GenericRepository<ThemeTranslation>(_context);
             AgeGroups = new GenericRepository<AgeGroup>(_context);
             ExhibitMetadata = new GenericRepository<ExhibitMetadatum>(_context);
             TagGroups = new GenericRepository<TagGroup>(_context);
             Tags = new GenericRepository<Tag>(_context);
+            TagTranslations = new GenericRepository<TagTranslation>(_context);
             RefreshTokens = new GenericRepository<RefreshToken>(_context);
             Waypoints = new GenericRepository<Waypoint>(_context);
             WaypointEdges = new GenericRepository<WaypointEdge>(_context);
@@ -84,6 +88,8 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         public IGenericRepository<VisitedExhibit> VisitedExhibits { get; private set; }
         public IGenericRepository<MuseumMap> MuseumMaps { get; private set; }
         public IGenericRepository<Room> Rooms { get; private set; }
+        public IGenericRepository<RoomTranslation> RoomTranslations { get; private set; }
+        public IGenericRepository<MuseumTranslation> MuseumTranslations { get; private set; }
         public IGenericRepository<TourRoute> TourRoutes { get; private set; }
         public IGenericRepository<TourRouteExhibit> TourRouteExhibits { get; private set; }
         public IGenericRepository<TourRouteTranslation> TourRouteTranslations { get; private set; }
@@ -91,10 +97,12 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         public IGenericRepository<AuditLog> AuditLogs { get; private set; }
         public IGenericRepository<SystemConfiguration> SystemConfigurations { get; private set; }
         public IGenericRepository<Theme> Themes { get; private set; }
+        public IGenericRepository<ThemeTranslation> ThemeTranslations { get; private set; }
         public IGenericRepository<AgeGroup> AgeGroups { get; private set; }
         public IGenericRepository<ExhibitMetadatum> ExhibitMetadata { get; private set; }
         public IGenericRepository<TagGroup> TagGroups { get; private set; }
         public IGenericRepository<Tag> Tags { get; private set; }
+        public IGenericRepository<TagTranslation> TagTranslations { get; private set; }
         public IGenericRepository<RefreshToken> RefreshTokens { get; private set; }
         public IGenericRepository<Waypoint> Waypoints { get; private set; }
         public IGenericRepository<WaypointEdge> WaypointEdges { get; private set; }

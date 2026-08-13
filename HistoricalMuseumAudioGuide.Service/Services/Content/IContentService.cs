@@ -17,8 +17,8 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
     public interface IContentService
     {
         // Exhibit Management
-        Task<ResponseModel> GetAllExhibitsAsync(int museumId);
-        Task<ResponseModel> GetExhibitByIdAsync(int id);
+        Task<ResponseModel> GetAllExhibitsAsync(int museumId, string? lang = null);
+        Task<ResponseModel> GetExhibitByIdAsync(int id, string? lang = null);
         Task<ResponseModel> ScanExhibitQrAsync(string qrData, string? lang = "vi", int? visitorId = null);
         Task<ResponseModel> CreateExhibitAsync(CreateExhibitDto exhibitDto, int? userMuseumId);
         Task<ResponseModel> UpdateExhibitAsync(int id, CreateExhibitDto exhibitDto, int? userMuseumId);
@@ -27,17 +27,19 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
         Task<ResponseModel> UnpublishExhibitAsync(int id, int? userMuseumId);
 
         // Room Management
-        Task<ResponseModel> GetRoomsByMuseumIdAsync(int museumId);
+        Task<ResponseModel> GetRoomsByMuseumIdAsync(int museumId, string? lang = null);
         Task<ResponseModel> CreateRoomAsync(CreateRoomDto roomDto, int? userMuseumId);
         Task<ResponseModel> UpdateRoomAsync(int id, UpdateRoomDto roomDto, int? userMuseumId);
         Task<ResponseModel> DeleteRoomAsync(int id, int? userMuseumId);
+        Task<ResponseModel> GetRoomTranslationsAsync(int roomId);
+        Task<ResponseModel> AddOrUpdateRoomTranslationAsync(int roomId, RoomTranslationDto dto, int? userMuseumId);
 
         // Exhibition Management
-        Task<ResponseModel> GetExhibitionsByMuseumIdAsync(int museumId);
+        Task<ResponseModel> GetExhibitionsByMuseumIdAsync(int museumId, string? lang = null);
         Task<ResponseModel> CreateExhibitionAsync(CreateExhibitionDto exhibitionDto, int? userMuseumId);
         Task<ResponseModel> UpdateExhibitionAsync(int id, CreateExhibitionDto exhibitionDto, int? userMuseumId);
         Task<ResponseModel> DeleteExhibitionAsync(int id, int? userMuseumId);
-        Task<ResponseModel> GetExhibitsByExhibitionIdAsync(int exhibitionId);
+        Task<ResponseModel> GetExhibitsByExhibitionIdAsync(int exhibitionId, string? lang = null);
         Task<ResponseModel> AssignExhibitsToExhibitionAsync(int exhibitionId, List<int> exhibitIds, int? userMuseumId);
         Task<ResponseModel> RemoveExhibitFromExhibitionAsync(int exhibitionId, int exhibitId, int? userMuseumId);
 
@@ -90,8 +92,8 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
         Task<ResponseModel> AddOrUpdateCategoryTranslationAsync(int categoryId, CategoryTranslationDto dto, int? userMuseumId);
 
         // Reference Metadata
-        Task<ResponseModel> GetThemesAsync(int? museumId);
-        Task<ResponseModel> GetThemeByIdAsync(int id);
+        Task<ResponseModel> GetThemesAsync(int? museumId, string? lang = null);
+        Task<ResponseModel> GetThemeByIdAsync(int id, string? lang = null);
         Task<ResponseModel> CreateThemeAsync(CreateThemeDto themeDto, int? userMuseumId);
         Task<ResponseModel> UpdateThemeAsync(int id, CreateThemeDto themeDto, int? userMuseumId);
         Task<ResponseModel> DeleteThemeAsync(int id, int? userMuseumId);
@@ -102,14 +104,14 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
         Task<ResponseModel> CreateTagGroupAsync(CreateTagGroupDto tagGroupDto);
         Task<ResponseModel> UpdateTagGroupAsync(int id, CreateTagGroupDto tagGroupDto);
         Task<ResponseModel> DeleteTagGroupAsync(int id);
-        Task<ResponseModel> GetTagsByGroupAsync(int tagGroupId);
-        Task<ResponseModel> GetAllTagsAsync();
+        Task<ResponseModel> GetTagsByGroupAsync(int tagGroupId, string? lang = null);
+        Task<ResponseModel> GetAllTagsAsync(string? lang = null);
         Task<ResponseModel> CreateTagAsync(CreateTagDto tagDto);
         Task<ResponseModel> UpdateTagAsync(int id, CreateTagDto tagDto);
         Task<ResponseModel> DeleteTagAsync(int id);
         Task<ResponseModel> AssignTagsToExhibitAsync(int exhibitId, List<int> tagIds, int? userMuseumId);
         Task<ResponseModel> RemoveTagFromExhibitAsync(int exhibitId, int tagId, int? userMuseumId);
-        Task<ResponseModel> GetExhibitTagsAsync(int exhibitId);
+        Task<ResponseModel> GetExhibitTagsAsync(int exhibitId, string? lang = null);
 
         // Content Version Management
         Task<ResponseModel> GetContentVersionsAsync(int museumId);

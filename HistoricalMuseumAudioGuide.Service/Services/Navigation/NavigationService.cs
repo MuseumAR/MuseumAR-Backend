@@ -152,11 +152,20 @@ public class NavigationService : INavigationService
         return true;
     }
 
-    public async Task<NavigationRouteResponseDto?> NavigateAsync(int fromRoomId, int toRoomId)
+    public async Task<NavigationRouteResponseDto?> NavigateAsync(int fromRoomId, int toRoomId, string? lang = null)
     {
-        var fromRoom = await _unitOfWork.Rooms.GetByIdAsync(fromRoomId);
-        var toRoom = await _unitOfWork.Rooms.GetByIdAsync(toRoomId);
+        var en = string.Equals(lang, "en", StringComparison.OrdinalIgnoreCase);
+
+        var fromRoom = await _unitOfWork.Rooms.GetFirstOrDefaultAsync(
+            r => r.Id == fromRoomId,
+            includeProperties: "RoomTranslations");
+        var toRoom = await _unitOfWork.Rooms.GetFirstOrDefaultAsync(
+            r => r.Id == toRoomId,
+            includeProperties: "RoomTranslations");
         if (fromRoom == null || toRoom == null) return null;
+
+        var fromRoomName = ResolveRoomDisplayName(fromRoom, en);
+        var toRoomName = ResolveRoomDisplayName(toRoom, en);
 
         var museumId = fromRoom.MuseumId;
 
@@ -189,9 +198,9 @@ public class NavigationService : INavigationService
             return new NavigationRouteResponseDto
             {
                 FromRoomId = fromRoomId,
-                FromRoomName = fromRoom.RoomName,
+                FromRoomName = fromRoomName,
                 ToRoomId = toRoomId,
-                ToRoomName = toRoom.RoomName,
+                ToRoomName = toRoomName,
                 TotalDistance = 0,
                 PathWaypoints = new List<WaypointDto>(),
                 Instructions = new List<NavigationInstructionDto>
@@ -199,7 +208,9 @@ public class NavigationService : INavigationService
                     new NavigationInstructionDto
                     {
                         StepIndex = 1,
-                        Instruction = $"Chưa thiết lập nốt chỉ đường cho phòng {fromRoom.RoomName} hoặc {toRoom.RoomName}.",
+                        Instruction = en
+                            ? $"Navigation waypoints are not set up for {fromRoomName} or {toRoomName}."
+                            : $"Chưa thiết lập nốt chỉ đường cho phòng {fromRoomName} hoặc {toRoomName}.",
                         Action = "ARRIVE",
                         WaypointId = ""
                     }
@@ -267,9 +278,9 @@ public class NavigationService : INavigationService
             return new NavigationRouteResponseDto
             {
                 FromRoomId = fromRoomId,
-                FromRoomName = fromRoom.RoomName,
+                FromRoomName = fromRoomName,
                 ToRoomId = toRoomId,
-                ToRoomName = toRoom.RoomName,
+                ToRoomName = toRoomName,
                 TotalDistance = 0,
                 PathWaypoints = new List<WaypointDto>(),
                 Instructions = new List<NavigationInstructionDto>
@@ -277,7 +288,9 @@ public class NavigationService : INavigationService
                     new NavigationInstructionDto
                     {
                         StepIndex = 1,
-                        Instruction = $"Không tìm thấy tuyến đường nối từ {fromRoom.RoomName} đến {toRoom.RoomName}.",
+                        Instruction = en
+                            ? $"No path found from {fromRoomName} to {toRoomName}."
+                            : $"Không tìm thấy tuyến đường nối từ {fromRoomName} đến {toRoomName}.",
                         Action = "ARRIVE",
                         WaypointId = startWp.Id
                     }
@@ -297,21 +310,38 @@ public class NavigationService : INavigationService
         pathIds.Reverse();
 
         var pathWaypoints = pathIds.Select(id => MapToWaypointDto(waypointDict[id])).ToList();
-        var instructions = GenerateInstructions(pathWaypoints, fromRoom.RoomName, toRoom.RoomName);
+        var instructions = GenerateInstructions(pathWaypoints, fromRoomName, toRoomName, en);
 
         return new NavigationRouteResponseDto
         {
             FromRoomId = fromRoomId,
-            FromRoomName = fromRoom.RoomName,
+            FromRoomName = fromRoomName,
             ToRoomId = toRoomId,
-            ToRoomName = toRoom.RoomName,
+            ToRoomName = toRoomName,
             TotalDistance = Math.Round(dist[endWp.Id], 1),
             PathWaypoints = pathWaypoints,
             Instructions = instructions
         };
     }
 
-    private List<NavigationInstructionDto> GenerateInstructions(List<WaypointDto> path, string fromRoomName, string toRoomName)
+    private static string ResolveRoomDisplayName(Room room, bool en)
+    {
+        if (en)
+        {
+            var enName = room.RoomTranslations?
+                .FirstOrDefault(t => t.LanguageCode.Equals("en", StringComparison.OrdinalIgnoreCase))
+                ?.RoomName;
+            if (!string.IsNullOrWhiteSpace(enName)) return enName;
+            if (!string.IsNullOrWhiteSpace(room.RoomCode)) return $"Room {room.RoomCode}";
+        }
+        return room.RoomName;
+    }
+
+    private List<NavigationInstructionDto> GenerateInstructions(
+        List<WaypointDto> path,
+        string fromRoomName,
+        string toRoomName,
+        bool en = false)
     {
         var instructions = new List<NavigationInstructionDto>();
         if (path == null || path.Count == 0) return instructions;
@@ -320,7 +350,9 @@ public class NavigationService : INavigationService
         instructions.Add(new NavigationInstructionDto
         {
             StepIndex = stepIndex++,
-            Instruction = $"Bắt đầu di chuyển từ {fromRoomName}",
+            Instruction = en
+                ? $"Start from {fromRoomName}"
+                : $"Bắt đầu di chuyển từ {fromRoomName}",
             Action = "STRAIGHT",
             Distance = 0,
             FloorNumber = path[0].FloorNumber,
@@ -335,11 +367,15 @@ public class NavigationService : INavigationService
             if (w1.FloorNumber != w2.FloorNumber)
             {
                 var action = w2.FloorNumber > w1.FloorNumber ? "STAIR_UP" : "STAIR_DOWN";
-                var actionText = w2.WaypointType == "ELEVATOR" ? "Đi thang máy" : "Đi cầu thang";
+                var actionText = w2.WaypointType == "ELEVATOR"
+                    ? (en ? "Take the elevator" : "Đi thang máy")
+                    : (en ? "Take the stairs" : "Đi cầu thang");
+                var floorWord = en ? "Floor" : "Tầng";
+                var toWord = en ? "to" : "lên";
                 instructions.Add(new NavigationInstructionDto
                 {
                     StepIndex = stepIndex++,
-                    Instruction = $"{actionText} lên Tầng {w2.FloorNumber}",
+                    Instruction = $"{actionText} {toWord} {floorWord} {w2.FloorNumber}",
                     Action = action,
                     Distance = 1.0,
                     FloorNumber = w2.FloorNumber,
@@ -350,9 +386,9 @@ public class NavigationService : INavigationService
             {
                 double dx = w2.LocationX - w1.LocationX;
                 double dy = w2.LocationY - w1.LocationY;
-                double dist = Math.Round(Math.Sqrt(dx * dx + dy * dy), 1);
+                double distVal = Math.Round(Math.Sqrt(dx * dx + dy * dy), 1);
 
-                string turnText = "Đi thẳng";
+                string turnText = en ? "Go straight" : "Đi thẳng";
                 string action = "STRAIGHT";
 
                 if (i > 0)
@@ -368,23 +404,28 @@ public class NavigationService : INavigationService
                         double crossProduct = v1x * v2y - v1y * v2x;
                         if (crossProduct > 10)
                         {
-                            turnText = "Rẽ phải";
+                            turnText = en ? "Turn right" : "Rẽ phải";
                             action = "TURN_RIGHT";
                         }
                         else if (crossProduct < -10)
                         {
-                            turnText = "Rẽ trái";
+                            turnText = en ? "Turn left" : "Rẽ trái";
                             action = "TURN_LEFT";
                         }
                     }
                 }
 
+                var via = w2.Name ?? (w2.WaypointType == "DOOR"
+                    ? (en ? "the doorway" : "cửa phòng")
+                    : (en ? "the hallway" : "hành lang"));
+                var through = en ? "through" : "qua";
+
                 instructions.Add(new NavigationInstructionDto
                 {
                     StepIndex = stepIndex++,
-                    Instruction = $"{turnText} qua {w2.Name ?? (w2.WaypointType == "DOOR" ? "cửa phòng" : "hành lang")}",
+                    Instruction = $"{turnText} {through} {via}",
                     Action = action,
-                    Distance = dist,
+                    Distance = distVal,
                     FloorNumber = w2.FloorNumber,
                     WaypointId = w2.Id
                 });
@@ -395,7 +436,7 @@ public class NavigationService : INavigationService
         instructions.Add(new NavigationInstructionDto
         {
             StepIndex = stepIndex++,
-            Instruction = $"Đã đến {toRoomName}",
+            Instruction = en ? $"Arrived at {toRoomName}" : $"Đã đến {toRoomName}",
             Action = "ARRIVE",
             Distance = 0,
             FloorNumber = lastWp.FloorNumber,

@@ -46,9 +46,29 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
             // Ticketing
             CreateMap<CreateOrderRequestDto, Transaction>();
             
-            CreateMap<Museum, MuseumDto>().ReverseMap();
+            CreateMap<MuseumTranslation, MuseumTranslationDto>().ReverseMap();
+            CreateMap<Museum, MuseumDto>()
+                .ForMember(dest => dest.Translations, opt => opt.MapFrom(src => src.MuseumTranslations))
+                .ForMember(dest => dest.NameEn, opt => opt.MapFrom(src =>
+                    src.MuseumTranslations.FirstOrDefault(t => t.LanguageCode == "en") != null
+                        ? src.MuseumTranslations.FirstOrDefault(t => t.LanguageCode == "en")!.Name
+                        : null))
+                .ForMember(dest => dest.DescriptionEn, opt => opt.MapFrom(src =>
+                    src.MuseumTranslations.FirstOrDefault(t => t.LanguageCode == "en") != null
+                        ? src.MuseumTranslations.FirstOrDefault(t => t.LanguageCode == "en")!.Description
+                        : null))
+                .ForMember(dest => dest.AddressEn, opt => opt.MapFrom(src =>
+                    src.MuseumTranslations.FirstOrDefault(t => t.LanguageCode == "en") != null
+                        ? src.MuseumTranslations.FirstOrDefault(t => t.LanguageCode == "en")!.Address
+                        : null))
+                .ForMember(dest => dest.OpeningHoursEn, opt => opt.MapFrom(src =>
+                    src.MuseumTranslations.FirstOrDefault(t => t.LanguageCode == "en") != null
+                        ? src.MuseumTranslations.FirstOrDefault(t => t.LanguageCode == "en")!.OpeningHours
+                        : null));
             CreateMap<CreateMuseumDto, Museum>();
-            CreateMap<UpdateMuseumProfileDto, Museum>();
+            CreateMap<UpdateMuseumProfileDto, Museum>()
+                .ForMember(dest => dest.MuseumTranslations, opt => opt.Ignore())
+                .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
             
             CreateMap<Exhibit, ExhibitDto>()
                 .ForMember(dest => dest.ExhibitMetadata, opt => opt.MapFrom(src => src.ExhibitMetadatum))
@@ -62,10 +82,14 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
                 .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
 
             // Room Mappings
-            CreateMap<Room, RoomDto>().ReverseMap();
-            CreateMap<CreateRoomDto, Room>();
+            CreateMap<Room, RoomDto>()
+                .ForMember(dest => dest.Translations, opt => opt.MapFrom(src => src.RoomTranslations));
+            CreateMap<CreateRoomDto, Room>()
+                .ForMember(dest => dest.RoomTranslations, opt => opt.Ignore());
             CreateMap<UpdateRoomDto, Room>()
+                .ForMember(dest => dest.RoomTranslations, opt => opt.Ignore())
                 .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
+            CreateMap<RoomTranslation, RoomTranslationDto>().ReverseMap();
 
             // Exhibit Translation
             CreateMap<ExhibitTranslation, ExhibitTranslationDto>();
@@ -81,19 +105,27 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
 
             // AgeGroup & Theme
             CreateMap<AgeGroup, AgeGroupDto>();
-            CreateMap<Theme, ThemeDto>().ReverseMap();
-            CreateMap<CreateThemeDto, Theme>();
+            CreateMap<Theme, ThemeDto>()
+                .ForMember(dest => dest.Translations, opt => opt.MapFrom(src => src.ThemeTranslations));
+            CreateMap<CreateThemeDto, Theme>()
+                .ForMember(dest => dest.ThemeTranslations, opt => opt.Ignore());
+            CreateMap<ThemeTranslation, ThemeTranslationDto>().ReverseMap();
 
             // Tag & TagGroup
             CreateMap<TagGroup, TagGroupDto>().ReverseMap();
             CreateMap<CreateTagGroupDto, TagGroup>();
-            CreateMap<Tag, TagDto>().ReverseMap();
-            CreateMap<CreateTagDto, Tag>();
+            CreateMap<Tag, TagDto>()
+                .ForMember(dest => dest.Translations, opt => opt.MapFrom(src => src.TagTranslations));
+            CreateMap<CreateTagDto, Tag>()
+                .ForMember(dest => dest.TagTranslations, opt => opt.Ignore());
+            CreateMap<TagTranslation, TagTranslationDto>().ReverseMap();
 
             // Content Version
             CreateMap<ContentVersion, ContentVersionDto>();
 
+            CreateMap<ExhibitionTranslation, ExhibitionTranslationDto>().ReverseMap();
             CreateMap<Exhibition, ExhibitionDto>()
+                .ForMember(dest => dest.Translations, opt => opt.MapFrom(src => src.ExhibitionTranslations))
                 .ForMember(dest => dest.Name, opt => opt.MapFrom(src => 
                     src.ExhibitionTranslations.FirstOrDefault(t => t.LanguageCode == "vi").Name ?? 
                     src.ExhibitionTranslations.FirstOrDefault(t => t.LanguageCode == "en").Name ?? 
@@ -102,7 +134,16 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
                     src.ExhibitionTranslations.FirstOrDefault(t => t.LanguageCode == "vi").Description ?? 
                     src.ExhibitionTranslations.FirstOrDefault(t => t.LanguageCode == "en").Description ?? 
                     (src.ExhibitionTranslations.Any() ? src.ExhibitionTranslations.First().Description : null)))
-                .ReverseMap();
+                .ForMember(dest => dest.NameEn, opt => opt.MapFrom(src =>
+                    src.ExhibitionTranslations.FirstOrDefault(t => t.LanguageCode == "en") != null
+                        ? src.ExhibitionTranslations.FirstOrDefault(t => t.LanguageCode == "en")!.Name
+                        : null))
+                .ForMember(dest => dest.DescriptionEn, opt => opt.MapFrom(src =>
+                    src.ExhibitionTranslations.FirstOrDefault(t => t.LanguageCode == "en") != null
+                        ? src.ExhibitionTranslations.FirstOrDefault(t => t.LanguageCode == "en")!.Description
+                        : null))
+                .ReverseMap()
+                .ForMember(dest => dest.ExhibitionTranslations, opt => opt.Ignore());
             CreateMap<CreateExhibitionDto, Exhibition>();
 
             // AR Asset

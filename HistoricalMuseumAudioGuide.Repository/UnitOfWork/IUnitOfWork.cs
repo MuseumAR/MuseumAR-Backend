@@ -43,6 +43,8 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         IGenericRepository<VisitedExhibit> VisitedExhibits { get; }
         IGenericRepository<MuseumMap> MuseumMaps { get; }
         IGenericRepository<Room> Rooms { get; }
+        IGenericRepository<RoomTranslation> RoomTranslations { get; }
+        IGenericRepository<MuseumTranslation> MuseumTranslations { get; }
         IGenericRepository<TourRoute> TourRoutes { get; }
         IGenericRepository<TourRouteExhibit> TourRouteExhibits { get; }
         IGenericRepository<TourRouteTranslation> TourRouteTranslations { get; }
@@ -50,10 +52,12 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         IGenericRepository<AuditLog> AuditLogs { get; }
         IGenericRepository<SystemConfiguration> SystemConfigurations { get; }
         IGenericRepository<Theme> Themes { get; }
+        IGenericRepository<ThemeTranslation> ThemeTranslations { get; }
         IGenericRepository<AgeGroup> AgeGroups { get; }
         IGenericRepository<ExhibitMetadatum> ExhibitMetadata { get; }
         IGenericRepository<TagGroup> TagGroups { get; }
         IGenericRepository<Tag> Tags { get; }
+        IGenericRepository<TagTranslation> TagTranslations { get; }
         IGenericRepository<RefreshToken> RefreshTokens { get; }
         IGenericRepository<Waypoint> Waypoints { get; }
         IGenericRepository<WaypointEdge> WaypointEdges { get; }
