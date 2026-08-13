@@ -45,6 +45,15 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         }
 
         [Authorize(Roles = "MuseumManager")]
+        [HttpGet("ticket-types/{id}")]
+        public async Task<IActionResult> GetTicketTypeDetail(int id)
+        {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
+            var result = await _managerService.GetTicketTypeByIdAsync(museumId, id);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [Authorize(Roles = "MuseumManager")]
         [HttpPost("ticket-types")]
         public async Task<IActionResult> CreateTicketType([FromBody] CreateTicketTypeDto createDto)
         {
@@ -54,11 +63,29 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         }
 
         [Authorize(Roles = "MuseumManager")]
+        [HttpPut("ticket-types/{id}")]
+        public async Task<IActionResult> UpdateTicketType(int id, [FromBody] UpdateTicketTypeDto updateDto)
+        {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
+            var result = await _managerService.UpdateTicketTypeAsync(museumId, id, updateDto);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [Authorize(Roles = "MuseumManager")]
         [HttpPut("ticket-types/{id}/publish")]
         public async Task<IActionResult> PublishTicketType(int id)
         {
             var museumId = await _museumResolver.GetMuseumIdAsync();
             var result = await _managerService.PublishTicketTypeAsync(museumId, id);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [Authorize(Roles = "MuseumManager")]
+        [HttpDelete("ticket-types/{id}")]
+        public async Task<IActionResult> DeleteTicketType(int id)
+        {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
+            var result = await _managerService.DeleteTicketTypeAsync(museumId, id);
             return StatusCode(result.StatusCode, result);
         }
 

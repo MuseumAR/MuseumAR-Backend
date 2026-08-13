@@ -101,6 +101,65 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Analytics
             return ResponseModel.Success("Ticket type published successfully.");
         }
 
+        public async Task<ResponseModel> GetTicketTypeByIdAsync(int museumId, int ticketTypeId)
+        {
+            var ticketType = await _unitOfWork.TicketTypes.GetByIdAsync(ticketTypeId);
+            if (ticketType == null)
+                return ResponseModel.NotFound("Ticket type not found.");
+
+            if (ticketType.MuseumId != museumId)
+                return ResponseModel.Forbidden("You are not authorized to view this ticket type.");
+
+            var dto = _mapper.Map<TicketTypeDto>(ticketType);
+            return ResponseModel.Success("Retrieve ticket type detail successfully.", dto);
+        }
+
+        public async Task<ResponseModel> UpdateTicketTypeAsync(int museumId, int ticketTypeId, UpdateTicketTypeDto updateDto)
+        {
+            var ticketType = await _unitOfWork.TicketTypes.GetByIdAsync(ticketTypeId);
+            if (ticketType == null)
+                return ResponseModel.NotFound("Ticket type not found.");
+
+            if (ticketType.MuseumId != museumId)
+                return ResponseModel.Forbidden("You are not authorized to update this ticket type.");
+
+            _mapper.Map(updateDto, ticketType);
+            ticketType.UpdatedAt = System.DateTime.UtcNow;
+
+            _unitOfWork.TicketTypes.Update(ticketType);
+            await _unitOfWork.CompleteAsync();
+
+            var dto = _mapper.Map<TicketTypeDto>(ticketType);
+            return ResponseModel.Success("Ticket type updated successfully.", dto);
+        }
+
+        public async Task<ResponseModel> DeleteTicketTypeAsync(int museumId, int ticketTypeId)
+        {
+            var ticketType = await _unitOfWork.TicketTypes.GetByIdAsync(ticketTypeId);
+            if (ticketType == null)
+                return ResponseModel.NotFound("Ticket type not found.");
+
+            if (ticketType.MuseumId != museumId)
+                return ResponseModel.Forbidden("You are not authorized to delete this ticket type.");
+
+            // Check if any sold tickets reference this ticketType
+            var hasPurchasedTickets = await _unitOfWork.Tickets.ExistsAsync(t => t.TicketTypeId == ticketTypeId);
+            if (hasPurchasedTickets)
+            {
+                // Soft delete by deactivating it
+                ticketType.IsActive = false;
+                ticketType.UpdatedAt = System.DateTime.UtcNow;
+                _unitOfWork.TicketTypes.Update(ticketType);
+                await _unitOfWork.CompleteAsync();
+                return ResponseModel.Success("Ticket type has purchased tickets, so it was deactivated instead of deleted.");
+            }
+
+            _unitOfWork.TicketTypes.Delete(ticketType);
+            await _unitOfWork.CompleteAsync();
+
+            return ResponseModel.Success("Ticket type deleted successfully.");
+        }
+
         public async Task<ResponseModel> CreateTicketPromotionAsync(int museumId, int ticketTypeId, CreateTicketPromotionDto dto)
         {
             var ticketType = await _unitOfWork.TicketTypes.GetByIdAsync(ticketTypeId);
