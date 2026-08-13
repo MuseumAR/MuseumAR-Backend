@@ -28,6 +28,7 @@ public class TicketRepository : GenericRepository<Entities.Ticket>, ITicketRepos
         return await _dbSet
             .Include(t => t.TicketType)
                 .ThenInclude(tt => tt.Museum)
+                    .ThenInclude(m => m!.MuseumTranslations)
             .Include(t => t.TicketType)
                 .ThenInclude(tt => tt.Exhibition)
                     .ThenInclude(e => e!.ExhibitionTranslations)

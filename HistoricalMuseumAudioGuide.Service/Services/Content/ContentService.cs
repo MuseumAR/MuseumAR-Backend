@@ -59,18 +59,19 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
 
         // --- Exhibit Management ---
 
-        public async Task<ResponseModel> GetAllExhibitsAsync(int museumId, bool includeUnpublished = false)
+        public async Task<ResponseModel> GetAllExhibitsAsync(int museumId, bool includeUnpublished = false, string? lang = null)
         {
             var exhibits = await _unitOfWork.Exhibits.GetExhibitsWithTranslationsAndMetadataAsync(museumId);
             if (!includeUnpublished)
             {
                 exhibits = exhibits.Where(e => e.Status == "Published");
             }
-            var exhibitDtos = _mapper.Map<IEnumerable<ExhibitDto>>(exhibits);
+            var exhibitDtos = _mapper.Map<IEnumerable<ExhibitDto>>(exhibits).ToList();
+            ApplyExhibitMetadataLanguage(exhibitDtos, lang);
             return ResponseModel.Success("Get all exhibits successful", exhibitDtos);
         }
 
-        public async Task<ResponseModel> GetExhibitByIdAsync(int id, bool includeUnpublished = false)
+        public async Task<ResponseModel> GetExhibitByIdAsync(int id, bool includeUnpublished = false, string? lang = null)
         {
             var exhibit = await _unitOfWork.Exhibits.GetFirstOrDefaultAsync(
                 e => e.Id == id,
@@ -83,6 +84,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             }
 
             var exhibitDto = _mapper.Map<ExhibitDto>(exhibit);
+            ApplyExhibitMetadataLanguage(new[] { exhibitDto }, lang);
             return ResponseModel.Success("Get exhibit successful", exhibitDto);
         }
 
@@ -390,13 +392,14 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
 
         // --- Room Management ---
 
-        public async Task<ResponseModel> GetRoomsByMuseumIdAsync(int museumId)
+        public async Task<ResponseModel> GetRoomsByMuseumIdAsync(int museumId, string? lang = null)
         {
             var rooms = await _unitOfWork.Rooms.FindAsync(
                 r => r.MuseumId == museumId,
-                includeProperties: "Map"
+                includeProperties: "Map,RoomTranslations"
             );
-            var roomDtos = _mapper.Map<IEnumerable<RoomDto>>(rooms);
+            var roomDtos = _mapper.Map<IEnumerable<RoomDto>>(rooms).ToList();
+            ApplyRoomLanguage(roomDtos, lang);
             return ResponseModel.Success("Get rooms successful", roomDtos);
         }
 
@@ -424,6 +427,13 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             room.UpdatedAt = DateTime.UtcNow;
 
             await _unitOfWork.Rooms.AddAsync(room);
+            await _unitOfWork.CompleteAsync();
+
+            await UpsertRoomTranslationAsync(room.Id, "vi", room.RoomName, roomDto.Description);
+            if (!string.IsNullOrWhiteSpace(roomDto.RoomNameEn))
+            {
+                await UpsertRoomTranslationAsync(room.Id, "en", roomDto.RoomNameEn.Trim(), roomDto.DescriptionEn);
+            }
             await _unitOfWork.CompleteAsync();
 
             return ResponseModel.Success("Room created successfully", room.Id);
@@ -460,9 +470,97 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             room.UpdatedAt = DateTime.UtcNow;
 
             _unitOfWork.Rooms.Update(room);
+
+            if (!string.IsNullOrWhiteSpace(roomDto.RoomName) || roomDto.Description != null)
+            {
+                await UpsertRoomTranslationAsync(
+                    room.Id,
+                    "vi",
+                    room.RoomName,
+                    roomDto.Description ?? room.Description);
+            }
+            if (!string.IsNullOrWhiteSpace(roomDto.RoomNameEn) || roomDto.DescriptionEn != null)
+            {
+                var enName = !string.IsNullOrWhiteSpace(roomDto.RoomNameEn)
+                    ? roomDto.RoomNameEn.Trim()
+                    : room.RoomName;
+                await UpsertRoomTranslationAsync(room.Id, "en", enName, roomDto.DescriptionEn);
+            }
+
             await _unitOfWork.CompleteAsync();
 
             return ResponseModel.Success("Room updated successfully");
+        }
+
+        public async Task<ResponseModel> GetRoomTranslationsAsync(int roomId)
+        {
+            var room = await _unitOfWork.Rooms.GetFirstOrDefaultAsync(
+                r => r.Id == roomId,
+                includeProperties: "RoomTranslations");
+            if (room == null) return ResponseModel.NotFound("Room not found");
+            var dtos = _mapper.Map<IEnumerable<RoomTranslationDto>>(room.RoomTranslations);
+            return ResponseModel.Success("Room translations retrieved successfully", dtos);
+        }
+
+        public async Task<ResponseModel> AddOrUpdateRoomTranslationAsync(int roomId, RoomTranslationDto dto, int? userMuseumId)
+        {
+            var room = await _unitOfWork.Rooms.GetByIdAsync(roomId);
+            if (room == null) return ResponseModel.NotFound("Room not found");
+
+            var accessCheck = ValidateMuseumAccess(userMuseumId, room.MuseumId);
+            if (accessCheck != null) return accessCheck;
+
+            if (string.IsNullOrWhiteSpace(dto.LanguageCode) || string.IsNullOrWhiteSpace(dto.RoomName))
+                return ResponseModel.BadRequest("LanguageCode and RoomName are required.");
+
+            await UpsertRoomTranslationAsync(roomId, dto.LanguageCode.Trim().ToLower(), dto.RoomName.Trim(), dto.Description);
+
+            if (dto.LanguageCode.Equals("vi", StringComparison.OrdinalIgnoreCase))
+            {
+                room.RoomName = dto.RoomName.Trim();
+                room.Description = dto.Description;
+                room.UpdatedAt = DateTime.UtcNow;
+                _unitOfWork.Rooms.Update(room);
+            }
+
+            await _unitOfWork.CompleteAsync();
+            return await GetRoomTranslationsAsync(roomId);
+        }
+
+        private async Task UpsertRoomTranslationAsync(int roomId, string languageCode, string roomName, string? description)
+        {
+            var existing = await _unitOfWork.RoomTranslations.GetFirstOrDefaultAsync(
+                t => t.RoomId == roomId && t.LanguageCode == languageCode);
+            if (existing != null)
+            {
+                existing.RoomName = roomName;
+                existing.Description = description;
+                _unitOfWork.RoomTranslations.Update(existing);
+            }
+            else
+            {
+                await _unitOfWork.RoomTranslations.AddAsync(new RoomTranslation
+                {
+                    RoomId = roomId,
+                    LanguageCode = languageCode,
+                    RoomName = roomName,
+                    Description = description
+                });
+            }
+        }
+
+        private static void ApplyRoomLanguage(IEnumerable<RoomDto> rooms, string? lang)
+        {
+            if (string.IsNullOrWhiteSpace(lang)) return;
+            var code = lang.Trim().ToLower();
+            foreach (var room in rooms)
+            {
+                var match = room.Translations?.FirstOrDefault(t =>
+                    t.LanguageCode.Equals(code, StringComparison.OrdinalIgnoreCase));
+                if (match == null) continue;
+                room.RoomName = match.RoomName;
+                room.Description = match.Description;
+            }
         }
 
         public async Task<ResponseModel> DeleteRoomAsync(int id, int? userMuseumId)
@@ -487,10 +585,11 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
 
         // --- Exhibition Management ---
 
-        public async Task<ResponseModel> GetExhibitionsByMuseumIdAsync(int museumId)
+        public async Task<ResponseModel> GetExhibitionsByMuseumIdAsync(int museumId, string? lang = null)
         {
             var exhibitions = await _unitOfWork.Exhibitions.FindAsync(e => e.MuseumId == museumId, includeProperties: "ExhibitionTranslations");
-            var dtos = _mapper.Map<IEnumerable<ExhibitionDto>>(exhibitions);
+            var dtos = _mapper.Map<IEnumerable<ExhibitionDto>>(exhibitions).ToList();
+            ApplyExhibitionLanguage(dtos, lang);
             return ResponseModel.Success("Exhibitions retrieved successfully", dtos);
         }
 
@@ -500,6 +599,60 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             if (exhibition == null) return ResponseModel.NotFound("Exhibition not found");
             var dto = _mapper.Map<ExhibitionDto>(exhibition);
             return ResponseModel.Success("Exhibition retrieved successfully", dto);
+        }
+
+        private static void ApplyExhibitionLanguage(IEnumerable<ExhibitionDto> exhibitions, string? lang)
+        {
+            if (string.IsNullOrWhiteSpace(lang)) return;
+            var code = lang.Trim().ToLower();
+            foreach (var exhibition in exhibitions)
+            {
+                var match = exhibition.Translations?.FirstOrDefault(t =>
+                    t.LanguageCode.Equals(code, StringComparison.OrdinalIgnoreCase));
+                if (match == null) continue;
+                exhibition.Name = match.Name;
+                exhibition.Description = match.Description;
+            }
+        }
+
+        private static void ApplyExhibitMetadataLanguage(IEnumerable<ExhibitDto> exhibits, string? lang)
+        {
+            if (!string.Equals(lang, "en", StringComparison.OrdinalIgnoreCase)) return;
+            foreach (var exhibit in exhibits)
+            {
+                var meta = exhibit.ExhibitMetadata;
+                if (meta == null) continue;
+                if (!string.IsNullOrWhiteSpace(meta.EraEn)) meta.Era = meta.EraEn;
+                if (!string.IsNullOrWhiteSpace(meta.HistoricalEventEn))
+                    meta.HistoricalEvent = meta.HistoricalEventEn;
+            }
+        }
+
+        private static void ApplyThemeLanguage(IEnumerable<ThemeDto> themes, string? lang)
+        {
+            if (string.IsNullOrWhiteSpace(lang)) return;
+            var code = lang.Trim().ToLower();
+            foreach (var theme in themes)
+            {
+                var match = theme.Translations?.FirstOrDefault(t =>
+                    t.LanguageCode.Equals(code, StringComparison.OrdinalIgnoreCase));
+                if (match == null) continue;
+                theme.ThemeName = match.ThemeName;
+                theme.Description = match.Description;
+            }
+        }
+
+        private static void ApplyTagLanguage(IEnumerable<TagDto> tags, string? lang)
+        {
+            if (string.IsNullOrWhiteSpace(lang)) return;
+            var code = lang.Trim().ToLower();
+            foreach (var tag in tags)
+            {
+                var match = tag.Translations?.FirstOrDefault(t =>
+                    t.LanguageCode.Equals(code, StringComparison.OrdinalIgnoreCase));
+                if (match == null) continue;
+                tag.TagName = match.TagName;
+            }
         }
 
         public async Task<ResponseModel> CreateExhibitionAsync(CreateExhibitionDto createExhibitionDto, int? userMuseumId)
@@ -593,7 +746,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             return ResponseModel.Success("Exhibition deleted successfully");
         }
 
-        public async Task<ResponseModel> GetExhibitsByExhibitionIdAsync(int exhibitionId)
+        public async Task<ResponseModel> GetExhibitsByExhibitionIdAsync(int exhibitionId, string? lang = null)
         {
             var exhibition = await _unitOfWork.Exhibitions.GetFirstOrDefaultAsync(
                 e => e.Id == exhibitionId,
@@ -602,7 +755,8 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
 
             if (exhibition == null) return ResponseModel.NotFound("Exhibition not found");
 
-            var exhibitDtos = _mapper.Map<IEnumerable<ExhibitDto>>(exhibition.Exhibits);
+            var exhibitDtos = _mapper.Map<IEnumerable<ExhibitDto>>(exhibition.Exhibits).ToList();
+            ApplyExhibitMetadataLanguage(exhibitDtos, lang);
             return ResponseModel.Success("Exhibits for exhibition retrieved successfully", exhibitDtos);
         }
 
@@ -1451,26 +1605,30 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             return ResponseModel.Success("Category deleted (deactivated) successfully");
         }
 
-        public async Task<ResponseModel> GetThemesAsync(int? museumId)
+        public async Task<ResponseModel> GetThemesAsync(int? museumId, string? lang = null)
         {
             IEnumerable<Theme> themes;
             if (museumId.HasValue)
             {
-                themes = await _unitOfWork.Themes.FindAsync(t => t.MuseumId == null || t.MuseumId == museumId.Value);
+                themes = await _unitOfWork.Themes.FindAsync(
+                    t => t.MuseumId == null || t.MuseumId == museumId.Value,
+                    "ThemeTranslations");
             }
             else
             {
-                themes = await _unitOfWork.Themes.FindAsync(t => t.MuseumId == null);
+                themes = await _unitOfWork.Themes.FindAsync(t => t.MuseumId == null, "ThemeTranslations");
             }
-            var dtos = _mapper.Map<IEnumerable<ThemeDto>>(themes);
+            var dtos = _mapper.Map<IEnumerable<ThemeDto>>(themes).ToList();
+            ApplyThemeLanguage(dtos, lang);
             return ResponseModel.Success("Get themes successful", dtos);
         }
 
-        public async Task<ResponseModel> GetThemeByIdAsync(int id)
+        public async Task<ResponseModel> GetThemeByIdAsync(int id, string? lang = null)
         {
-            var theme = await _unitOfWork.Themes.GetByIdAsync(id);
+            var theme = await _unitOfWork.Themes.GetFirstOrDefaultAsync(t => t.Id == id, "ThemeTranslations");
             if (theme == null) return ResponseModel.NotFound("Theme not found");
             var dto = _mapper.Map<ThemeDto>(theme);
+            ApplyThemeLanguage(new[] { dto }, lang);
             return ResponseModel.Success("Get theme successful", dto);
         }
 
@@ -1483,7 +1641,10 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             theme.CreatedAt = DateTime.UtcNow;
             await _unitOfWork.Themes.AddAsync(theme);
             await _unitOfWork.CompleteAsync();
-            var dto = _mapper.Map<ThemeDto>(theme);
+            await UpsertThemeTranslationsAsync(theme.Id, theme.ThemeName, theme.Description, themeDto.Translations);
+            await _unitOfWork.CompleteAsync();
+            var saved = await _unitOfWork.Themes.GetFirstOrDefaultAsync(t => t.Id == theme.Id, "ThemeTranslations");
+            var dto = _mapper.Map<ThemeDto>(saved ?? theme);
             return ResponseModel.Success("Theme created successfully", dto);
         }
 
@@ -1495,8 +1656,11 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             var accessCheck = ValidateMuseumAccess(userMuseumId, theme.MuseumId);
             if (accessCheck != null) return accessCheck;
 
-            _mapper.Map(themeDto, theme);
+            theme.MuseumId = themeDto.MuseumId;
+            theme.ThemeName = themeDto.ThemeName;
+            theme.Description = themeDto.Description;
             _unitOfWork.Themes.Update(theme);
+            await UpsertThemeTranslationsAsync(id, theme.ThemeName, theme.Description, themeDto.Translations);
             await _unitOfWork.CompleteAsync();
             return ResponseModel.Success("Theme updated successfully");
         }
@@ -1894,17 +2058,19 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             return ResponseModel.Success("Tag group deleted successfully");
         }
 
-        public async Task<ResponseModel> GetTagsByGroupAsync(int tagGroupId)
+        public async Task<ResponseModel> GetTagsByGroupAsync(int tagGroupId, string? lang = null)
         {
-            var tags = await _unitOfWork.Tags.FindAsync(t => t.TagGroupId == tagGroupId);
-            var dtos = _mapper.Map<IEnumerable<TagDto>>(tags);
+            var tags = await _unitOfWork.Tags.FindAsync(t => t.TagGroupId == tagGroupId, "TagTranslations");
+            var dtos = _mapper.Map<IEnumerable<TagDto>>(tags).ToList();
+            ApplyTagLanguage(dtos, lang);
             return ResponseModel.Success("Get tags successful", dtos);
         }
 
-        public async Task<ResponseModel> GetAllTagsAsync()
+        public async Task<ResponseModel> GetAllTagsAsync(string? lang = null)
         {
-            var tags = await _unitOfWork.Tags.GetAllAsync();
-            var dtos = _mapper.Map<IEnumerable<TagDto>>(tags);
+            var tags = await _unitOfWork.Tags.FindAsync(_ => true, "TagTranslations");
+            var dtos = _mapper.Map<IEnumerable<TagDto>>(tags).ToList();
+            ApplyTagLanguage(dtos, lang);
             return ResponseModel.Success("Get all tags successful", dtos);
         }
 
@@ -1917,7 +2083,10 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             tag.CreatedAt = DateTime.UtcNow;
             await _unitOfWork.Tags.AddAsync(tag);
             await _unitOfWork.CompleteAsync();
-            var dto = _mapper.Map<TagDto>(tag);
+            await UpsertTagTranslationsAsync(tag.Id, tag.TagName, tagDto.Translations);
+            await _unitOfWork.CompleteAsync();
+            var saved = await _unitOfWork.Tags.GetFirstOrDefaultAsync(t => t.Id == tag.Id, "TagTranslations");
+            var dto = _mapper.Map<TagDto>(saved ?? tag);
             return ResponseModel.Success("Tag created successfully", dto);
         }
 
@@ -1926,8 +2095,11 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             var tag = await _unitOfWork.Tags.GetByIdAsync(id);
             if (tag == null) return ResponseModel.NotFound("Tag not found");
 
-            _mapper.Map(tagDto, tag);
+            tag.TagGroupId = tagDto.TagGroupId;
+            tag.TagName = tagDto.TagName;
+            tag.SortOrder = tagDto.SortOrder;
             _unitOfWork.Tags.Update(tag);
+            await UpsertTagTranslationsAsync(id, tag.TagName, tagDto.Translations);
             await _unitOfWork.CompleteAsync();
             return ResponseModel.Success("Tag updated successfully");
         }
@@ -1986,16 +2158,107 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             return ResponseModel.Success("Tag removed from exhibit successfully");
         }
 
-        public async Task<ResponseModel> GetExhibitTagsAsync(int exhibitId)
+        public async Task<ResponseModel> GetExhibitTagsAsync(int exhibitId, string? lang = null)
         {
             var exhibit = await _unitOfWork.Exhibits.GetFirstOrDefaultAsync(
                 e => e.Id == exhibitId,
-                includeProperties: "Tags"
+                includeProperties: "Tags.TagTranslations"
             );
             if (exhibit == null) return ResponseModel.NotFound("Exhibit not found");
 
-            var dtos = _mapper.Map<IEnumerable<TagDto>>(exhibit.Tags);
+            var dtos = _mapper.Map<IEnumerable<TagDto>>(exhibit.Tags).ToList();
+            ApplyTagLanguage(dtos, lang);
             return ResponseModel.Success("Get exhibit tags successful", dtos);
+        }
+
+        private async Task UpsertThemeTranslationsAsync(
+            int themeId,
+            string themeName,
+            string? description,
+            ICollection<ThemeTranslationDto>? translations)
+        {
+            var incoming = (translations ?? Enumerable.Empty<ThemeTranslationDto>())
+                .Where(t => !string.IsNullOrWhiteSpace(t.LanguageCode) && !string.IsNullOrWhiteSpace(t.ThemeName))
+                .GroupBy(t => t.LanguageCode.Trim().ToLower())
+                .Select(g => g.Last())
+                .ToList();
+
+            if (!incoming.Any(t => t.LanguageCode.Equals("vi", StringComparison.OrdinalIgnoreCase)))
+            {
+                incoming.Insert(0, new ThemeTranslationDto
+                {
+                    ThemeId = themeId,
+                    LanguageCode = "vi",
+                    ThemeName = themeName,
+                    Description = description
+                });
+            }
+
+            foreach (var transDto in incoming)
+            {
+                var code = transDto.LanguageCode.Trim().ToLower();
+                var existing = await _unitOfWork.ThemeTranslations.GetFirstOrDefaultAsync(
+                    t => t.ThemeId == themeId && t.LanguageCode == code);
+                if (existing != null)
+                {
+                    existing.ThemeName = transDto.ThemeName.Trim();
+                    existing.Description = transDto.Description;
+                    _unitOfWork.ThemeTranslations.Update(existing);
+                }
+                else
+                {
+                    await _unitOfWork.ThemeTranslations.AddAsync(new ThemeTranslation
+                    {
+                        ThemeId = themeId,
+                        LanguageCode = code,
+                        ThemeName = transDto.ThemeName.Trim(),
+                        Description = transDto.Description
+                    });
+                }
+            }
+        }
+
+        private async Task UpsertTagTranslationsAsync(
+            int tagId,
+            string tagName,
+            ICollection<TagTranslationDto>? translations)
+        {
+            var incoming = (translations ?? Enumerable.Empty<TagTranslationDto>())
+                .Where(t => !string.IsNullOrWhiteSpace(t.LanguageCode) && !string.IsNullOrWhiteSpace(t.TagName))
+                .GroupBy(t => t.LanguageCode.Trim().ToLower())
+                .Select(g => g.Last())
+                .ToList();
+
+            if (!incoming.Any(t => t.LanguageCode.Equals("vi", StringComparison.OrdinalIgnoreCase)))
+            {
+                incoming.Insert(0, new TagTranslationDto
+                {
+                    TagId = tagId,
+                    LanguageCode = "vi",
+                    TagName = tagName
+                });
+            }
+
+            foreach (var transDto in incoming)
+            {
+                var code = transDto.LanguageCode.Trim().ToLower();
+                var existing = await _unitOfWork.TagTranslations.GetFirstOrDefaultAsync(
+                    t => t.TagId == tagId && t.LanguageCode == code);
+                if (existing != null)
+                {
+                    existing.TagName = transDto.TagName.Trim();
+                    _unitOfWork.TagTranslations.Update(existing);
+                }
+                else
+                {
+                    await _unitOfWork.TagTranslations.AddAsync(new TagTranslation
+                    {
+                        TagId = tagId,
+                        LanguageCode = code,
+                        TagName = transDto.TagName.Trim()
+                    });
+                }
+            }
         }
     }
 }

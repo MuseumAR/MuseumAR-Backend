@@ -69,34 +69,34 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
 
         [Authorize]
         [HttpGet("my-tickets")]
-        public async Task<IActionResult> GetMyTickets()
+        public async Task<IActionResult> GetMyTickets([FromQuery] string? lang = null)
         {
             var (visitor, errorResponse) = await GetCurrentVisitorAsync();
             if (errorResponse != null) return errorResponse;
 
-            var response = await _ticketingService.GetMyTicketsAsync(visitor!.Id);
+            var response = await _ticketingService.GetMyTicketsAsync(visitor!.Id, lang);
             return ResponseParser.Result(response);
         }
 
         [Authorize]
         [HttpGet("my-tickets/{id}")]
-        public async Task<IActionResult> GetTicketDetail(int id)
+        public async Task<IActionResult> GetTicketDetail(int id, [FromQuery] string? lang = null)
         {
             var (visitor, errorResponse) = await GetCurrentVisitorAsync();
             if (errorResponse != null) return errorResponse;
 
-            var response = await _ticketingService.GetTicketDetailAsync(visitor!.Id, id);
+            var response = await _ticketingService.GetTicketDetailAsync(visitor!.Id, id, lang);
             return ResponseParser.Result(response);
         }
 
         [Authorize]
         [HttpGet("pending-order")]
-        public async Task<IActionResult> GetPendingOrder()
+        public async Task<IActionResult> GetPendingOrder([FromQuery] string? lang = null)
         {
             var (visitor, errorResponse) = await GetCurrentVisitorAsync();
             if (errorResponse != null) return errorResponse;
 
-            var response = await _ticketingService.GetPendingOrderAsync(visitor!.Id);
+            var response = await _ticketingService.GetPendingOrderAsync(visitor!.Id, lang);
             return ResponseParser.Result(response);
         }
 

@@ -49,19 +49,19 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         // --- Exhibit Management (Read - Public) ---
 
         [HttpGet("exhibits")]
-        public async Task<IActionResult> GetAllExhibits([FromQuery] bool? includeUnpublished = false)
+        public async Task<IActionResult> GetAllExhibits([FromQuery] string? lang = null, [FromQuery] bool? includeUnpublished = false)
         {
             var museumId = await _museumResolver.GetMuseumIdAsync();
             bool canSeeDrafts = (includeUnpublished == true) || User.IsInRole("ContentManager") || User.IsInRole("MuseumManager") || User.IsInRole("SystemAdmin");
-            var response = await _contentService.GetAllExhibitsAsync(museumId, canSeeDrafts);
+            var response = await _contentService.GetAllExhibitsAsync(museumId, canSeeDrafts, lang);
             return ResponseParser.Result(response);
         }
 
         [HttpGet("exhibits/{id}")]
-        public async Task<IActionResult> GetExhibit(int id, [FromQuery] bool? includeUnpublished = false)
+        public async Task<IActionResult> GetExhibit(int id, [FromQuery] string? lang = null, [FromQuery] bool? includeUnpublished = false)
         {
             bool canSeeDrafts = (includeUnpublished == true) || User.IsInRole("ContentManager") || User.IsInRole("MuseumManager") || User.IsInRole("SystemAdmin");
-            var response = await _contentService.GetExhibitByIdAsync(id, canSeeDrafts);
+            var response = await _contentService.GetExhibitByIdAsync(id, canSeeDrafts, lang);
             return ResponseParser.Result(response);
         }
 
@@ -122,9 +122,9 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         // --- Room Management ---
 
         [HttpGet("rooms/museum/{museumId}")]
-        public async Task<IActionResult> GetRoomsByMuseumId(int museumId)
+        public async Task<IActionResult> GetRoomsByMuseumId(int museumId, [FromQuery] string? lang = null)
         {
-            var result = await _contentService.GetRoomsByMuseumIdAsync(museumId);
+            var result = await _contentService.GetRoomsByMuseumIdAsync(museumId, lang);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -152,6 +152,22 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         {
             int? userMuseumId = GetCurrentUserMuseumId();
             var result = await _contentService.DeleteRoomAsync(id, userMuseumId);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet("rooms/{id}/translations")]
+        public async Task<IActionResult> GetRoomTranslations(int id)
+        {
+            var result = await _contentService.GetRoomTranslationsAsync(id);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [Authorize(Roles = "ContentManager,MuseumAdmin,SystemAdmin")]
+        [HttpPut("rooms/{id}/translations")]
+        public async Task<IActionResult> AddOrUpdateRoomTranslation(int id, [FromBody] RoomTranslationDto dto)
+        {
+            int? userMuseumId = GetCurrentUserMuseumId();
+            var result = await _contentService.AddOrUpdateRoomTranslationAsync(id, dto, userMuseumId);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -268,10 +284,10 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         // --- Exhibition Management (Read - Public, Write - Authorized) ---
 
         [HttpGet("exhibitions")]
-        public async Task<IActionResult> GetExhibitions()
+        public async Task<IActionResult> GetExhibitions([FromQuery] string? lang = null)
         {
             var museumId = await _museumResolver.GetMuseumIdAsync();
-            var response = await _contentService.GetExhibitionsByMuseumIdAsync(museumId);
+            var response = await _contentService.GetExhibitionsByMuseumIdAsync(museumId, lang);
             return ResponseParser.Result(response);
         }
 
@@ -335,9 +351,9 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         }
 
         [HttpGet("exhibitions/{exhibitionId}/exhibits")]
-        public async Task<IActionResult> GetExhibitsByExhibition(int exhibitionId)
+        public async Task<IActionResult> GetExhibitsByExhibition(int exhibitionId, [FromQuery] string? lang = null)
         {
-            var response = await _contentService.GetExhibitsByExhibitionIdAsync(exhibitionId);
+            var response = await _contentService.GetExhibitsByExhibitionIdAsync(exhibitionId, lang);
             return ResponseParser.Result(response);
         }
 
@@ -593,21 +609,21 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         // --- Reference Metadata (Read - Public, Write - Authorized) ---
 
         [HttpGet("themes")]
-        public async Task<IActionResult> GetThemes()
+        public async Task<IActionResult> GetThemes([FromQuery] string? lang = null)
         {
             var museumId = await _museumResolver.GetMuseumIdAsync();
-            var response = await _contentService.GetThemesAsync(museumId);
+            var response = await _contentService.GetThemesAsync(museumId, lang);
             return ResponseParser.Result(response);
         }
 
         [HttpGet("themes/{id}")]
-        public async Task<IActionResult> GetTheme(int id)
+        public async Task<IActionResult> GetTheme(int id, [FromQuery] string? lang = null)
         {
-            var response = await _contentService.GetThemeByIdAsync(id);
+            var response = await _contentService.GetThemeByIdAsync(id, lang);
             return ResponseParser.Result(response);
         }
 
-        [Authorize(Roles = "ContentManager")]
+        [Authorize(Roles = "ContentManager,MuseumManager,SystemAdmin")]
         [HttpPost("themes")]
         public async Task<IActionResult> CreateTheme([FromBody] CreateThemeDto themeDto)
         {
@@ -616,7 +632,7 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
-        [Authorize(Roles = "ContentManager")]
+        [Authorize(Roles = "ContentManager,MuseumManager,SystemAdmin")]
         [HttpPut("themes/{id}")]
         public async Task<IActionResult> UpdateTheme(int id, [FromBody] CreateThemeDto themeDto)
         {
@@ -625,7 +641,7 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
-        [Authorize(Roles = "ContentManager")]
+        [Authorize(Roles = "ContentManager,MuseumManager,SystemAdmin")]
         [HttpDelete("themes/{id}")]
         public async Task<IActionResult> DeleteTheme(int id)
         {
@@ -675,16 +691,16 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         }
 
         [HttpGet("tags")]
-        public async Task<IActionResult> GetAllTags()
+        public async Task<IActionResult> GetAllTags([FromQuery] string? lang = null)
         {
-            var response = await _contentService.GetAllTagsAsync();
+            var response = await _contentService.GetAllTagsAsync(lang);
             return ResponseParser.Result(response);
         }
 
         [HttpGet("tag-groups/{tagGroupId}/tags")]
-        public async Task<IActionResult> GetTagsByGroup(int tagGroupId)
+        public async Task<IActionResult> GetTagsByGroup(int tagGroupId, [FromQuery] string? lang = null)
         {
-            var response = await _contentService.GetTagsByGroupAsync(tagGroupId);
+            var response = await _contentService.GetTagsByGroupAsync(tagGroupId, lang);
             return ResponseParser.Result(response);
         }
 
@@ -731,9 +747,9 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         }
 
         [HttpGet("exhibits/{exhibitId}/tags")]
-        public async Task<IActionResult> GetExhibitTags(int exhibitId)
+        public async Task<IActionResult> GetExhibitTags(int exhibitId, [FromQuery] string? lang = null)
         {
-            var response = await _contentService.GetExhibitTagsAsync(exhibitId);
+            var response = await _contentService.GetExhibitTagsAsync(exhibitId, lang);
             return ResponseParser.Result(response);
         }
     }

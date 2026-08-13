@@ -4,6 +4,8 @@ namespace HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibit
     {
         public int? AgeGroupId { get; set; }
         public string? Era { get; set; }
+        public string? EraEn { get; set; }
         public string? HistoricalEvent { get; set; }
+        public string? HistoricalEventEn { get; set; }
     }
 }

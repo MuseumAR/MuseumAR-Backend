@@ -59,6 +59,8 @@ public partial class Museum
 
     public virtual ICollection<Theme> Themes { get; set; } = new List<Theme>();
 
+    public virtual ICollection<MuseumTranslation> MuseumTranslations { get; set; } = new List<MuseumTranslation>();
+
     public virtual ICollection<User> Users { get; set; } = new List<User>();
 
     public virtual ICollection<VisitedExhibit> VisitedExhibits { get; set; } = new List<VisitedExhibit>();

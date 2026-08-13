@@ -4,6 +4,7 @@ using HistoricalMuseumAudioGuide.Repository.Data.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HistoricalMuseumAudioGuide.Repository.Migrations
 {
     [DbContext(typeof(MuseumAudioGuideContext))]
-    partial class MuseumAudioGuideContextModelSnapshot : ModelSnapshot
+    [Migration("20260810135617_SyncTranslationSnapshot")]
+    partial class SyncTranslationSnapshot
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -582,15 +585,7 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<string>("EraEn")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
                     b.Property<string>("HistoricalEvent")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("HistoricalEventEn")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
@@ -920,10 +915,6 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<string>("MapType")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
                     b.Property<int>("MuseumId")
                         .HasColumnType("int");
 
@@ -1228,9 +1219,8 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.Property<string>("DoorWaypointId")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                    b.Property<int?>("DoorWaypointId")
+                        .HasColumnType("int");
 
                     b.Property<int>("FloorNumber")
                         .HasColumnType("int");
@@ -1400,36 +1390,6 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                     b.ToTable("TagGroups");
                 });
 
-            modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.TagTranslation", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("LanguageCode")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(10)");
-
-                    b.Property<int>("TagId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("TagName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex(new[] { "TagId", "LanguageCode" }, "UQ_TagTrans")
-                        .IsUnique();
-
-                    b.ToTable("TagTranslations");
-                });
-
             modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.Theme", b =>
                 {
                     b.Property<int>("Id")
@@ -1461,40 +1421,6 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                     b.HasIndex("MuseumId");
 
                     b.ToTable("Themes");
-                });
-
-            modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.ThemeTranslation", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<string>("LanguageCode")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(10)");
-
-                    b.Property<int>("ThemeId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ThemeName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex(new[] { "ThemeId", "LanguageCode" }, "UQ_ThemeTrans")
-                        .IsUnique();
-
-                    b.ToTable("ThemeTranslations");
                 });
 
             modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.Ticket", b =>
@@ -1904,19 +1830,10 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
-                    b.Property<string>("EmailVerificationToken")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
-
-                    b.Property<bool>("IsEmailConfirmed")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
 
                     b.Property<DateTime?>("LastLoginAt")
                         .HasColumnType("datetime2");
@@ -1954,9 +1871,6 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("(getutcdate())");
-
-                    b.Property<DateTime?>("VerificationTokenExpiresAt")
-                        .HasColumnType("datetime2");
 
                     b.HasKey("Id")
                         .HasName("PK__Users__3214EC07BE722AC8");
@@ -2076,24 +1990,12 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<string>("Code")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("(getutcdate())");
-
                     b.Property<int>("FloorNumber")
                         .HasColumnType("int");
 
                     b.Property<string>("Label")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
-
-                    b.Property<int?>("MapId")
-                        .HasColumnType("int");
 
                     b.Property<int>("MuseumId")
                         .HasColumnType("int");
@@ -2106,11 +2008,6 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("(getutcdate())");
-
                     b.Property<double>("X")
                         .HasColumnType("float");
 
@@ -2118,8 +2015,6 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                         .HasColumnType("float");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("MapId");
 
                     b.HasIndex("MuseumId");
 
@@ -2135,11 +2030,6 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("(getutcdate())");
 
                     b.Property<double>("Distance")
                         .HasColumnType("float");
@@ -2164,11 +2054,6 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("(getutcdate())");
 
                     b.HasKey("Id");
 
@@ -2577,18 +2462,6 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                     b.Navigation("TagGroup");
                 });
 
-            modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.TagTranslation", b =>
-                {
-                    b.HasOne("HistoricalMuseumAudioGuide.Repository.Entities.Tag", "Tag")
-                        .WithMany("TagTranslations")
-                        .HasForeignKey("TagId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_TagTrans_Tag");
-
-                    b.Navigation("Tag");
-                });
-
             modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.Theme", b =>
                 {
                     b.HasOne("HistoricalMuseumAudioGuide.Repository.Entities.Museum", "Museum")
@@ -2597,18 +2470,6 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                         .HasConstraintName("FK_Themes_Museum");
 
                     b.Navigation("Museum");
-                });
-
-            modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.ThemeTranslation", b =>
-                {
-                    b.HasOne("HistoricalMuseumAudioGuide.Repository.Entities.Theme", "Theme")
-                        .WithMany("ThemeTranslations")
-                        .HasForeignKey("ThemeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_ThemeTrans_Theme");
-
-                    b.Navigation("Theme");
                 });
 
             modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.Ticket", b =>
@@ -2801,11 +2662,6 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
 
             modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.Waypoint", b =>
                 {
-                    b.HasOne("HistoricalMuseumAudioGuide.Repository.Entities.MuseumMap", "Map")
-                        .WithMany()
-                        .HasForeignKey("MapId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
                     b.HasOne("HistoricalMuseumAudioGuide.Repository.Entities.Museum", "Museum")
                         .WithMany()
                         .HasForeignKey("MuseumId")
@@ -2816,8 +2672,6 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                         .WithMany()
                         .HasForeignKey("RoomId")
                         .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Map");
 
                     b.Navigation("Museum");
 
@@ -2941,11 +2795,6 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
                     b.Navigation("RoomTranslations");
                 });
 
-            modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.Tag", b =>
-                {
-                    b.Navigation("TagTranslations");
-                });
-
             modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.TagGroup", b =>
                 {
                     b.Navigation("Tags");
@@ -2954,8 +2803,6 @@ namespace HistoricalMuseumAudioGuide.Repository.Migrations
             modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.Theme", b =>
                 {
                     b.Navigation("Exhibitions");
-
-                    b.Navigation("ThemeTranslations");
                 });
 
             modelBuilder.Entity("HistoricalMuseumAudioGuide.Repository.Entities.TicketType", b =>

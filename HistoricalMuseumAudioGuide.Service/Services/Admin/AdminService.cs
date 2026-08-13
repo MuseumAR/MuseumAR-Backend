@@ -5,7 +5,9 @@ using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Museum;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Ticketing;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.User;
 using HistoricalMuseumAudioGuide.Repository.UnitOfWork;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using HistoricalMuseumAudioGuide.Service.Services;
 using HistoricalMuseumAudioGuide.Service.Services.Media;
@@ -28,13 +30,16 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Admin
             _mediaService = mediaService;
         }
 
-        public async Task<ResponseModel> GetMuseumProfileAsync()
+        public async Task<ResponseModel> GetMuseumProfileAsync(string? lang = null)
         {
             var museumId = await _museumResolver.GetMuseumIdAsync();
-            var museum = await _unitOfWork.Museums.GetByIdAsync(museumId);
+            var museum = await _unitOfWork.Museums.GetFirstOrDefaultAsync(
+                m => m.Id == museumId,
+                includeProperties: "MuseumTranslations");
             if (museum == null) return ResponseModel.NotFound("Museum not found");
             
             var dto = _mapper.Map<MuseumDto>(museum);
+            ApplyMuseumLanguage(dto, lang);
             return ResponseModel.Success("Museum profile retrieved successfully", dto);
         }
 
@@ -44,12 +49,93 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Admin
             var museum = await _unitOfWork.Museums.GetByIdAsync(museumId);
             if (museum == null) return ResponseModel.NotFound("Museum not found");
 
-            _mapper.Map(museumDto, museum);
+            // Keep base museum row as Vietnamese canonical fields
+            museum.Name = museumDto.Name;
+            museum.Description = museumDto.Description;
+            museum.Address = museumDto.Address;
+            museum.City = museumDto.City;
+            museum.Province = museumDto.Province;
+            museum.Country = museumDto.Country;
+            museum.Latitude = museumDto.Latitude;
+            museum.Longitude = museumDto.Longitude;
+            if (museumDto.ThumbnailUrl != null) museum.ThumbnailUrl = museumDto.ThumbnailUrl;
+            museum.OpeningHours = museumDto.OpeningHours;
+            museum.ContactPhone = museumDto.ContactPhone;
+            museum.ContactEmail = museumDto.ContactEmail;
+            museum.Website = museumDto.Website;
             museum.UpdatedAt = System.DateTime.UtcNow;
 
             _unitOfWork.Museums.Update(museum);
+
+            await UpsertMuseumTranslationAsync(
+                museumId,
+                "vi",
+                museumDto.Name,
+                museumDto.Description,
+                museumDto.Address,
+                museumDto.OpeningHours);
+
+            if (!string.IsNullOrWhiteSpace(museumDto.NameEn)
+                || museumDto.DescriptionEn != null
+                || museumDto.AddressEn != null
+                || museumDto.OpeningHoursEn != null)
+            {
+                await UpsertMuseumTranslationAsync(
+                    museumId,
+                    "en",
+                    string.IsNullOrWhiteSpace(museumDto.NameEn) ? museumDto.Name : museumDto.NameEn.Trim(),
+                    museumDto.DescriptionEn,
+                    museumDto.AddressEn,
+                    museumDto.OpeningHoursEn);
+            }
+
             await _unitOfWork.CompleteAsync();
             return ResponseModel.Success("Museum profile updated successfully");
+        }
+
+        private async Task UpsertMuseumTranslationAsync(
+            int museumId,
+            string languageCode,
+            string name,
+            string? description,
+            string? address,
+            string? openingHours)
+        {
+            var existing = await _unitOfWork.MuseumTranslations.GetFirstOrDefaultAsync(
+                t => t.MuseumId == museumId && t.LanguageCode == languageCode);
+            if (existing != null)
+            {
+                existing.Name = name;
+                existing.Description = description;
+                existing.Address = address;
+                existing.OpeningHours = openingHours;
+                _unitOfWork.MuseumTranslations.Update(existing);
+            }
+            else
+            {
+                await _unitOfWork.MuseumTranslations.AddAsync(new MuseumTranslation
+                {
+                    MuseumId = museumId,
+                    LanguageCode = languageCode,
+                    Name = name,
+                    Description = description,
+                    Address = address,
+                    OpeningHours = openingHours
+                });
+            }
+        }
+
+        private static void ApplyMuseumLanguage(MuseumDto dto, string? lang)
+        {
+            if (string.IsNullOrWhiteSpace(lang)) return;
+            var code = lang.Trim().ToLower();
+            var match = dto.Translations?.FirstOrDefault(t =>
+                t.LanguageCode.Equals(code, StringComparison.OrdinalIgnoreCase));
+            if (match == null) return;
+            dto.Name = match.Name;
+            dto.Description = match.Description;
+            dto.Address = match.Address;
+            dto.OpeningHours = match.OpeningHours;
         }
 
         public async Task<ResponseModel> UploadMuseumImageAsync(IFormFile file)

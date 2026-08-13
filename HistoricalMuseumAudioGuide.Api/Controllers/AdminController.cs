@@ -28,9 +28,9 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         }
 
         [HttpGet("museum-profile")]
-        public async Task<IActionResult> GetMuseumProfile()
+        public async Task<IActionResult> GetMuseumProfile([FromQuery] string? lang = null)
         {
-            var response = await _adminService.GetMuseumProfileAsync();
+            var response = await _adminService.GetMuseumProfileAsync(lang);
             return ResponseParser.Result(response);
         }
 

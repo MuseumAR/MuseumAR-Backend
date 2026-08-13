@@ -11,7 +11,11 @@ public partial class ExhibitMetadatum
 
     public string? Era { get; set; }
 
+    public string? EraEn { get; set; }
+
     public string? HistoricalEvent { get; set; }
+
+    public string? HistoricalEventEn { get; set; }
 
     public virtual AgeGroup? AgeGroup { get; set; }
 

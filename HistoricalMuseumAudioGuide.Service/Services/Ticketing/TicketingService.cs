@@ -162,6 +162,27 @@ public class TicketingService : ITicketingService
         return Math.Max(0, Math.Round(discounted, 0)); // Không cho giá âm, làm tròn VND
     }
 
+    private static string ResolveTicketTypeName(string? name, string? nameEn, bool en)
+    {
+        if (en)
+        {
+            if (!string.IsNullOrWhiteSpace(nameEn)) return nameEn.Trim();
+            return TranslateTicketTypeName(name);
+        }
+        return string.IsNullOrWhiteSpace(name) ? "Vé tham quan" : name.Trim();
+    }
+
+    private static string? ResolveTicketTypeDescription(string? description, string? descriptionEn, bool en)
+    {
+        if (en)
+        {
+            if (!string.IsNullOrWhiteSpace(descriptionEn)) return descriptionEn.Trim();
+            if (!string.IsNullOrWhiteSpace(description)) return TranslateTicketTypeDescription(description);
+            return description;
+        }
+        return description;
+    }
+
     private static string TranslateTicketTypeName(string? name)
     {
         if (string.IsNullOrWhiteSpace(name)) return "";
@@ -170,6 +191,11 @@ public class TicketingService : ITicketingService
             "Vé vào cổng phổ thông" => "Standard Admission Ticket",
             "Vé chuyên đề Kháng Chiến đặc biệt" => "Special Resistance War Exhibition Ticket",
             "Vé Học Sinh Hè 2026" => "Summer Student Ticket 2026",
+            "Vé người lớn" => "Adult ticket",
+            "Vé người lớn toàn cảnh" => "Full-access adult ticket",
+            "Vé học sinh / sinh viên" => "Student ticket",
+            "Vé trẻ em" => "Child ticket",
+            "Vé tham quan" => "Admission ticket",
             _ => name
         };
     }
@@ -187,7 +213,7 @@ public class TicketingService : ITicketingService
         };
     }
 
-    public async Task<ResponseModel> GetPendingOrderAsync(int visitorId)
+    public async Task<ResponseModel> GetPendingOrderAsync(int visitorId, string? lang = null)
     {
         var now = DateTime.UtcNow.AddHours(7);
         var pendingTransactions = (await _unitOfWork.Transactions
@@ -242,7 +268,8 @@ public class TicketingService : ITicketingService
             var ticketType = await _unitOfWork.TicketTypes.GetByIdAsync(ticketTypeId);
             if (ticketType != null)
             {
-                ticketTypeName = ticketType.Name;
+                var en = string.Equals(lang, "en", StringComparison.OrdinalIgnoreCase);
+                ticketTypeName = ResolveTicketTypeName(ticketType.Name, ticketType.NameEn, en);
             }
         }
 
@@ -385,17 +412,26 @@ public class TicketingService : ITicketingService
         }
     }
 
-    public async Task<ResponseModel> GetMyTicketsAsync(int visitorId)
+    public async Task<ResponseModel> GetMyTicketsAsync(int visitorId, string? lang = null)
     {
         var tickets = await _unitOfWork.Tickets.GetTicketsByVisitorIdAsync(visitorId);
         // Only return Active tickets to the user
         var activeTickets = tickets.Where(t => t.Status == "Paid");
-        var dtos = _mapper.Map<IEnumerable<TicketDto>>(activeTickets);
+        var dtos = _mapper.Map<IEnumerable<TicketDto>>(activeTickets).ToList();
+        var en = string.Equals(lang, "en", StringComparison.OrdinalIgnoreCase);
+        if (en)
+        {
+            foreach (var dto in dtos)
+            {
+                var match = activeTickets.FirstOrDefault(t => t.Id == dto.Id)?.TicketType;
+                dto.TicketTypeName = ResolveTicketTypeName(match?.Name, match?.NameEn, en);
+            }
+        }
         
         return ResponseModel.Success("Get tickets successfully", dtos);
     }
 
-    public async Task<ResponseModel> GetTicketDetailAsync(int visitorId, int ticketId)
+    public async Task<ResponseModel> GetTicketDetailAsync(int visitorId, int ticketId, string? lang = null)
     {
         var ticket = await _unitOfWork.Tickets.GetTicketDetailByIdAsync(ticketId, visitorId);
         if (ticket == null)
@@ -403,8 +439,32 @@ public class TicketingService : ITicketingService
             return ResponseModel.NotFound("Ticket not found.");
         }
 
-        var exhibitionName = ticket.TicketType?.Exhibition?.ExhibitionTranslations?.FirstOrDefault(t => t.LanguageCode == "vi")?.Name
+        var en = string.Equals(lang, "en", StringComparison.OrdinalIgnoreCase);
+        var code = en ? "en" : "vi";
+        var exhibitionName = ticket.TicketType?.Exhibition?.ExhibitionTranslations?
+                .FirstOrDefault(t => t.LanguageCode.Equals(code, StringComparison.OrdinalIgnoreCase))?.Name
+            ?? ticket.TicketType?.Exhibition?.ExhibitionTranslations?
+                .FirstOrDefault(t => t.LanguageCode == "vi")?.Name
             ?? ticket.TicketType?.Exhibition?.ExhibitionTranslations?.FirstOrDefault()?.Name;
+
+        var museum = ticket.TicketType?.Museum;
+        var museumTr = museum?.MuseumTranslations?
+            .FirstOrDefault(t => t.LanguageCode.Equals(code, StringComparison.OrdinalIgnoreCase));
+        var museumName = !string.IsNullOrWhiteSpace(museumTr?.Name)
+            ? museumTr!.Name
+            : museum?.Name ?? (en ? "Museum" : "Bảo tàng");
+        var museumAddress = !string.IsNullOrWhiteSpace(museumTr?.Address)
+            ? museumTr!.Address
+            : museum?.Address;
+
+        var ticketTypeName = ResolveTicketTypeName(
+            ticket.TicketType?.Name,
+            ticket.TicketType?.NameEn,
+            en);
+        var ticketTypeDesc = ResolveTicketTypeDescription(
+            ticket.TicketType?.Description,
+            ticket.TicketType?.DescriptionEn,
+            en);
 
         var detailDto = new TicketDetailDto
         {
@@ -416,20 +476,22 @@ public class TicketingService : ITicketingService
             TicketType = new TicketDetailTypeDto
             {
                 Id = ticket.TicketType?.Id ?? 0,
-                Name = ticket.TicketType?.Name ?? "Vé tham quan",
+                Name = ticketTypeName,
                 Price = ticket.TicketType?.Price ?? 0,
-                Description = ticket.TicketType?.Description
+                Description = ticketTypeDesc
             },
             Museum = new TicketDetailMuseumDto
             {
-                Id = ticket.TicketType?.Museum?.Id ?? ticket.TicketType?.MuseumId ?? 1,
-                Name = ticket.TicketType?.Museum?.Name ?? "Bảo tàng Lịch sử TP.HCM",
-                Address = ticket.TicketType?.Museum?.Address ?? "2 Nguyễn Bỉnh Khiêm, Quận 1, TP.HCM"
+                Id = museum?.Id ?? ticket.TicketType?.MuseumId ?? 1,
+                Name = museumName,
+                Address = museumAddress
             },
             Exhibition = ticket.TicketType?.Exhibition != null ? new TicketDetailExhibitionDto
             {
                 Id = ticket.TicketType.Exhibition.Id,
-                Name = exhibitionName ?? $"Triển lãm #{ticket.TicketType.Exhibition.Id}"
+                Name = exhibitionName ?? (en
+                    ? $"Exhibition #{ticket.TicketType.Exhibition.Id}"
+                    : $"Triển lãm #{ticket.TicketType.Exhibition.Id}")
             } : null,
             Order = new TicketDetailOrderDto
             {

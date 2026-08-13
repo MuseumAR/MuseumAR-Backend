@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace HistoricalMuseumAudioGuide.Repository.Data.DTOs.Room
 {
@@ -13,5 +14,6 @@ namespace HistoricalMuseumAudioGuide.Repository.Data.DTOs.Room
         public string? Description { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
+        public List<RoomTranslationDto> Translations { get; set; } = new();
     }
 }

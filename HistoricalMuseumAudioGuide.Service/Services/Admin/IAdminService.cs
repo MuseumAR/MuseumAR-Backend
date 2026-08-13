@@ -11,7 +11,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Admin
     public interface IAdminService
     {
         // Museum Profile Management
-        Task<ResponseModel> GetMuseumProfileAsync();
+        Task<ResponseModel> GetMuseumProfileAsync(string? lang = null);
         Task<ResponseModel> UpdateMuseumProfileAsync(UpdateMuseumProfileDto museumDto);
         Task<ResponseModel> UploadMuseumImageAsync(IFormFile file);
 
