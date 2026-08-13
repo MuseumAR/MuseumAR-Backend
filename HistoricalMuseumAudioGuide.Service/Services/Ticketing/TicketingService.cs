@@ -131,18 +131,9 @@ public class TicketingService : ITicketingService
                 {
                     dto.Name = dto.NameEn;
                 }
-                else
-                {
-                    dto.Name = TranslateTicketTypeName(dto.Name);
-                }
-
                 if (!string.IsNullOrEmpty(dto.DescriptionEn))
                 {
                     dto.Description = dto.DescriptionEn;
-                }
-                else if (!string.IsNullOrEmpty(dto.Description))
-                {
-                    dto.Description = TranslateTicketTypeDescription(dto.Description);
                 }
             }
         }
@@ -167,7 +158,7 @@ public class TicketingService : ITicketingService
         if (en)
         {
             if (!string.IsNullOrWhiteSpace(nameEn)) return nameEn.Trim();
-            return TranslateTicketTypeName(name);
+            return string.IsNullOrWhiteSpace(name) ? "Admission ticket" : name.Trim();
         }
         return string.IsNullOrWhiteSpace(name) ? "Vé tham quan" : name.Trim();
     }
@@ -177,40 +168,9 @@ public class TicketingService : ITicketingService
         if (en)
         {
             if (!string.IsNullOrWhiteSpace(descriptionEn)) return descriptionEn.Trim();
-            if (!string.IsNullOrWhiteSpace(description)) return TranslateTicketTypeDescription(description);
             return description;
         }
         return description;
-    }
-
-    private static string TranslateTicketTypeName(string? name)
-    {
-        if (string.IsNullOrWhiteSpace(name)) return "";
-        return name.Trim() switch
-        {
-            "Vé vào cổng phổ thông" => "Standard Admission Ticket",
-            "Vé chuyên đề Kháng Chiến đặc biệt" => "Special Resistance War Exhibition Ticket",
-            "Vé Học Sinh Hè 2026" => "Summer Student Ticket 2026",
-            "Vé người lớn" => "Adult ticket",
-            "Vé người lớn toàn cảnh" => "Full-access adult ticket",
-            "Vé học sinh / sinh viên" => "Student ticket",
-            "Vé trẻ em" => "Child ticket",
-            "Vé tham quan" => "Admission ticket",
-            _ => name
-        };
-    }
-
-    private static string TranslateTicketTypeDescription(string? desc)
-    {
-        if (string.IsNullOrWhiteSpace(desc)) return "";
-        return desc.Trim() switch
-        {
-            "Áp dụng tham quan toàn bộ khu vực cố định" => "Access to all permanent exhibition areas",
-            "Bao gồm lối đi sảnh chuyên đề và tặng kèm tai nghe" => "Includes special exhibition hall entry and complimentary audio guide headphones",
-            "Gia ve uu dai cho hoc sinh trong dip he 2026" => "Discounted price for students during Summer 2026",
-            "Giá vé ưu đãi cho học sinh trong dịp hè 2026" => "Discounted price for students during Summer 2026",
-            _ => desc
-        };
     }
 
     public async Task<ResponseModel> GetPendingOrderAsync(int visitorId, string? lang = null)
