@@ -50,6 +50,22 @@ public class AuthController : ControllerBase
         return ResponseParser.Result(response);
     }
 
+    [HttpPost("verify-email")]
+    public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailRequestDto request)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        var response = await _authService.VerifyEmailAsync(request);
+        return ResponseParser.Result(response);
+    }
+
+    [HttpPost("resend-verification")]
+    public async Task<IActionResult> ResendVerification([FromBody] ResendVerificationRequestDto request)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        var response = await _authService.ResendVerificationEmailAsync(request);
+        return ResponseParser.Result(response);
+    }
+
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDto request)
     {

@@ -59,21 +59,29 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
 
         // --- Exhibit Management ---
 
-        public async Task<ResponseModel> GetAllExhibitsAsync(int museumId, string? lang = null)
+        public async Task<ResponseModel> GetAllExhibitsAsync(int museumId, bool includeUnpublished = false, string? lang = null)
         {
             var exhibits = await _unitOfWork.Exhibits.GetExhibitsWithTranslationsAndMetadataAsync(museumId);
+            if (!includeUnpublished)
+            {
+                exhibits = exhibits.Where(e => e.Status == "Published");
+            }
             var exhibitDtos = _mapper.Map<IEnumerable<ExhibitDto>>(exhibits).ToList();
             ApplyExhibitMetadataLanguage(exhibitDtos, lang);
             return ResponseModel.Success("Get all exhibits successful", exhibitDtos);
         }
 
-        public async Task<ResponseModel> GetExhibitByIdAsync(int id, string? lang = null)
+        public async Task<ResponseModel> GetExhibitByIdAsync(int id, bool includeUnpublished = false, string? lang = null)
         {
             var exhibit = await _unitOfWork.Exhibits.GetFirstOrDefaultAsync(
                 e => e.Id == id,
                 includeProperties: "ExhibitTranslations,ExhibitMetadatum,Map,Room"
             );
             if (exhibit == null) return ResponseModel.NotFound("Exhibit not found");
+            if (!includeUnpublished && exhibit.Status != "Published")
+            {
+                return ResponseModel.NotFound("Exhibit not found");
+            }
 
             var exhibitDto = _mapper.Map<ExhibitDto>(exhibit);
             ApplyExhibitMetadataLanguage(new[] { exhibitDto }, lang);
@@ -88,7 +96,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             }
 
             var exhibit = await _unitOfWork.Exhibits.GetExhibitByQrDataAsync(qrData.Trim());
-            if (exhibit == null)
+            if (exhibit == null || exhibit.Status != "Published")
             {
                 return ResponseModel.NotFound("Không tìm thấy hiện vật phù hợp với mã QR này.");
             }
@@ -585,6 +593,14 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             return ResponseModel.Success("Exhibitions retrieved successfully", dtos);
         }
 
+        public async Task<ResponseModel> GetExhibitionByIdAsync(int id)
+        {
+            var exhibition = await _unitOfWork.Exhibitions.GetFirstOrDefaultAsync(e => e.Id == id, includeProperties: "ExhibitionTranslations,Exhibits");
+            if (exhibition == null) return ResponseModel.NotFound("Exhibition not found");
+            var dto = _mapper.Map<ExhibitionDto>(exhibition);
+            return ResponseModel.Success("Exhibition retrieved successfully", dto);
+        }
+
         private static void ApplyExhibitionLanguage(IEnumerable<ExhibitionDto> exhibitions, string? lang)
         {
             if (string.IsNullOrWhiteSpace(lang)) return;
@@ -761,7 +777,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             var accessCheck = ValidateMuseumAccess(userMuseumId, exhibition.MuseumId);
             if (accessCheck != null) return accessCheck;
 
-            var exhibitsToAdd = await _unitOfWork.Exhibits.FindAsync(e => exhibitIds.Contains(e.Id));
+            var exhibitsToAdd = await _unitOfWork.Exhibits.FindAsync(e => exhibitIds.Contains(e.Id) && e.MuseumId == exhibition.MuseumId);
             int addedCount = 0;
 
             foreach (var exhibit in exhibitsToAdd)
@@ -834,6 +850,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
                 MapImageUrl = imageUrl,
                 FloorNumber = mapDto.FloorNumber,
                 MapName = mapDto.MapName,
+                MapType = mapDto.MapType,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -852,9 +869,13 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             var accessCheck = ValidateMuseumAccess(userMuseumId, map.MuseumId);
             if (accessCheck != null) return accessCheck;
 
+            if (!string.IsNullOrWhiteSpace(mapDto.MapName))
+            {
+                map.MapName = mapDto.MapName;
+            }
             if (!string.IsNullOrWhiteSpace(mapDto.MapType))
             {
-                map.MapName = mapDto.MapType;
+                map.MapType = mapDto.MapType;
             }
             if (mapDto.FloorNumber.HasValue)
             {
@@ -886,6 +907,67 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             await _unitOfWork.CompleteAsync();
 
             return ResponseModel.Success("Map deleted successfully.");
+        }
+
+        // --- Map POI Management ---
+
+        public async Task<ResponseModel> GetMapPoisAsync(int mapId)
+        {
+            var pois = await _unitOfWork.MapPois.FindAsync(p => p.MapId == mapId);
+            var dtos = _mapper.Map<IEnumerable<MapPoiDto>>(pois);
+            return ResponseModel.Success("Map POIs retrieved successfully", dtos);
+        }
+
+        public async Task<ResponseModel> CreateMapPoiAsync(CreateMapPoiDto dto, int? userMuseumId)
+        {
+            var map = await _unitOfWork.MuseumMaps.GetByIdAsync(dto.MapId);
+            if (map == null) return ResponseModel.NotFound("Map not found.");
+
+            var accessCheck = ValidateMuseumAccess(userMuseumId, map.MuseumId);
+            if (accessCheck != null) return accessCheck;
+
+            var entity = _mapper.Map<MapPoi>(dto);
+            await _unitOfWork.MapPois.AddAsync(entity);
+            await _unitOfWork.CompleteAsync();
+
+            var poiDto = _mapper.Map<MapPoiDto>(entity);
+            return ResponseModel.Success("Map POI created successfully", poiDto);
+        }
+
+        public async Task<ResponseModel> UpdateMapPoiAsync(int id, UpdateMapPoiDto dto, int? userMuseumId)
+        {
+            var poi = await _unitOfWork.MapPois.GetByIdAsync(id);
+            if (poi == null) return ResponseModel.NotFound("Map POI not found.");
+
+            var map = await _unitOfWork.MuseumMaps.GetByIdAsync(poi.MapId);
+            var accessCheck = ValidateMuseumAccess(userMuseumId, map?.MuseumId);
+            if (accessCheck != null) return accessCheck;
+
+            if (!string.IsNullOrWhiteSpace(dto.PoiType)) poi.Poitype = dto.PoiType;
+            if (dto.LocationX.HasValue) poi.LocationX = dto.LocationX.Value;
+            if (dto.LocationY.HasValue) poi.LocationY = dto.LocationY.Value;
+            if (dto.Description != null) poi.Description = dto.Description;
+
+            _unitOfWork.MapPois.Update(poi);
+            await _unitOfWork.CompleteAsync();
+
+            var poiDto = _mapper.Map<MapPoiDto>(poi);
+            return ResponseModel.Success("Map POI updated successfully", poiDto);
+        }
+
+        public async Task<ResponseModel> DeleteMapPoiAsync(int id, int? userMuseumId)
+        {
+            var poi = await _unitOfWork.MapPois.GetByIdAsync(id);
+            if (poi == null) return ResponseModel.NotFound("Map POI not found.");
+
+            var map = await _unitOfWork.MuseumMaps.GetByIdAsync(poi.MapId);
+            var accessCheck = ValidateMuseumAccess(userMuseumId, map?.MuseumId);
+            if (accessCheck != null) return accessCheck;
+
+            _unitOfWork.MapPois.Delete(poi);
+            await _unitOfWork.CompleteAsync();
+
+            return ResponseModel.Success("Map POI deleted successfully.");
         }
 
         // --- Tour Route Management ---
@@ -1000,17 +1082,23 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             if (routeDto.Status != null)
                 route.Status = routeDto.Status;
 
-            // Update the default translation name if provided
-            if (!string.IsNullOrEmpty(routeDto.Name))
+            // Update the default translation name and description if provided
+            if (!string.IsNullOrEmpty(routeDto.Name) || routeDto.Description != null)
             {
                 var viTrans = route.TourRouteTranslations.FirstOrDefault(t => t.LanguageCode == "vi");
                 if (viTrans != null)
-                    viTrans.RouteName = routeDto.Name;
+                {
+                    if (!string.IsNullOrEmpty(routeDto.Name)) viTrans.RouteName = routeDto.Name;
+                    if (routeDto.Description != null) viTrans.Description = routeDto.Description;
+                }
                 else
                 {
                     var firstTrans = route.TourRouteTranslations.FirstOrDefault();
                     if (firstTrans != null)
-                        firstTrans.RouteName = routeDto.Name;
+                    {
+                        if (!string.IsNullOrEmpty(routeDto.Name)) firstTrans.RouteName = routeDto.Name;
+                        if (routeDto.Description != null) firstTrans.Description = routeDto.Description;
+                    }
                 }
             }
 
@@ -1714,6 +1802,12 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             var maps = (await _unitOfWork.MuseumMaps.FindAsync(m => m.MuseumId == museumId)).ToList();
             var tourRoutes = (await _unitOfWork.TourRoutes.FindAsync(r => r.MuseumId == museumId, "TourRouteExhibits,TourRouteTranslations")).ToList();
             var categories = (await _unitOfWork.Categories.FindAsync(c => c.MuseumId == museumId, "CategoryTranslations")).ToList();
+            var rooms = (await _unitOfWork.Rooms.FindAsync(r => r.MuseumId == museumId)).ToList();
+            var waypoints = (await _unitOfWork.Waypoints.FindAsync(w => w.MuseumId == museumId)).ToList();
+            var edges = (await _unitOfWork.WaypointEdges.FindAsync(e => e.MuseumId == museumId)).ToList();
+            var exhibitions = (await _unitOfWork.Exhibitions.FindAsync(e => e.MuseumId == museumId, "ExhibitionTranslations")).ToList();
+            var mapIds = maps.Select(m => m.Id).ToList();
+            var pois = (await _unitOfWork.MapPois.FindAsync(p => mapIds.Contains(p.MapId))).ToList();
 
             var exhibitIds = exhibits.Select(e => e.Id).ToList();
             var arAssets = (await _unitOfWork.ExhibitArassets.FindAsync(a => exhibitIds.Contains(a.ExhibitId))).ToList();
@@ -1781,7 +1875,12 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
                                 Exhibits = _mapper.Map<IEnumerable<ExhibitDto>>(exhibits),
                                 Maps = _mapper.Map<IEnumerable<MuseumMapDto>>(maps),
                                 TourRoutes = _mapper.Map<IEnumerable<TourRouteDto>>(tourRoutes),
-                                Categories = _mapper.Map<IEnumerable<CategoryDto>>(categories)
+                                Categories = _mapper.Map<IEnumerable<CategoryDto>>(categories),
+                                Rooms = _mapper.Map<IEnumerable<RoomDto>>(rooms),
+                                Waypoints = waypoints.Select(w => new { w.Id, w.MuseumId, w.MapId, w.FloorNumber, w.X, w.Y, w.Type, w.RoomId, w.Code, w.Label, w.CreatedAt, w.UpdatedAt }),
+                                WaypointEdges = edges.Select(e => new { e.Id, e.MuseumId, e.FromWaypointId, e.ToWaypointId, e.Distance, e.EdgeType, e.IsBidirectional, e.CreatedAt, e.UpdatedAt }),
+                                Exhibitions = _mapper.Map<IEnumerable<ExhibitionDto>>(exhibitions),
+                                MapPois = _mapper.Map<IEnumerable<MapPoiDto>>(pois)
                             };
 
                             var jsonString = JsonSerializer.Serialize(manifestDto, new JsonSerializerOptions { WriteIndented = true });

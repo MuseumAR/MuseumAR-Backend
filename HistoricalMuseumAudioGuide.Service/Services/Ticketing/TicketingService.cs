@@ -564,15 +564,19 @@ public class TicketingService : ITicketingService
         string ticketTypeName = ticket.TicketType?.Name ?? "Vé tham quan";
         decimal price = ticket.TicketType?.Price ?? 0;
 
-        bool isValid = ticket.Status == "Paid" || ticket.Status == "Active";
-        string message = ticket.Status switch
-        {
-            "Paid" or "Active" => "Vé hợp lệ! Có thể thực hiện Check-in.",
-            "Used" => $"Vé này đã được Check-in sử dụng trước đó vào lúc {ticket.UpdatedAt:dd/MM/yyyy HH:mm}!",
-            "Cancelled" => "Vé này đã bị hủy hoặc hết hạn thanh toán!",
-            "Pending" => "Vé này chưa được xác nhận thanh toán!",
-            _ => $"Trạng thái vé: {ticket.Status}"
-        };
+        bool isExpired = ticket.ValidDate.HasValue && DateTime.UtcNow > ticket.ValidDate.Value;
+        bool isValid = (ticket.Status == "Paid" || ticket.Status == "Active") && !isExpired;
+
+        string message = isExpired
+            ? $"Vé này đã hết hạn sử dụng vào lúc {ticket.ValidDate:dd/MM/yyyy HH:mm}!"
+            : ticket.Status switch
+            {
+                "Paid" or "Active" => "Vé hợp lệ! Có thể thực hiện Check-in.",
+                "Used" => $"Vé này đã được Check-in sử dụng trước đó vào lúc {ticket.UpdatedAt:dd/MM/yyyy HH:mm}!",
+                "Cancelled" => "Vé này đã bị hủy hoặc hết hạn thanh toán!",
+                "Pending" => "Vé này chưa được xác nhận thanh toán!",
+                _ => $"Trạng thái vé: {ticket.Status}"
+            };
 
         var responseDto = new ValidateTicketResponseDto
         {
@@ -614,6 +618,11 @@ public class TicketingService : ITicketingService
         if (ticket.Status != "Paid" && ticket.Status != "Active")
         {
             return ResponseModel.BadRequest($"Không thể check-in vé có trạng thái '{ticket.Status}'. Vé phải ở trạng thái Đã thanh toán (Paid).");
+        }
+
+        if (ticket.ValidDate.HasValue && DateTime.UtcNow > ticket.ValidDate.Value)
+        {
+            return ResponseModel.BadRequest($"Vé này đã hết hạn sử dụng vào lúc {ticket.ValidDate:dd/MM/yyyy HH:mm}!");
         }
 
         var now = DateTime.UtcNow.AddHours(7);

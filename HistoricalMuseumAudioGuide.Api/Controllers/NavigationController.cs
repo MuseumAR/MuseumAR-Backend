@@ -35,7 +35,7 @@ public class NavigationController : ControllerBase
     }
 
     [HttpPost("waypoints")]
-    [AllowAnonymous]
+    [Authorize(Roles = "ContentManager,MuseumManager,SystemAdmin")]
     public async Task<IActionResult> CreateWaypoint([FromBody] CreateWaypointDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ResponseModel.BadRequest("Dữ liệu không hợp lệ", ModelState));
@@ -44,7 +44,7 @@ public class NavigationController : ControllerBase
     }
 
     [HttpPut("waypoints/{id}")]
-    [AllowAnonymous]
+    [Authorize(Roles = "ContentManager,MuseumManager,SystemAdmin")]
     public async Task<IActionResult> UpdateWaypoint(string id, [FromBody] UpdateWaypointDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ResponseModel.BadRequest("Dữ liệu không hợp lệ", ModelState));
@@ -54,7 +54,7 @@ public class NavigationController : ControllerBase
     }
 
     [HttpDelete("waypoints/{id}")]
-    [AllowAnonymous]
+    [Authorize(Roles = "ContentManager,MuseumManager,SystemAdmin")]
     public async Task<IActionResult> DeleteWaypoint(string id)
     {
         var success = await _navigationService.DeleteWaypointAsync(id);
@@ -63,7 +63,7 @@ public class NavigationController : ControllerBase
     }
 
     [HttpPost("edges")]
-    [AllowAnonymous]
+    [Authorize(Roles = "ContentManager,MuseumManager,SystemAdmin")]
     public async Task<IActionResult> CreateEdge([FromBody] CreateWaypointEdgeDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ResponseModel.BadRequest("Dữ liệu không hợp lệ", ModelState));
@@ -72,7 +72,7 @@ public class NavigationController : ControllerBase
     }
 
     [HttpDelete("edges/{id}")]
-    [AllowAnonymous]
+    [Authorize(Roles = "ContentManager,MuseumManager,SystemAdmin")]
     public async Task<IActionResult> DeleteEdge(int id)
     {
         var success = await _navigationService.DeleteEdgeAsync(id);

@@ -12,6 +12,7 @@ public class WaypointEdgeDto
     public string EdgeType { get; set; } = "WALK";
     public bool IsBidirectional { get; set; } = true;
     public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
 }
 
 public class CreateWaypointEdgeDto

@@ -49,17 +49,19 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         // --- Exhibit Management (Read - Public) ---
 
         [HttpGet("exhibits")]
-        public async Task<IActionResult> GetAllExhibits([FromQuery] string? lang = null)
+        public async Task<IActionResult> GetAllExhibits([FromQuery] string? lang = null, [FromQuery] bool? includeUnpublished = false)
         {
             var museumId = await _museumResolver.GetMuseumIdAsync();
-            var response = await _contentService.GetAllExhibitsAsync(museumId, lang);
+            bool canSeeDrafts = (includeUnpublished == true) || User.IsInRole("ContentManager") || User.IsInRole("MuseumManager") || User.IsInRole("SystemAdmin");
+            var response = await _contentService.GetAllExhibitsAsync(museumId, canSeeDrafts, lang);
             return ResponseParser.Result(response);
         }
 
         [HttpGet("exhibits/{id}")]
-        public async Task<IActionResult> GetExhibit(int id, [FromQuery] string? lang = null)
+        public async Task<IActionResult> GetExhibit(int id, [FromQuery] string? lang = null, [FromQuery] bool? includeUnpublished = false)
         {
-            var response = await _contentService.GetExhibitByIdAsync(id, lang);
+            bool canSeeDrafts = (includeUnpublished == true) || User.IsInRole("ContentManager") || User.IsInRole("MuseumManager") || User.IsInRole("SystemAdmin");
+            var response = await _contentService.GetExhibitByIdAsync(id, canSeeDrafts, lang);
             return ResponseParser.Result(response);
         }
 
@@ -127,7 +129,7 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         }
 
         [HttpPost("rooms")]
-        [Authorize(Roles = "ContentManager,MuseumAdmin,SystemAdmin")]
+        [Authorize(Roles = "ContentManager")]
         public async Task<IActionResult> CreateRoom([FromBody] CreateRoomDto roomDto)
         {
             int? userMuseumId = GetCurrentUserMuseumId();
@@ -136,7 +138,7 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         }
 
         [HttpPut("rooms/{id}")]
-        [Authorize(Roles = "ContentManager,MuseumAdmin,SystemAdmin")]
+        [Authorize(Roles = "ContentManager")]
         public async Task<IActionResult> UpdateRoom(int id, [FromBody] UpdateRoomDto roomDto)
         {
             int? userMuseumId = GetCurrentUserMuseumId();
@@ -145,7 +147,7 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         }
 
         [HttpDelete("rooms/{id}")]
-        [Authorize(Roles = "ContentManager,MuseumAdmin,SystemAdmin")]
+        [Authorize(Roles = "ContentManager")]
         public async Task<IActionResult> DeleteRoom(int id)
         {
             int? userMuseumId = GetCurrentUserMuseumId();
@@ -289,6 +291,13 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
+        [HttpGet("exhibitions/{id}")]
+        public async Task<IActionResult> GetExhibition(int id)
+        {
+            var response = await _contentService.GetExhibitionByIdAsync(id);
+            return ResponseParser.Result(response);
+        }
+
         [Authorize(Roles = "MuseumManager,ContentManager,SystemAdmin")]
         [HttpPost("exhibitions")]
         public async Task<IActionResult> CreateExhibition(CreateExhibitionDto createExhibitionDto)
@@ -400,6 +409,42 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         {
             var userMuseumId = GetCurrentUserMuseumId();
             var response = await _contentService.DeleteMuseumMapAsync(id, userMuseumId);
+            return ResponseParser.Result(response);
+        }
+
+        // --- Map POI Management ---
+
+        [HttpGet("maps/{mapId}/pois")]
+        public async Task<IActionResult> GetMapPois(int mapId)
+        {
+            var response = await _contentService.GetMapPoisAsync(mapId);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "MuseumManager,ContentManager,SystemAdmin")]
+        [HttpPost("map-pois")]
+        public async Task<IActionResult> CreateMapPoi([FromBody] CreateMapPoiDto dto)
+        {
+            var userMuseumId = GetCurrentUserMuseumId();
+            var response = await _contentService.CreateMapPoiAsync(dto, userMuseumId);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "MuseumManager,ContentManager,SystemAdmin")]
+        [HttpPut("map-pois/{id}")]
+        public async Task<IActionResult> UpdateMapPoi(int id, [FromBody] UpdateMapPoiDto dto)
+        {
+            var userMuseumId = GetCurrentUserMuseumId();
+            var response = await _contentService.UpdateMapPoiAsync(id, dto, userMuseumId);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "MuseumManager,ContentManager,SystemAdmin")]
+        [HttpDelete("map-pois/{id}")]
+        public async Task<IActionResult> DeleteMapPoi(int id)
+        {
+            var userMuseumId = GetCurrentUserMuseumId();
+            var response = await _contentService.DeleteMapPoiAsync(id, userMuseumId);
             return ResponseParser.Result(response);
         }
 

@@ -33,6 +33,12 @@ public partial class User
 
     public DateTime? ResetTokenExpiresAt { get; set; }
 
+    public bool IsEmailConfirmed { get; set; } = false;
+
+    public string? EmailVerificationToken { get; set; }
+
+    public DateTime? VerificationTokenExpiresAt { get; set; }
+
     public virtual ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
 
     public virtual ICollection<ContentVersion> ContentVersions { get; set; } = new List<ContentVersion>();

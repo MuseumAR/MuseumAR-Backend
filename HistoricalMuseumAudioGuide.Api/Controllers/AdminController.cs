@@ -67,7 +67,7 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
-        [Authorize]
+        [Authorize(Roles = "SystemAdmin")]
         [HttpPost("configs/{key}")]
         public async Task<IActionResult> UpdateConfig(string key, [FromBody] UpdateSystemConfigDto dto)
         {
