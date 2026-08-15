@@ -298,6 +298,7 @@ public class AuthService : IAuthService
                     PasswordHash = "GOOGLE_OAUTH_USER", // No password for Google users
                     RoleId = visitorRole.Id,
                     Status = "Active",
+                    IsEmailConfirmed = true,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };
@@ -307,6 +308,12 @@ public class AuthService : IAuthService
                 
                 // Re-fetch to get includes
                 user = await _unitOfWork.Users.GetUserByEmailAsync(payload.Email);
+            }
+            else if (!user.IsEmailConfirmed)
+            {
+                user.IsEmailConfirmed = true;
+                _unitOfWork.Users.Update(user);
+                await _unitOfWork.CompleteAsync();
             }
 
             if (user!.Status != "Active")
