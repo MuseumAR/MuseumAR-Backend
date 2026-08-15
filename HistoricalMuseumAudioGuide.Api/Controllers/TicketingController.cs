@@ -100,18 +100,6 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
-        [Authorize]
-        [HttpGet("mock-confirm")]
-        public async Task<IActionResult> MockConfirmPayment([FromQuery] string orderCode)
-        {
-            if (!_environment.IsDevelopment())
-            {
-                return NotFound(ResponseModel.NotFound("Endpoint mock-confirm chỉ áp dụng ở môi trường Development."));
-            }
-
-            var response = await _ticketingService.MockConfirmPaymentAsync(orderCode);
-            return ResponseParser.Result(response);
-        }
 
         [HttpGet("validate/{ticketCode}")]
         public async Task<IActionResult> ValidateTicket(string ticketCode)
