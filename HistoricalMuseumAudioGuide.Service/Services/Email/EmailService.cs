@@ -143,11 +143,11 @@ public class EmailService : IEmailService
             return;
         }
 
-        var smtpHost = _configuration["SMTP_HOST"] ?? _configuration["EmailSettings:SmtpServer"];
-        var smtpPortStr = _configuration["SMTP_PORT"] ?? _configuration["EmailSettings:SmtpPort"];
-        var smtpUser = _configuration["SMTP_USER"] ?? _configuration["EmailSettings:Username"];
-        var smtpPass = _configuration["SMTP_PASS"] ?? _configuration["EmailSettings:Password"];
-        var fromEmail = _configuration["SMTP_FROM"] ?? _configuration["EmailSettings:FromEmail"] ?? smtpUser ?? "noreply@museumar.com";
+        var smtpHost = Environment.GetEnvironmentVariable("SMTP_HOST") ?? _configuration["SMTP_HOST"] ?? _configuration["EmailSettings:SmtpServer"];
+        var smtpPortStr = Environment.GetEnvironmentVariable("SMTP_PORT") ?? _configuration["SMTP_PORT"] ?? _configuration["EmailSettings:SmtpPort"];
+        var smtpUser = Environment.GetEnvironmentVariable("SMTP_USER") ?? _configuration["SMTP_USER"] ?? _configuration["EmailSettings:Username"];
+        var smtpPass = Environment.GetEnvironmentVariable("SMTP_PASS") ?? _configuration["SMTP_PASS"] ?? _configuration["EmailSettings:Password"];
+        var fromEmail = Environment.GetEnvironmentVariable("SMTP_FROM") ?? _configuration["SMTP_FROM"] ?? _configuration["EmailSettings:FromEmail"] ?? smtpUser ?? "noreply@museumar.com";
 
         if (string.IsNullOrWhiteSpace(smtpUser) || string.IsNullOrWhiteSpace(smtpPass) || string.IsNullOrWhiteSpace(smtpHost))
         {
