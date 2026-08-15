@@ -8,6 +8,7 @@ namespace HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibition
         public int Id { get; set; }
         public int MuseumId { get; set; }
         public int? ThemeId { get; set; }
+        public string? ThemeName { get; set; }
         public string? Name { get; set; }
         public string? NameEn { get; set; }
         public string? Description { get; set; }

@@ -587,7 +587,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
 
         public async Task<ResponseModel> GetExhibitionsByMuseumIdAsync(int museumId, string? lang = null)
         {
-            var exhibitions = await _unitOfWork.Exhibitions.FindAsync(e => e.MuseumId == museumId, includeProperties: "ExhibitionTranslations");
+            var exhibitions = await _unitOfWork.Exhibitions.FindAsync(e => e.MuseumId == museumId, includeProperties: "ExhibitionTranslations,Theme");
             var dtos = _mapper.Map<IEnumerable<ExhibitionDto>>(exhibitions).ToList();
             ApplyExhibitionLanguage(dtos, lang);
             return ResponseModel.Success("Exhibitions retrieved successfully", dtos);
@@ -595,7 +595,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
 
         public async Task<ResponseModel> GetExhibitionByIdAsync(int id)
         {
-            var exhibition = await _unitOfWork.Exhibitions.GetFirstOrDefaultAsync(e => e.Id == id, includeProperties: "ExhibitionTranslations,Exhibits");
+            var exhibition = await _unitOfWork.Exhibitions.GetFirstOrDefaultAsync(e => e.Id == id, includeProperties: "ExhibitionTranslations,Exhibits,Theme");
             if (exhibition == null) return ResponseModel.NotFound("Exhibition not found");
             var dto = _mapper.Map<ExhibitionDto>(exhibition);
             return ResponseModel.Success("Exhibition retrieved successfully", dto);
@@ -678,6 +678,12 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
 
             await _unitOfWork.Exhibitions.AddAsync(exhibition);
             await _unitOfWork.CompleteAsync();
+
+            if (exhibition.ThemeId.HasValue)
+            {
+                exhibition.Theme = await _unitOfWork.Themes.GetFirstOrDefaultAsync(t => t.Id == exhibition.ThemeId.Value);
+            }
+
             var dto = _mapper.Map<ExhibitionDto>(exhibition);
             return ResponseModel.Success("Exhibition created successfully", dto);
         }
