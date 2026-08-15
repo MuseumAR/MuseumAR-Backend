@@ -469,28 +469,6 @@ public class TicketingService : ITicketingService
         return ResponseModel.Success("Get ticket detail successfully.", detailDto);
     }
 
-    public async Task<ResponseModel> MockConfirmPaymentAsync(string orderCode)
-    {
-        var transaction = await _unitOfWork.Transactions.GetByOrderCodeAsync(orderCode);
-        if (transaction == null) return ResponseModel.NotFound("Order not found.");
-
-        var now = DateTime.UtcNow.AddHours(7);
-        transaction.PaymentStatus = "Completed";
-        transaction.PaymentDate = now;
-        transaction.UpdatedAt = now;
-
-        var tickets = await _unitOfWork.Tickets.GetTicketsByTransactionIdAsync(transaction.Id);
-        foreach (var ticket in tickets)
-        {
-            ticket.Status = "Paid";
-            ticket.ValidDate = now.AddDays(1); // Vé có hiệu lực trong vòng 24 giờ
-            ticket.UpdatedAt = now;
-        }
-
-        await _unitOfWork.CompleteAsync();
-        TriggerTicketEmail(transaction.VisitorId, transaction.Id, transaction.OrderCode, transaction.TotalAmount);
-        return ResponseModel.Success("Payment mock-confirmed successfully.");
-    }
 
     public async Task<ResponseModel> ValidateTicketAsync(string ticketCode)
     {

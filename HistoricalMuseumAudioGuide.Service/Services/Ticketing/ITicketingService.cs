@@ -11,7 +11,6 @@ public interface ITicketingService
     Task<ResponseModel> CreateOrderAsync(int visitorId, CreateOrderRequestDto request);
     Task<ResponseModel> GetMyTicketsAsync(int visitorId, string? lang = null);
     Task<ResponseModel> GetTicketDetailAsync(int visitorId, int ticketId, string? lang = null);
-    Task<ResponseModel> MockConfirmPaymentAsync(string orderCode);
     Task<ResponseModel> GetPendingOrderAsync(int visitorId, string? lang = null);
     Task<ResponseModel> ValidateTicketAsync(string ticketCode);
     Task<ResponseModel> CheckInTicketAsync(string ticketCode);
