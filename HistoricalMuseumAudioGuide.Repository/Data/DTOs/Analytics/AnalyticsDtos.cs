@@ -7,6 +7,7 @@ public class CreateAnalyticsLogDto
     public int MuseumId { get; set; }
     public int? ExhibitId { get; set; }
     public string ActionType { get; set; } = null!; // e.g., "ScanAR", "PlayAudio", "Search"
+    public int? ListeningDuration { get; set; }
     public string? LanguageUsed { get; set; }
     public string? DeviceType { get; set; }
     public string? SearchQuery { get; set; }

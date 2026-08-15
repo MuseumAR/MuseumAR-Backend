@@ -143,6 +143,8 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
                     src.ExhibitionTranslations.FirstOrDefault(t => t.LanguageCode == "en") != null
                         ? src.ExhibitionTranslations.FirstOrDefault(t => t.LanguageCode == "en")!.Description
                         : null))
+                .ForMember(dest => dest.ThemeName, opt => opt.MapFrom(src =>
+                    src.Theme != null ? src.Theme.ThemeName : null))
                 .ReverseMap()
                 .ForMember(dest => dest.ExhibitionTranslations, opt => opt.Ignore());
             CreateMap<CreateExhibitionDto, Exhibition>();
