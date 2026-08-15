@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using System;
 using System.Net;
 using System.Net.Mail;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace HistoricalMuseumAudioGuide.Service.Services.Email;
@@ -52,6 +53,8 @@ public class EmailService : IEmailService
             message.From = new MailAddress(smtpUser, fromName);
             message.To.Add(new MailAddress(toEmail));
             message.Subject = $"[MuseumAR] Mua vé thành công - Đơn hàng #{orderCode}";
+            message.SubjectEncoding = Encoding.UTF8;
+            message.BodyEncoding = Encoding.UTF8;
             message.IsBodyHtml = true;
 
             string nowFormatted = DateTime.UtcNow.AddHours(7).ToString("dd/MM/yyyy HH:mm");
@@ -163,6 +166,8 @@ public class EmailService : IEmailService
             message.From = new MailAddress(fromEmail, "Museum Audio Guide");
             message.To.Add(new MailAddress(toEmail));
             message.Subject = "Xác nhận địa chỉ Email - Museum AR";
+            message.SubjectEncoding = Encoding.UTF8;
+            message.BodyEncoding = Encoding.UTF8;
             message.IsBodyHtml = true;
 
             message.Body = $@"
