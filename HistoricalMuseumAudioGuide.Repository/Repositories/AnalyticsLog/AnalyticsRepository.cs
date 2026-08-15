@@ -61,20 +61,31 @@ namespace HistoricalMuseumAudioGuide.Repository.Repositories.Analytics
         // 3. Thống kê tỷ lệ sử dụng ngôn ngữ của khách tham quan (FR4.1.4)
         public async Task<List<LanguageUsageDto>> GetLanguageUsageStatsAsync(int museumId)
         {
-            var totalLogs = await _context.AnalyticsLogs.Where(log => log.MuseumId == museumId).CountAsync();
-            if (totalLogs == 0) return new List<LanguageUsageDto>();
+            // Lấy danh sách chứa VisitorId và LanguageUsed của action mới nhất có chỉ định ngôn ngữ cho từng user
+            var latestUserLanguages = await _context.AnalyticsLogs
+                .Where(log => log.MuseumId == museumId && log.VisitorId != null && log.LanguageUsed != null)
+                .GroupBy(log => log.VisitorId)
+                .Select(g => new
+                {
+                    VisitorId = g.Key,
+                    LanguageUsed = g.OrderByDescending(l => l.EventTimestamp).ThenByDescending(l => l.Id).Select(l => l.LanguageUsed).FirstOrDefault()
+                })
+                .ToListAsync();
 
-            return await _context.AnalyticsLogs
-                .Where(log => log.MuseumId == museumId && log.LanguageUsed != null) // ĐÃ SỬA: Đổi sang LanguageUsed
-                .GroupBy(log => log.LanguageUsed)                                  // ĐÃ SỬA: Đổi sang LanguageUsed
+            if (latestUserLanguages.Count == 0) return new List<LanguageUsageDto>();
+
+            var totalUsers = latestUserLanguages.Count;
+
+            return latestUserLanguages
+                .GroupBy(x => x.LanguageUsed)
                 .Select(g => new LanguageUsageDto
                 {
-                    LanguageCode = g.Key!, // Map dữ liệu nhóm được vào DTO trả về Client
+                    LanguageCode = g.Key!,
                     UsageCount = g.Count(),
-                    Percentage = (double)g.Count() / totalLogs * 100
+                    Percentage = (double)g.Count() / totalUsers * 100
                 })
                 .OrderByDescending(x => x.UsageCount)
-                .ToListAsync();
+                .ToList();
         }
 
         // 4. Đếm tổng số lượt tải trọn gói dữ liệu offline (FR4.1.4)
