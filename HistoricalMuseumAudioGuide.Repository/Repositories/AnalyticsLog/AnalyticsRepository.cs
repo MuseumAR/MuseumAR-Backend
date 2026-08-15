@@ -18,7 +18,7 @@ namespace HistoricalMuseumAudioGuide.Repository.Repositories.Analytics
         public async Task<List<ExhibitScanStatDto>> GetQrScanStatsAsync(int museumId)
         {
             return await _context.AnalyticsLogs
-                .Where(log => log.MuseumId == museumId && log.ActionType == "QR_SCAN")
+                .Where(log => log.MuseumId == museumId && log.ActionType == "QR_SCAN" && log.ExhibitId != null)
                 .GroupBy(log => new
                 {
                     log.ExhibitId,
@@ -39,7 +39,7 @@ namespace HistoricalMuseumAudioGuide.Repository.Repositories.Analytics
         public async Task<List<PopularExhibitDto>> GetPopularExhibitsAsync(int museumId, int topCount)
         {
             return await _context.AnalyticsLogs
-                .Where(log => log.MuseumId == museumId)
+                .Where(log => log.MuseumId == museumId && log.ExhibitId != null)
                 .GroupBy(log => new
                 {
                     log.ExhibitId,
