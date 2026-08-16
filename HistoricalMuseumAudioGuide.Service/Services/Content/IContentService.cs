@@ -123,6 +123,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
         // Content Version Management
         Task<ResponseModel> GetContentVersionsAsync(int museumId);
         Task<ResponseModel> CreateNewContentVersionAsync(int museumId, string versionNumber, string description, int? userMuseumId);
+        Task<ResponseModel> PublishContentVersionAsync(int versionId, int? userMuseumId, int userId);
 
         // AR Asset Management
         Task<ResponseModel> GetArAssetsByExhibitIdAsync(int exhibitId);

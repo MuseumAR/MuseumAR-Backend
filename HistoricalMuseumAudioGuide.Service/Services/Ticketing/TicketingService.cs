@@ -375,8 +375,8 @@ public class TicketingService : ITicketingService
     public async Task<ResponseModel> GetMyTicketsAsync(int visitorId, string? lang = null)
     {
         var tickets = await _unitOfWork.Tickets.GetTicketsByVisitorIdAsync(visitorId);
-        // Only return Active tickets to the user
-        var activeTickets = tickets.Where(t => t.Status == "Paid");
+        // Return Paid and Used tickets to the user
+        var activeTickets = tickets.Where(t => t.Status == "Paid" || t.Status == "Used");
         var dtos = _mapper.Map<IEnumerable<TicketDto>>(activeTickets).ToList();
         var en = string.Equals(lang, "en", StringComparison.OrdinalIgnoreCase);
         if (en)
