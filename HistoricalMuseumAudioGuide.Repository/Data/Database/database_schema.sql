@@ -892,10 +892,10 @@ SET IDENTITY_INSERT AgeGroups OFF;
 SET IDENTITY_INSERT Rooms ON;
 INSERT INTO Rooms (Id, MuseumId, MapId, RoomCode, RoomName, FloorNumber, Description, CreatedAt, UpdatedAt)
 VALUES
-(1, 1, 1, 'P101', N'Phòng 101 - Tiền sử & Sơ sử', 1, N'Trưng bày hiện vật thời kỳ đồ đá và đồ đồng thau', GETUTCDATE(), GETUTCDATE()),
-(2, 1, 1, 'P102', N'Phòng 102 - Văn hóa Đông Sơn', 1, N'Trưng bày trống đồng và vũ khí cổ', GETUTCDATE(), GETUTCDATE()),
-(3, 1, 2, 'P201', N'Phòng 201 - Kháng chiến chống Pháp', 2, N'Trưng bày tài liệu và hiện vật thời kỳ 1858-1954', GETUTCDATE(), GETUTCDATE()),
-(4, 1, 2, 'P202', N'Phòng 202 - Kháng chiến chống Mỹ', 2, N'Trưng bày phương tiện, vũ khí chiến dịch Hồ Chí Minh', GETUTCDATE(), GETUTCDATE());
+(1, 1, 1, 'P101', N'Phòng 101 - Tiền sử & Sơ sử', 0, N'Trưng bày hiện vật thời kỳ đồ đá và đồ đồng thau', GETUTCDATE(), GETUTCDATE()),
+(2, 1, 1, 'P102', N'Phòng 102 - Văn hóa Đông Sơn', 0, N'Trưng bày trống đồng và vũ khí cổ', GETUTCDATE(), GETUTCDATE()),
+(3, 1, 2, 'P201', N'Phòng 201 - Kháng chiến chống Pháp', 1, N'Trưng bày tài liệu và hiện vật thời kỳ 1858-1954', GETUTCDATE(), GETUTCDATE()),
+(4, 1, 2, 'P202', N'Phòng 202 - Kháng chiến chống Mỹ', 1, N'Trưng bày phương tiện, vũ khí chiến dịch Hồ Chí Minh', GETUTCDATE(), GETUTCDATE());
 SET IDENTITY_INSERT Rooms OFF;
 
 -- 8. CHÈN HIỆN VẬT (Bảng Exhibits - Đối chiếu chính xác các cột vị trí)
@@ -1005,6 +1005,50 @@ VALUES
 -- Tuyến 2 (Người lớn): Đi theo trình tự thời gian từ cổ chí kim
 (2, 1, 1, 20), -- Điểm dừng 1: Mộ chum (Xem trong 20 phút)
 (2, 2, 2, 25); -- Điểm dừng 2: Máy bay UH-1 (Xem trong 25 phút)
+
+
+-- 17. CHÈN WAYPOINTS MẪU (Bảng Waypoints)
+INSERT INTO Waypoints (Id, MuseumId, MapId, FloorNumber, Type, X, Y, Label, Code, RoomId, CreatedAt, UpdatedAt) VALUES
+('WP_ENT', 1, 1, 0, 'ENTRANCE', 500, 50, N'Cổng vào bảo tàng', 'ENT', NULL, GETUTCDATE(), GETUTCDATE()),
+('WP_HALL_G1', 1, 1, 0, 'HALLWAY', 500, 200, N'Hành lang tầng trệt - giữa', 'HALL_G1', NULL, GETUTCDATE(), GETUTCDATE()),
+('WP_DOOR_101', 1, 1, 0, 'DOOR', 300, 200, N'Cửa Phòng 101', 'DOOR_101', 1, GETUTCDATE(), GETUTCDATE()),
+('WP_ROOM_101', 1, 1, 0, 'ROOM', 200, 300, N'Phòng 101 - Tiền sử', 'ROOM_101', 1, GETUTCDATE(), GETUTCDATE()),
+('WP_DOOR_102', 1, 1, 0, 'DOOR', 700, 200, N'Cửa Phòng 102', 'DOOR_102', 2, GETUTCDATE(), GETUTCDATE()),
+('WP_ROOM_102', 1, 1, 0, 'ROOM', 800, 300, N'Phòng 102 - Đông Sơn', 'ROOM_102', 2, GETUTCDATE(), GETUTCDATE()),
+('WP_STAIR_G', 1, 1, 0, 'STAIRCASE', 500, 400, N'Cầu thang tầng trệt', 'STAIR_G', NULL, GETUTCDATE(), GETUTCDATE()),
+('WP_STAIR_1', 1, 2, 1, 'STAIRCASE', 500, 50, N'Cầu thang lầu 1', 'STAIR_1', NULL, GETUTCDATE(), GETUTCDATE()),
+('WP_HALL_F1', 1, 2, 1, 'HALLWAY', 500, 200, N'Hành lang lầu 1 - giữa', 'HALL_F1', NULL, GETUTCDATE(), GETUTCDATE()),
+('WP_DOOR_201', 1, 2, 1, 'DOOR', 300, 200, N'Cửa Phòng 201', 'DOOR_201', 3, GETUTCDATE(), GETUTCDATE()),
+('WP_ROOM_201', 1, 2, 1, 'ROOM', 200, 300, N'Phòng 201 - Chống Pháp', 'ROOM_201', 3, GETUTCDATE(), GETUTCDATE()),
+('WP_DOOR_202', 1, 2, 1, 'DOOR', 700, 200, N'Cửa Phòng 202', 'DOOR_202', 4, GETUTCDATE(), GETUTCDATE()),
+('WP_ROOM_202', 1, 2, 1, 'ROOM', 800, 300, N'Phòng 202 - Chống Mỹ', 'ROOM_202', 4, GETUTCDATE(), GETUTCDATE()),
+('WP_STAIR_1UP', 1, 2, 1, 'STAIRCASE', 500, 400, N'Cầu thang lên lầu 2', 'STAIR_1UP', NULL, GETUTCDATE(), GETUTCDATE()),
+('WP_STAIR_2', 1, 4, 2, 'STAIRCASE', 500, 50, N'Cầu thang lầu 2', 'STAIR_2', NULL, GETUTCDATE(), GETUTCDATE()),
+('WP_HALL_F2', 1, 4, 2, 'HALLWAY', 500, 200, N'Hành lang lầu 2', 'HALL_F2', NULL, GETUTCDATE(), GETUTCDATE());
+
+-- 18. CHÈN WAYPOINT EDGES MẪU (Bảng WaypointEdges)
+INSERT INTO WaypointEdges (MuseumId, FromWaypointId, ToWaypointId, Distance, EdgeType, IsBidirectional, CreatedAt, UpdatedAt) VALUES
+(1, 'WP_ENT', 'WP_HALL_G1', 150, 'WALK', 1, GETUTCDATE(), GETUTCDATE()),
+(1, 'WP_HALL_G1', 'WP_DOOR_101', 200, 'WALK', 1, GETUTCDATE(), GETUTCDATE()),
+(1, 'WP_DOOR_101', 'WP_ROOM_101', 140, 'WALK', 1, GETUTCDATE(), GETUTCDATE()),
+(1, 'WP_HALL_G1', 'WP_DOOR_102', 200, 'WALK', 1, GETUTCDATE(), GETUTCDATE()),
+(1, 'WP_DOOR_102', 'WP_ROOM_102', 140, 'WALK', 1, GETUTCDATE(), GETUTCDATE()),
+(1, 'WP_HALL_G1', 'WP_STAIR_G', 200, 'WALK', 1, GETUTCDATE(), GETUTCDATE()),
+(1, 'WP_STAIR_G', 'WP_STAIR_1', 50, 'STAIR', 1, GETUTCDATE(), GETUTCDATE()),
+(1, 'WP_STAIR_1', 'WP_HALL_F1', 150, 'WALK', 1, GETUTCDATE(), GETUTCDATE()),
+(1, 'WP_HALL_F1', 'WP_DOOR_201', 200, 'WALK', 1, GETUTCDATE(), GETUTCDATE()),
+(1, 'WP_DOOR_201', 'WP_ROOM_201', 140, 'WALK', 1, GETUTCDATE(), GETUTCDATE()),
+(1, 'WP_HALL_F1', 'WP_DOOR_202', 200, 'WALK', 1, GETUTCDATE(), GETUTCDATE()),
+(1, 'WP_DOOR_202', 'WP_ROOM_202', 140, 'WALK', 1, GETUTCDATE(), GETUTCDATE()),
+(1, 'WP_HALL_F1', 'WP_STAIR_1UP', 200, 'WALK', 1, GETUTCDATE(), GETUTCDATE()),
+(1, 'WP_STAIR_1UP', 'WP_STAIR_2', 50, 'STAIR', 1, GETUTCDATE(), GETUTCDATE()),
+(1, 'WP_STAIR_2', 'WP_HALL_F2', 150, 'WALK', 1, GETUTCDATE(), GETUTCDATE());
+
+-- 19. CẬP NHẬT LIÊN KẾT PHÒNG VÀ WAYPOINTS
+UPDATE Rooms SET WaypointId = 'WP_ROOM_101', DoorWaypointId = 'WP_DOOR_101' WHERE Id = 1;
+UPDATE Rooms SET WaypointId = 'WP_ROOM_102', DoorWaypointId = 'WP_DOOR_102' WHERE Id = 2;
+UPDATE Rooms SET WaypointId = 'WP_ROOM_201', DoorWaypointId = 'WP_DOOR_201' WHERE Id = 3;
+UPDATE Rooms SET WaypointId = 'WP_ROOM_202', DoorWaypointId = 'WP_DOOR_202' WHERE Id = 4;
 
 PRINT 'Seed data cho Bảo tàng Thành phố Hồ Chí Minh (Single-Museum) đã được chèn hoàn tất và chính xác với Schema!';
 GO
