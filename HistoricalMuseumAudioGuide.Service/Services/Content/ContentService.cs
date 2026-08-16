@@ -746,6 +746,22 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             var accessCheck = ValidateMuseumAccess(userMuseumId, exhibition.MuseumId);
             if (accessCheck != null) return accessCheck;
 
+            // Decouple TourRoutes referencing this exhibition
+            var routes = await _unitOfWork.TourRoutes.FindAsync(r => r.ExhibitionId == id);
+            foreach (var route in routes)
+            {
+                route.ExhibitionId = null;
+                _unitOfWork.TourRoutes.Update(route);
+            }
+
+            // Decouple TicketTypes referencing this exhibition
+            var ticketTypes = await _unitOfWork.TicketTypes.FindAsync(t => t.ExhibitionId == id);
+            foreach (var tt in ticketTypes)
+            {
+                tt.ExhibitionId = null;
+                _unitOfWork.TicketTypes.Update(tt);
+            }
+
             _unitOfWork.Exhibitions.Delete(exhibition);
             await _unitOfWork.CompleteAsync();
 
@@ -1717,6 +1733,32 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             return ResponseModel.Success("New content version created successfully", version.Id);
         }
 
+        public async Task<ResponseModel> PublishContentVersionAsync(int versionId, int? userMuseumId, int userId)
+        {
+            var version = await _unitOfWork.ContentVersions.GetByIdAsync(versionId);
+            if (version == null)
+            {
+                return ResponseModel.NotFound("Content version not found");
+            }
+
+            var accessCheck = ValidateMuseumAccess(userMuseumId, version.MuseumId);
+            if (accessCheck != null) return accessCheck;
+
+            if (string.Equals(version.Status, "Published", StringComparison.OrdinalIgnoreCase))
+            {
+                return ResponseModel.BadRequest("This version is already published.");
+            }
+
+            version.Status = "Published";
+            version.PublishedAt = DateTime.UtcNow;
+            version.PublishedBy = userId;
+
+            _unitOfWork.ContentVersions.Update(version);
+            await _unitOfWork.CompleteAsync();
+
+            return ResponseModel.Success("Version published successfully");
+        }
+
         // --- AR Asset Management ---
 
         public async Task<ResponseModel> GetArAssetsByExhibitIdAsync(int exhibitId)
@@ -1799,6 +1841,11 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             if (version.MuseumId != museumId)
             {
                 return ResponseModel.BadRequest("Content version does not belong to the current museum.");
+            }
+
+            if (!string.Equals(version.Status, "Published", StringComparison.OrdinalIgnoreCase))
+            {
+                return ResponseModel.BadRequest("Chỉ các phiên bản đã xuất bản (Published) mới được phép sử dụng để tạo gói dữ liệu offline.");
             }
 
             // Fetch museum & content entities for the package
@@ -1924,7 +1971,8 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
                                         }
 
                                         // 2. Otherwise download via HTTP
-                                        var bytes = await httpClient.GetByteArrayAsync(trimmedUrl);
+                                        var escapedUrl = new Uri(trimmedUrl).AbsoluteUri;
+                                        var bytes = await httpClient.GetByteArrayAsync(escapedUrl);
                                         var ext = Path.GetExtension(uri.AbsolutePath);
                                         if (string.IsNullOrEmpty(ext)) ext = ".jpg";
                                         var httpEntryName = $"{folderName}/{defaultName}{ext}";

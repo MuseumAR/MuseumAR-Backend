@@ -305,6 +305,15 @@ public class AuthService : IAuthService
 
                 await _unitOfWork.Users.AddAsync(user);
                 await _unitOfWork.CompleteAsync();
+
+                await _auditService.LogActionAsync(
+                    userId: user.Id, 
+                    action: "AssignRole", 
+                    entityType: "User", 
+                    newValues: $"Assigned role 'Visitor' to new Google user {user.Email}", 
+                    ipAddress: "System",
+                    userAgent: "GoogleOAuth"
+                );
                 
                 // Re-fetch to get includes
                 user = await _unitOfWork.Users.GetUserByEmailAsync(payload.Email);

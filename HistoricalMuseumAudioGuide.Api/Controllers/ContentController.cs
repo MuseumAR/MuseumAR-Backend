@@ -234,6 +234,18 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
+        [Authorize(Roles = "MuseumManager,ContentManager,SystemAdmin")]
+        [HttpPost("versions/{id}/publish")]
+        public async Task<IActionResult> PublishContentVersion(int id)
+        {
+            var userMuseumId = GetCurrentUserMuseumId();
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("UserId");
+            int userId = userIdClaim != null && int.TryParse(userIdClaim.Value, out int uid) ? uid : 0;
+
+            var response = await _contentService.PublishContentVersionAsync(id, userMuseumId, userId);
+            return ResponseParser.Result(response);
+        }
+
         // --- AR Asset Management (Read - Public, Write - Authorized) ---
 
         [HttpGet("exhibits/{exhibitId}/ar-assets")]
