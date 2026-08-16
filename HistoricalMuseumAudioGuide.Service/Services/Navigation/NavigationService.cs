@@ -482,4 +482,267 @@ public class NavigationService : INavigationService
         CreatedAt = e.CreatedAt,
         UpdatedAt = e.UpdatedAt
     };
+
+    public async Task<NavigationRouteResponseDto?> NavigateTourRouteAsync(int tourRouteId, string? lang = null)
+    {
+        var en = string.Equals(lang, "en", StringComparison.OrdinalIgnoreCase);
+
+        var tourRoute = await _unitOfWork.TourRoutes.GetFirstOrDefaultAsync(
+            tr => tr.Id == tourRouteId,
+            includeProperties: "TourRouteExhibits.Exhibit.Room.RoomTranslations,TourRouteExhibits.Exhibit.ExhibitTranslations,TourRouteTranslations"
+        );
+
+        if (tourRoute == null) return null;
+
+        var orderedStops = tourRoute.TourRouteExhibits
+            .OrderBy(s => s.StopOrder)
+            .ToList();
+
+        if (orderedStops.Count == 0)
+        {
+            return new NavigationRouteResponseDto
+            {
+                FromRoomId = 0,
+                FromRoomName = "N/A",
+                ToRoomId = 0,
+                ToRoomName = "N/A",
+                TotalDistance = 0,
+                PathWaypoints = new List<WaypointDto>(),
+                Instructions = new List<NavigationInstructionDto>()
+            };
+        }
+
+        var stopsWithRooms = orderedStops
+            .Where(s => s.Exhibit != null && s.Exhibit.RoomId.HasValue)
+            .Select(s => new {
+                ExhibitName = en 
+                    ? s.Exhibit.ExhibitTranslations?.FirstOrDefault(t => t.LanguageCode.Equals("en", StringComparison.OrdinalIgnoreCase))?.Title ?? s.Exhibit.ExhibitCode
+                    : s.Exhibit.ExhibitTranslations?.FirstOrDefault(t => t.LanguageCode.Equals("vi", StringComparison.OrdinalIgnoreCase))?.Title ?? s.Exhibit.ExhibitCode,
+                RoomId = s.Exhibit.RoomId!.Value,
+                Room = s.Exhibit.Room!
+            })
+            .ToList();
+
+        if (stopsWithRooms.Count == 0)
+        {
+            return new NavigationRouteResponseDto
+            {
+                FromRoomId = 0,
+                FromRoomName = "N/A",
+                ToRoomId = 0,
+                ToRoomName = "N/A",
+                TotalDistance = 0,
+                PathWaypoints = new List<WaypointDto>(),
+                Instructions = new List<NavigationInstructionDto>()
+            };
+        }
+
+        var museumId = tourRoute.MuseumId;
+        var waypoints = (await _unitOfWork.Waypoints.FindAsync(w => w.MuseumId == museumId)).ToList();
+        var waypointDict = waypoints.ToDictionary(w => w.Id);
+        var edges = (await _unitOfWork.WaypointEdges.FindAsync(e => e.MuseumId == museumId)).ToList();
+
+        var adj = new Dictionary<string, List<(string toId, double dist, string edgeType)>>();
+        foreach (var wp in waypoints)
+        {
+            adj[wp.Id] = new List<(string, double, string)>();
+        }
+
+        foreach (var edge in edges)
+        {
+            if (adj.ContainsKey(edge.FromWaypointId) && adj.ContainsKey(edge.ToWaypointId))
+            {
+                adj[edge.FromWaypointId].Add((edge.ToWaypointId, edge.Distance, edge.EdgeType));
+                if (edge.IsBidirectional)
+                {
+                    adj[edge.ToWaypointId].Add((edge.FromWaypointId, edge.Distance, edge.EdgeType));
+                }
+            }
+        }
+
+        var mergedWaypoints = new List<WaypointDto>();
+        var mergedInstructions = new List<NavigationInstructionDto>();
+        double totalDistance = 0;
+        int stepIndex = 1;
+
+        for (int i = 0; i < stopsWithRooms.Count - 1; i++)
+        {
+            var fromStop = stopsWithRooms[i];
+            var toStop = stopsWithRooms[i + 1];
+
+            var fromRoomName = ResolveRoomDisplayName(fromStop.Room, en);
+            var toRoomName = ResolveRoomDisplayName(toStop.Room, en);
+
+            if (fromStop.RoomId == toStop.RoomId)
+            {
+                var sameRoomInstruction = en
+                    ? $"Proceed to the next exhibit inside {fromRoomName}"
+                    : $"Di chuyển đến hiện vật tiếp theo tại phòng {fromRoomName}";
+
+                mergedInstructions.Add(new NavigationInstructionDto
+                {
+                    StepIndex = stepIndex++,
+                    Instruction = sameRoomInstruction,
+                    Action = "ARRIVE",
+                    Distance = 0,
+                    FloorNumber = fromStop.Room.FloorNumber,
+                    WaypointId = fromStop.Room.WaypointId ?? ""
+                });
+
+                if (i == 0)
+                {
+                    Waypoint? startWp = null;
+                    if (!string.IsNullOrEmpty(fromStop.Room.WaypointId) && waypointDict.ContainsKey(fromStop.Room.WaypointId))
+                    {
+                        startWp = waypointDict[fromStop.Room.WaypointId];
+                    }
+                    else
+                    {
+                        startWp = waypoints.FirstOrDefault(w => w.RoomId == fromStop.RoomId);
+                    }
+                    if (startWp != null)
+                    {
+                        mergedWaypoints.Add(MapToWaypointDto(startWp));
+                    }
+                }
+                continue;
+            }
+
+            Waypoint? startWpSeg = null;
+            if (!string.IsNullOrEmpty(fromStop.Room.WaypointId) && waypointDict.ContainsKey(fromStop.Room.WaypointId))
+            {
+                startWpSeg = waypointDict[fromStop.Room.WaypointId];
+            }
+            else
+            {
+                startWpSeg = waypoints.FirstOrDefault(w => w.RoomId == fromStop.RoomId);
+            }
+
+            Waypoint? endWpSeg = null;
+            if (!string.IsNullOrEmpty(toStop.Room.WaypointId) && waypointDict.ContainsKey(toStop.Room.WaypointId))
+            {
+                endWpSeg = waypointDict[toStop.Room.WaypointId];
+            }
+            else
+            {
+                endWpSeg = waypoints.FirstOrDefault(w => w.RoomId == toStop.RoomId);
+            }
+
+            if (startWpSeg == null || endWpSeg == null)
+            {
+                mergedInstructions.Add(new NavigationInstructionDto
+                {
+                    StepIndex = stepIndex++,
+                    Instruction = en
+                        ? $"Navigation waypoints are not set up between {fromRoomName} and {toRoomName}."
+                        : $"Chưa thiết lập nốt chỉ đường giữa phòng {fromRoomName} và phòng {toRoomName}.",
+                    Action = "ARRIVE",
+                    WaypointId = ""
+                });
+                continue;
+            }
+
+            var dist = new Dictionary<string, double>();
+            var prev = new Dictionary<string, string>();
+            var pq = new SortedSet<(double distance, string wpId)>(Comparer<(double, string)>.Create((a, b) => a.Item1 != b.Item1 ? a.Item1.CompareTo(b.Item1) : string.Compare(a.Item2, b.Item2, StringComparison.Ordinal)));
+
+            foreach (var wp in waypoints)
+            {
+                dist[wp.Id] = double.MaxValue;
+            }
+
+            dist[startWpSeg.Id] = 0;
+            pq.Add((0, startWpSeg.Id));
+
+            while (pq.Count > 0)
+            {
+                var current = pq.Min;
+                pq.Remove(current);
+
+                var currId = current.wpId;
+                if (currId == endWpSeg.Id) break;
+
+                if (!adj.ContainsKey(currId)) continue;
+
+                foreach (var neighbor in adj[currId])
+                {
+                    var newDist = dist[currId] + neighbor.dist;
+                    if (newDist < dist[neighbor.toId])
+                    {
+                        pq.Remove((dist[neighbor.toId], neighbor.toId));
+                        dist[neighbor.toId] = newDist;
+                        prev[neighbor.toId] = currId;
+                        pq.Add((newDist, neighbor.toId));
+                    }
+                }
+            }
+
+            if (dist[endWpSeg.Id] == double.MaxValue)
+            {
+                mergedInstructions.Add(new NavigationInstructionDto
+                {
+                    StepIndex = stepIndex++,
+                    Instruction = en
+                        ? $"No path found from {fromRoomName} to {toRoomName}."
+                        : $"Không tìm thấy tuyến đường nối từ {fromRoomName} đến {toRoomName}.",
+                    Action = "ARRIVE",
+                    WaypointId = startWpSeg.Id
+                });
+                continue;
+            }
+
+            var pathIds = new List<string>();
+            var curr = endWpSeg.Id;
+            while (curr != startWpSeg.Id)
+            {
+                pathIds.Add(curr);
+                curr = prev[curr];
+            }
+            pathIds.Add(startWpSeg.Id);
+            pathIds.Reverse();
+
+            var pathWaypoints = pathIds.Select(id => MapToWaypointDto(waypointDict[id])).ToList();
+            var segmentInstructions = GenerateInstructions(pathWaypoints, fromRoomName, toRoomName, en);
+
+            int startIdx = 0;
+            if (mergedWaypoints.Count > 0 && mergedWaypoints.Last().Id == pathWaypoints[0].Id)
+            {
+                startIdx = 1;
+            }
+
+            for (int j = startIdx; j < pathWaypoints.Count; j++)
+            {
+                mergedWaypoints.Add(pathWaypoints[j]);
+            }
+
+            foreach (var inst in segmentInstructions)
+            {
+                mergedInstructions.Add(new NavigationInstructionDto
+                {
+                    StepIndex = stepIndex++,
+                    Instruction = inst.Instruction,
+                    Action = inst.Action,
+                    Distance = inst.Distance,
+                    FloorNumber = inst.FloorNumber,
+                    WaypointId = inst.WaypointId
+                });
+            }
+
+            totalDistance += dist[endWpSeg.Id];
+        }
+
+        var firstStop = stopsWithRooms.First();
+        var lastStop = stopsWithRooms.Last();
+
+        return new NavigationRouteResponseDto
+        {
+            FromRoomId = firstStop.RoomId,
+            FromRoomName = ResolveRoomDisplayName(firstStop.Room, en),
+            ToRoomId = lastStop.RoomId,
+            ToRoomName = ResolveRoomDisplayName(lastStop.Room, en),
+            TotalDistance = Math.Round(totalDistance, 1),
+            PathWaypoints = mergedWaypoints,
+            Instructions = mergedInstructions
+        };
+    }
 }
