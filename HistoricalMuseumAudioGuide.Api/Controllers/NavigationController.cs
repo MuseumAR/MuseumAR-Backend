@@ -100,4 +100,24 @@ public class NavigationController : ControllerBase
 
         return Ok(ResponseModel.Success("Tính tuyến đường thành công", result));
     }
+
+    [HttpGet("tour-route/{id}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> NavigateTourRoute(
+        int id,
+        [FromQuery] string? lang = null)
+    {
+        if (id <= 0)
+        {
+            return BadRequest(ResponseModel.BadRequest("ID lộ trình không hợp lệ."));
+        }
+
+        var result = await _navigationService.NavigateTourRouteAsync(id, lang);
+        if (result == null)
+        {
+            return NotFound(ResponseModel.NotFound("Không tìm thấy thông tin lộ trình hoặc các phòng của lộ trình."));
+        }
+
+        return Ok(ResponseModel.Success("Tính tuyến đường cho lộ trình thành công", result));
+    }
 }

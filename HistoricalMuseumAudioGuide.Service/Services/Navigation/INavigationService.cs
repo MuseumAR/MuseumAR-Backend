@@ -13,4 +13,5 @@ public interface INavigationService
     Task<WaypointEdgeDto> CreateEdgeAsync(CreateWaypointEdgeDto dto);
     Task<bool> DeleteEdgeAsync(int id);
     Task<NavigationRouteResponseDto?> NavigateAsync(int fromRoomId, int toRoomId, string? lang = null);
+    Task<NavigationRouteResponseDto?> NavigateTourRouteAsync(int tourRouteId, string? lang = null);
 }
