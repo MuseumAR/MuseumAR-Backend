@@ -1,4 +1,4 @@
-using System;
+    using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -129,8 +129,33 @@ public class NavigationService : INavigationService
 
     public async Task<WaypointEdgeDto> CreateEdgeAsync(CreateWaypointEdgeDto dto)
     {
+        if (dto.FromWaypointId == dto.ToWaypointId)
+        {
+            throw new InvalidOperationException("Không thể tạo cạnh nối một điểm với chính nó.");
+        }
+
         var fromWp = await _unitOfWork.Waypoints.GetByIdAsync(dto.FromWaypointId);
-        var museumId = dto.MuseumId > 0 ? dto.MuseumId : (fromWp?.MuseumId ?? 1);
+        var toWp = await _unitOfWork.Waypoints.GetByIdAsync(dto.ToWaypointId);
+
+        if (fromWp == null || toWp == null)
+        {
+            throw new ArgumentException("Một hoặc cả hai Waypoint không tồn tại.");
+        }
+
+        // Validate: Do not allow connecting two room/door waypoints directly
+        bool isFromRoom = string.Equals(fromWp.Type, "DOOR", StringComparison.OrdinalIgnoreCase)
+                       || string.Equals(fromWp.Type, "ROOM", StringComparison.OrdinalIgnoreCase)
+                       || fromWp.RoomId.HasValue;
+        bool isToRoom = string.Equals(toWp.Type, "DOOR", StringComparison.OrdinalIgnoreCase)
+                     || string.Equals(toWp.Type, "ROOM", StringComparison.OrdinalIgnoreCase)
+                     || toWp.RoomId.HasValue;
+
+        if (isFromRoom && isToRoom)
+        {
+            throw new InvalidOperationException("Không thể nối trực tiếp giữa hai phòng. Tuyến đường phải đi qua điểm hành lang (Hallway), sảnh (Lobby) hoặc cầu thang (Stairs).");
+        }
+
+        var museumId = dto.MuseumId > 0 ? dto.MuseumId : (fromWp.MuseumId > 0 ? fromWp.MuseumId : 1);
 
         var entity = new WaypointEdge
         {
@@ -138,7 +163,7 @@ public class NavigationService : INavigationService
             FromWaypointId = dto.FromWaypointId,
             ToWaypointId = dto.ToWaypointId,
             Distance = dto.Distance > 0 ? dto.Distance : 1.0,
-            EdgeType = dto.EdgeType ?? "WALK",
+            EdgeType = dto.EdgeType ?? (fromWp.FloorNumber != toWp.FloorNumber ? "STAIR" : "WALK"),
             IsBidirectional = dto.IsBidirectional,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -318,7 +343,66 @@ public class NavigationService : INavigationService
         pathIds.Reverse();
 
         var pathWaypoints = pathIds.Select(id => MapToWaypointDto(waypointDict[id])).ToList();
-        var instructions = GenerateInstructions(pathWaypoints, fromRoomName, toRoomName, en);
+
+        // Check for floor transitions
+        int firstTransitionIndex = -1;
+        for (int i = 0; i < pathWaypoints.Count - 1; i++)
+        {
+            if (pathWaypoints[i].FloorNumber != pathWaypoints[i + 1].FloorNumber)
+            {
+                firstTransitionIndex = i;
+                break;
+            }
+        }
+
+        List<WaypointDto> finalPath;
+        double finalDistance;
+        bool hasTransition = false;
+        int transitionTargetFloor = 1;
+        string transitionWaypointType = "STAIRS";
+        string transitionAction = "STAIR_UP";
+
+        if (firstTransitionIndex != -1)
+        {
+            var w1 = pathWaypoints[firstTransitionIndex];
+            var w2 = pathWaypoints[firstTransitionIndex + 1];
+            finalPath = pathWaypoints.Take(firstTransitionIndex + 1).ToList();
+            finalDistance = dist[w1.Id];
+            hasTransition = true;
+            transitionTargetFloor = w2.FloorNumber;
+            transitionWaypointType = w2.WaypointType ?? "STAIRS";
+            transitionAction = w2.FloorNumber > w1.FloorNumber ? "STAIR_UP" : "STAIR_DOWN";
+        }
+        else
+        {
+            finalPath = pathWaypoints;
+            finalDistance = dist[endWp.Id];
+        }
+
+        var instructions = GenerateInstructions(finalPath, fromRoomName, toRoomName, en);
+
+        if (hasTransition && instructions.Count > 0)
+        {
+            var lastInst = instructions.Last();
+            var isElevator = transitionWaypointType == "ELEVATOR";
+            var isUp = transitionAction == "STAIR_UP";
+
+            string actionText = isElevator
+                ? (en ? "Take the elevator" : "Đi thang máy")
+                : (en ? "Take the stairs" : "Đi cầu thang bộ");
+
+            string dirText = isUp
+                ? (en ? "up to" : "lên")
+                : (en ? "down to" : "xuống");
+
+            string floorWord = en ? "Floor" : "Tầng";
+
+            lastInst.Instruction = en
+                ? $"{actionText} {dirText} {floorWord} {transitionTargetFloor}, then select your next destination."
+                : $"{actionText} {dirText} {floorWord} {transitionTargetFloor} rồi chọn tiếp phòng cần đến.";
+
+            lastInst.Action = isElevator ? "ELEVATOR" : transitionAction;
+        }
 
         return new NavigationRouteResponseDto
         {
@@ -326,8 +410,8 @@ public class NavigationService : INavigationService
             FromRoomName = fromRoomName,
             ToRoomId = toRoomId,
             ToRoomName = toRoomName,
-            TotalDistance = Math.Round(dist[endWp.Id], 1),
-            PathWaypoints = pathWaypoints,
+            TotalDistance = Math.Round(finalDistance, 1),
+            PathWaypoints = finalPath,
             Instructions = instructions
         };
     }

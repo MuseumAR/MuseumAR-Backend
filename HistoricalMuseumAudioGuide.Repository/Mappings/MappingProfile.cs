@@ -164,7 +164,8 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
             CreateMap<CreateTicketPromotionDto, TicketPromotion>();
             CreateMap<UpdateTicketPromotionDto, TicketPromotion>();
             CreateMap<Ticket, TicketDto>()
-                .ForMember(dest => dest.TicketTypeName, opt => opt.MapFrom(src => src.TicketType != null ? src.TicketType.Name : null));
+                .ForMember(dest => dest.TicketTypeName, opt => opt.MapFrom(src => src.TicketType != null ? src.TicketType.Name : null))
+                .ForMember(dest => dest.Price, opt => opt.MapFrom(src => src.Price > 0 ? src.Price : (src.TicketType != null ? src.TicketType.Price : 0)));
 
             // Visitor
             CreateMap<Bookmark, BookmarkDto>();

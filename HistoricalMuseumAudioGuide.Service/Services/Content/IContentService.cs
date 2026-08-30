@@ -129,6 +129,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
         Task<ResponseModel> GetArAssetsByExhibitIdAsync(int exhibitId);
         Task<ResponseModel> AddArAssetAsync(int exhibitId, string assetType, IFormFile file, string? description, int? userMuseumId);
         Task<ResponseModel> DeleteArAssetAsync(int id, int? userMuseumId);
+        Task<ResponseModel> MigrateOldOverlayAssetsAsync(int museumId, int? userMuseumId);
 
         // Offline Package Management
         Task<ResponseModel> GenerateOfflinePackageAsync(int museumId, int versionId, int? userMuseumId);

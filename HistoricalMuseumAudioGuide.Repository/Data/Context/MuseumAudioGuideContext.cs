@@ -362,7 +362,7 @@ public partial class MuseumAudioGuideContext : DbContext
 
             entity.Property(e => e.AssetType)
                 .HasMaxLength(30)
-                .HasDefaultValue("OverlayImage");
+                .HasDefaultValue("Model3D");
             entity.Property(e => e.AssetUrl).HasMaxLength(500);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
             entity.Property(e => e.Description).HasMaxLength(255);
@@ -759,6 +759,7 @@ public partial class MuseumAudioGuideContext : DbContext
             entity.HasIndex(e => e.TicketCode, "UQ__Tickets__598CF7A3F437EC5B").IsUnique();
 
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
+            entity.Property(e => e.Price).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.PurchaseDate).HasDefaultValueSql("(getutcdate())");
             entity.Property(e => e.Status)
                 .HasMaxLength(20)

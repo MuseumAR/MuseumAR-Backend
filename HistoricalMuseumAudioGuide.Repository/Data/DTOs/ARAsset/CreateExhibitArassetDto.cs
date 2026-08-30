@@ -13,7 +13,7 @@ public class CreateExhibitArassetDto
 
     [Required]
     [MaxLength(30)]
-    public string AssetType { get; set; } = "OverlayImage"; // Marker, OverlayImage, 3DModel, etc.
+    public string AssetType { get; set; } = "Model3D"; // Model3D, MarkerImage, etc.
 
     [MaxLength(255)]
     public string? Description { get; set; }

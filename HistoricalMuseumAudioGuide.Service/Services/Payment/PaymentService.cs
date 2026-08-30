@@ -86,6 +86,18 @@ public class PaymentService : IPaymentService
 
     private static DateTime GetVietnamTime() => DateTime.UtcNow.AddHours(7);
 
+    private static DateTime CalculateTicketValidDate(Ticket ticket, DateTime now)
+    {
+        var exhibition = ticket.TicketType?.Exhibition;
+        if (exhibition?.EndDate.HasValue == true)
+        {
+            // Đến cuối ngày (23:59:59) của ngày kết thúc triển lãm
+            return exhibition.EndDate.Value.Date.AddDays(1).AddSeconds(-1);
+        }
+        // Vé tham quan bảo tàng thông thường: có hiệu lực 24 giờ sau khi thanh toán
+        return now.AddDays(1);
+    }
+
     // =========================================================================
     // 1. TẠO LINK THANH TOÁN
     // =========================================================================
@@ -201,7 +213,7 @@ public class PaymentService : IPaymentService
             foreach (var ticket in tickets)
             {
                 ticket.Status = "Paid";
-                ticket.ValidDate = now.AddDays(1); // Vé có hiệu lực trong vòng 24 giờ
+                ticket.ValidDate = CalculateTicketValidDate(ticket, now);
                 ticket.UpdatedAt = now;
             }
 
@@ -287,7 +299,7 @@ public class PaymentService : IPaymentService
                         foreach (var ticket in tickets)
                         {
                             ticket.Status = "Paid";
-                            ticket.ValidDate = now.AddDays(1); // Vé có hiệu lực trong vòng 24 giờ
+                            ticket.ValidDate = CalculateTicketValidDate(ticket, now);
                             ticket.UpdatedAt = now;
                         }
 
