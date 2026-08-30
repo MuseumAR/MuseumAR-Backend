@@ -6,6 +6,7 @@ namespace HistoricalMuseumAudioGuide.Repository.Data.DTOs.Ticketing
     {
         public int Id { get; set; }
         public string TicketCode { get; set; } = null!;
+        public decimal Price { get; set; }
         public string Status { get; set; } = null!;
         public DateTime PurchaseDate { get; set; }
         public DateTime? ValidDate { get; set; }

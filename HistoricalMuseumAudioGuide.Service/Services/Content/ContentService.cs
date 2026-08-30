@@ -1790,7 +1790,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             await _unitOfWork.ExhibitArassets.AddAsync(asset);
 
             // Update AroverlayUrl or ArmarkerUrl on Exhibit
-            if (assetType == "OverlayImage" || assetType == "Model3D")
+            if (assetType == "Model3D")
             {
                 exhibit.AroverlayUrl = fileUrl;
             }
@@ -1825,7 +1825,49 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             return ResponseModel.Success("AR Asset deleted successfully");
         }
 
+        /// <summary>
+        /// Migrate old OverlayImage AR assets: delete them and clear AroverlayUrl on exhibits.
+        /// This is a one-time cleanup for the transition from 2D overlay to 3D model.
+        /// </summary>
+        public async Task<ResponseModel> MigrateOldOverlayAssetsAsync(int museumId, int? userMuseumId)
+        {
+            var accessCheck = ValidateMuseumAccess(userMuseumId, museumId);
+            if (accessCheck != null) return accessCheck;
+
+            var oldAssets = await _unitOfWork.ExhibitArassets.FindAsync(
+                a => a.AssetType == "OverlayImage" && a.Exhibit.MuseumId == museumId,
+                includeProperties: "Exhibit"
+            );
+
+            var assetList = oldAssets.ToList();
+            int deletedCount = 0;
+
+            foreach (var asset in assetList)
+            {
+                _mediaService.DeleteFile(asset.AssetUrl);
+
+                // Clear AroverlayUrl on the exhibit if it matches the old overlay
+                if (asset.Exhibit != null && asset.Exhibit.AroverlayUrl == asset.AssetUrl)
+                {
+                    asset.Exhibit.AroverlayUrl = null;
+                    asset.Exhibit.UpdatedAt = DateTime.UtcNow;
+                    _unitOfWork.Exhibits.Update(asset.Exhibit);
+                }
+
+                _unitOfWork.ExhibitArassets.Delete(asset);
+                deletedCount++;
+            }
+
+            if (deletedCount > 0)
+            {
+                await _unitOfWork.CompleteAsync();
+            }
+
+            return ResponseModel.Success($"Migrated {deletedCount} old OverlayImage AR assets", deletedCount);
+        }
+
         // --- Offline Package Management ---
+
 
         public async Task<ResponseModel> GenerateOfflinePackageAsync(int museumId, int versionId, int? userMuseumId)
         {
@@ -1846,6 +1888,24 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             if (!string.Equals(version.Status, "Published", StringComparison.OrdinalIgnoreCase))
             {
                 return ResponseModel.BadRequest("Chỉ các phiên bản đã xuất bản (Published) mới được phép sử dụng để tạo gói dữ liệu offline.");
+            }
+
+            // Validate that this is the latest content version for the museum
+            var allVersions = await _unitOfWork.ContentVersions.FindAsync(v => v.MuseumId == museumId);
+            if (allVersions != null && allVersions.Any())
+            {
+                var latestVersion = allVersions.OrderByDescending(v => v.Id).FirstOrDefault();
+                if (latestVersion != null && latestVersion.Id != versionId)
+                {
+                    return ResponseModel.BadRequest($"Chỉ được phép tạo offline package từ phiên bản nội dung mới nhất (v{latestVersion.VersionNumber}).");
+                }
+            }
+
+            // Check if there is already an offline package for this version
+            var existingPackage = await _unitOfWork.OfflinePackages.GetFirstOrDefaultAsync(p => p.VersionId == versionId);
+            if (existingPackage != null)
+            {
+                return ResponseModel.BadRequest("Gói dữ liệu offline cho phiên bản này đã tồn tại.");
             }
 
             // Fetch museum & content entities for the package

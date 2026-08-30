@@ -104,6 +104,18 @@ CREATE TABLE Museums (
 ALTER TABLE Users
 ADD CONSTRAINT FK_Users_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id);
 
+CREATE TABLE MuseumTranslations (
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    MuseumId        INT             NOT NULL,
+    LanguageCode    VARCHAR(10)     NOT NULL,
+    Name            NVARCHAR(200)   NOT NULL,
+    Description     NVARCHAR(MAX)   NULL,
+    Address         NVARCHAR(500)   NULL,
+    OpeningHours    NVARCHAR(500)   NULL,
+    CONSTRAINT FK_MuseumTrans_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id) ON DELETE CASCADE,
+    CONSTRAINT UQ_MuseumTrans UNIQUE (MuseumId, LanguageCode)
+);
+
 
 
 -- ============================================================
@@ -134,10 +146,23 @@ CREATE TABLE Rooms (
     FloorNumber     INT             NOT NULL DEFAULT 1,
     Description     NVARCHAR(500)   NULL,
     DoorWaypointId  NVARCHAR(50)    NULL,
+    WaypointId      NVARCHAR(50)    NULL,
+    CenterX         FLOAT           NULL,
+    CenterY         FLOAT           NULL,
     CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
     UpdatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
     CONSTRAINT FK_Rooms_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id),
     CONSTRAINT FK_Rooms_Map FOREIGN KEY (MapId) REFERENCES MuseumMaps(Id)
+);
+
+CREATE TABLE RoomTranslations (
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    RoomId          INT             NOT NULL,
+    LanguageCode    VARCHAR(10)     NOT NULL,
+    RoomName        NVARCHAR(150)   NOT NULL,
+    Description     NVARCHAR(500)   NULL,
+    CONSTRAINT FK_RoomTrans_Room FOREIGN KEY (RoomId) REFERENCES Rooms(Id) ON DELETE CASCADE,
+    CONSTRAINT UQ_RoomTrans UNIQUE (RoomId, LanguageCode)
 );
 
 CREATE TABLE MapPOIs (
@@ -155,12 +180,12 @@ CREATE TABLE Waypoints (
     MuseumId        INT             NOT NULL,
     MapId           INT             NULL,
     FloorNumber     INT             NOT NULL DEFAULT 1,
-    LocationX       FLOAT           NOT NULL,
-    LocationY       FLOAT           NOT NULL,
-    WaypointType    NVARCHAR(50)    NOT NULL DEFAULT 'HALLWAY',
+    X               FLOAT           NOT NULL,
+    Y               FLOAT           NOT NULL,
+    Type            NVARCHAR(50)    NOT NULL DEFAULT 'HALLWAY',
     RoomId          INT             NULL,
     Code            NVARCHAR(50)    NULL,
-    Name            NVARCHAR(100)   NULL,
+    Label           NVARCHAR(100)   NULL,
     CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
     UpdatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
     CONSTRAINT FK_Waypoints_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id),
@@ -177,12 +202,16 @@ CREATE TABLE WaypointEdges (
     EdgeType        NVARCHAR(50)    NOT NULL DEFAULT 'WALK',
     IsBidirectional BIT             NOT NULL DEFAULT 1,
     CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
+    UpdatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
     CONSTRAINT FK_WaypointEdges_FromWaypoint FOREIGN KEY (FromWaypointId) REFERENCES Waypoints(Id),
     CONSTRAINT FK_WaypointEdges_ToWaypoint FOREIGN KEY (ToWaypointId) REFERENCES Waypoints(Id)
 );
 
 ALTER TABLE Rooms
 ADD CONSTRAINT FK_Rooms_Waypoints FOREIGN KEY (DoorWaypointId) REFERENCES Waypoints(Id) ON DELETE SET NULL;
+
+ALTER TABLE Rooms
+ADD CONSTRAINT FK_Rooms_Waypoint FOREIGN KEY (WaypointId) REFERENCES Waypoints(Id) ON DELETE SET NULL;
 
 -- ============================================================
 -- 4.2. THEMES, EXHIBITIONS & EVENTS (Themes as Exhibition categories)
@@ -194,6 +223,16 @@ CREATE TABLE Themes (
     Description     NVARCHAR(255)   NULL,
     CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
     CONSTRAINT FK_Themes_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id)
+); 
+
+CREATE TABLE ThemeTranslations (
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    ThemeId         INT             NOT NULL,
+    LanguageCode    VARCHAR(10)     NOT NULL,
+    ThemeName       NVARCHAR(100)   NOT NULL,
+    Description     NVARCHAR(255)   NULL,
+    CONSTRAINT FK_ThemeTrans_Theme FOREIGN KEY (ThemeId) REFERENCES Themes(Id) ON DELETE CASCADE,
+    CONSTRAINT UQ_ThemeTrans UNIQUE (ThemeId, LanguageCode)
 ); 
 
 CREATE TABLE Exhibitions (
@@ -298,7 +337,9 @@ CREATE TABLE ExhibitMetadata (
     ExhibitId       INT NOT NULL,
     AgeGroupId      INT NULL,
     Era             NVARCHAR(100)   NULL, -- e.g., 'Lý', 'Trần', 'Lê'
+    EraEn           NVARCHAR(100)   NULL,
     HistoricalEvent NVARCHAR(200)   NULL, -- e.g., 'Chiến dịch Điện Biên Phủ'
+    HistoricalEventEn NVARCHAR(200)   NULL,
     CONSTRAINT PK_ExhibitMetadata PRIMARY KEY (ExhibitId),
     CONSTRAINT FK_ExhibMeta_Exhib FOREIGN KEY (ExhibitId) REFERENCES Exhibits(Id) ON DELETE CASCADE,
     CONSTRAINT FK_ExhibMeta_Age FOREIGN KEY (AgeGroupId) REFERENCES AgeGroups(Id)
@@ -383,6 +424,15 @@ CREATE TABLE Tags (
     CONSTRAINT FK_Tags_TagGroup FOREIGN KEY (TagGroupId) REFERENCES TagGroups(Id) ON DELETE CASCADE
 );
 
+CREATE TABLE TagTranslations (
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    TagId           INT             NOT NULL,
+    LanguageCode    VARCHAR(10)     NOT NULL,
+    TagName         NVARCHAR(100)   NOT NULL,
+    CONSTRAINT FK_TagTrans_Tag FOREIGN KEY (TagId) REFERENCES Tags(Id) ON DELETE CASCADE,
+    CONSTRAINT UQ_TagTrans UNIQUE (TagId, LanguageCode)
+);
+
 CREATE TABLE ExhibitTags (
     ExhibitId       INT NOT NULL,
     TagId           INT NOT NULL,
@@ -459,8 +509,8 @@ CREATE TABLE Visitors (
 
 CREATE TABLE PaymentMethods (
     Id              INT IDENTITY(1,1) PRIMARY KEY,
-    Name            NVARCHAR(50)    NOT NULL UNIQUE, -- 'VNPAY', 'MOMO', 'CASH'
-    DisplayName     NVARCHAR(100)   NOT NULL,        -- 'VNPay Payment Gateway'
+    Name            NVARCHAR(50)    NOT NULL UNIQUE, -- 'PAYOS', 'MOMO', 'CASH'
+    DisplaynName     NVARCHAR(100)   NOT NULL,        -- 'PayOS Payment Gateway'
     Description     NVARCHAR(255)   NULL,
     IconUrl         NVARCHAR(500)   NULL,
     IsActive        BIT             NOT NULL DEFAULT 1,
@@ -495,8 +545,10 @@ CREATE TABLE TicketTypes (
     MuseumId        INT             NOT NULL,
     ExhibitionId    INT             NULL, -- If NULL, it's a general museum admission ticket
     Name            NVARCHAR(100)   NOT NULL,
+    NameEn          NVARCHAR(100)   NULL,
     Price           DECIMAL(18,2)   NOT NULL DEFAULT 0,
     Description     NVARCHAR(500)   NULL,
+    DescriptionEn   NVARCHAR(500)   NULL,
     IsActive        BIT             NOT NULL DEFAULT 1,
     Status          NVARCHAR(20)    NOT NULL DEFAULT 'Pending'
                     CHECK (Status IN ('Pending', 'Approved', 'Rejected')),
@@ -530,6 +582,7 @@ CREATE TABLE Tickets (
     TicketTypeId    INT             NOT NULL,
     TransactionId   INT             NULL,
     TicketCode      NVARCHAR(100)   UNIQUE NOT NULL,
+    Price           DECIMAL(18,2)   NOT NULL DEFAULT 0,
     PurchaseDate    DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
     ValidDate       DATETIME2       NULL,
     Status          NVARCHAR(20)    NOT NULL DEFAULT 'Pending'
@@ -713,342 +766,8 @@ CREATE TABLE RefreshTokens (
 CREATE INDEX IX_RefreshTokens_Token ON RefreshTokens(Token);
 
 -- ============================================================
--- SEED DATA
+-- SCHEMA COMPLETION
 -- ============================================================
 
--- Roles
-INSERT INTO Roles (RoleName, Description) VALUES
-    ('SystemAdmin',      N'Quản trị hệ thống'),
-    ('MuseumManager',    N'Quản lý bảo tàng - xem analytics'),
-    ('ContentManager',   N'Quản lý nội dung hiện vật'),
-    ('Visitor', N'Khách vãng lai');
-
--- Default Languages
-INSERT INTO Languages (LanguageCode, LanguageName, NativeName, IsActive) VALUES
-    ('vi', 'Vietnamese', N'Tiếng Việt', 1),
-    ('en', 'English',    N'English',     1);
-
--- Default Payment Methods
-INSERT INTO PaymentMethods (Name, DisplayName, Description) VALUES
-    ('VNPAY', N'Cổng thanh toán VNPay', N'Thanh toán qua ứng dụng ngân hàng, ví điện tử'),
-    ('MOMO',  N'Ví điện tử MoMo',       N'Thanh toán qua ứng dụng MoMo'),
-    ('CASH',  N'Tiền mặt',              N'Thanh toán trực tiếp tại quầy');
-
--- Default Permissions
-INSERT INTO Permissions (PermissionName, Description, Module) VALUES
-    -- Exhibit
-    ('exhibit.create',    N'Tạo hiện vật mới',           'Exhibit'),
-    ('exhibit.read',      N'Xem thông tin hiện vật',      'Exhibit'),
-    ('exhibit.update',    N'Cập nhật hiện vật',           'Exhibit'),
-    ('exhibit.delete',    N'Xóa hiện vật',               'Exhibit'),
-    ('exhibit.publish',   N'Publish/Unpublish hiện vật',  'Exhibit'),
-    -- Media
-    ('media.upload',      N'Upload audio/image/AR',       'Media'),
-    ('media.delete',      N'Xóa media',                  'Media'),
-    -- QR
-    ('qr.generate',       N'Tạo QR code',                'QR'),
-    -- Analytics
-    ('analytics.view',    N'Xem analytics dashboard',     'Analytics'),
-    ('analytics.export',  N'Xuất báo cáo analytics',      'Analytics'),
-    -- User Management
-    ('user.manage',       N'Quản lý tài khoản',          'User'),
-    ('role.manage',       N'Quản lý phân quyền',         'User'),
-    -- System
-    ('system.config',     N'Cấu hình hệ thống',          'System'),
-    ('system.language',   N'Quản lý ngôn ngữ',           'System'),
-    ('museum.manage',     N'Quản lý bảo tàng',           'Museum'),
-    -- Content Version
-    ('content.version',   N'Quản lý content version',     'Content'),
-    ('package.manage',    N'Quản lý offline package',      'Content'),
-    -- Ticketing & Payment
-    ('ticket.manage',     N'Quản lý vé',                 'Finance'),
-    ('payment.view',      N'Xem lịch sử giao dịch',       'Finance');
-
--- SystemAdmin gets all permissions
-INSERT INTO RolePermissions (RoleId, PermissionId)
-SELECT 1, Id FROM Permissions;
-
--- MuseumManager gets analytics + read + finance
-INSERT INTO RolePermissions (RoleId, PermissionId)
-SELECT 2, Id FROM Permissions
-WHERE PermissionName IN ('exhibit.read', 'analytics.view', 'analytics.export', 'ticket.manage', 'payment.view');
-
--- ContentManager gets exhibit + media + qr + content
-INSERT INTO RolePermissions (RoleId, PermissionId)
-SELECT 3, Id FROM Permissions
-WHERE PermissionName IN (
-    'exhibit.create', 'exhibit.read', 'exhibit.update', 'exhibit.delete', 'exhibit.publish',
-    'media.upload', 'media.delete', 'qr.generate', 'content.version', 'package.manage'
-);
-
--- Default System Configurations
-INSERT INTO SystemConfigurations (ConfigKey, ConfigValue, Description) VALUES
-    ('max_audio_size_mb',       '50',       N'Dung lượng tối đa file audio (MB)'),
-    ('max_image_size_mb',       '10',       N'Dung lượng tối đa file image (MB)'),
-    ('max_ar_asset_size_mb',    '20',       N'Dung lượng tối đa AR asset (MB)'),
-    ('supported_audio_formats', 'mp3,wav,aac', N'Định dạng audio hỗ trợ'),
-    ('supported_image_formats', 'jpg,jpeg,png,webp', N'Định dạng image hỗ trợ'),
-    ('default_language',        'vi',       N'Ngôn ngữ mặc định'),
-    ('analytics_sync_interval', '300',      N'Khoảng thời gian sync analytics (giây)'),
-    ('package_compression',     'gzip',     N'Phương thức nén package');
-
-PRINT 'Database schema updated successfully with Events, Ticketing, Personalization and Payment!';
-GO
-
--- ============================================================
--- SEED DATA CHUẨN XÁC: BẢO TÀNG THÀNH PHỐ HỒ CHÍ MINH
--- Các tài khoản có password là 123456
--- ============================================================
-
-USE MuseumAudioGuide;
-GO
-
--- 1. CHÈN BẢO TÀNG DUY NHẤT (Id = 1)
--- Lưu ý: Đối chiếu bảng Museums (Name, Description, Address, City...)
-SET IDENTITY_INSERT Museums ON;
-INSERT INTO Museums (Id, Name, Description, Address, City, Province, Country, Latitude, Longitude, ThumbnailUrl, OpeningHours, ContactPhone, ContactEmail, Website, Status, CreatedAt, UpdatedAt)
-VALUES (1, 
-        N'Bảo tàng Thành phố Hồ Chí Minh', 
-        N'Nơi lưu giữ báu vật lịch sử, văn hóa sài gòn qua các thời kỳ, tọa lạc tại tòa nhà dinh Gia Long xưa.', 
-        N'65 Lý Tự Trọng, Bến Nghé, Quận 1', 
-        N'Thành phố Hồ Chí Minh', N'Thành phố Hồ Chí Minh', N'Vietnam', 
-        10.776111, 106.699722, 
-        'https://cdn.museum.gov.vn/thumbnails/hcm-museum.jpg', 
-        N'08:00 AM - 05:00 PM', '02838299465', 'info@baotangtphcm.vn', 'https://baotangtphcm.vn',
-        'Active', GETUTCDATE(), GETUTCDATE());
-SET IDENTITY_INSERT Museums OFF;
-
--- 2. CHÈN TÀI KHOẢN CMS (Bảng Users liên kết Role và MuseumId = 1)
--- Mật khẩu giả định chuỗi Hash của '123456'
-SET IDENTITY_INSERT Users ON;
-INSERT INTO Users (Id, FullName, Email, PasswordHash, PhoneNumber, AvatarUrl, RoleId, MuseumId, Status, CreatedAt, UpdatedAt)
-VALUES 
-(1, N'Nguyễn Văn Admin', 'admin@baotangtphcm.vn', '$2a$11$0OOHejSvnDYOJfbKl0GYxOKCuhy.YMhOKuaCItMF00prbBZpiNelq', '0901234567', 'https://cdn.museum.gov.vn/avatars/admin.png', 1, 1, 'Active', GETUTCDATE(), GETUTCDATE()), -- SystemAdmin
-(2, N'Trần Thị Quản Lý', 'manager@baotangtphcm.vn', '$2a$11$0OOHejSvnDYOJfbKl0GYxOKCuhy.YMhOKuaCItMF00prbBZpiNelq', '0907654321', 'https://cdn.museum.gov.vn/avatars/manager.png', 2, 1, 'Active', GETUTCDATE(), GETUTCDATE()), -- MuseumManager
-(3, N'Lê Văn Nội Dung', 'content@baotangtphcm.vn', '$2a$11$0OOHejSvnDYOJfbKl0GYxOKCuhy.YMhOKuaCItMF00prbBZpiNelq', '0908888888', 'https://cdn.museum.gov.vn/avatars/content.png', 3, 1, 'Active', GETUTCDATE(), GETUTCDATE()); -- ContentManager
-SET IDENTITY_INSERT Users OFF;
-
--- 3. CHÈN BẢN ĐỒ CÁC TẦNG (Bảng MuseumMaps sử dụng MapImageUrl)
-SET IDENTITY_INSERT MuseumMaps ON;
-INSERT INTO MuseumMaps (Id, MuseumId, FloorNumber, MapName, MapImageUrl, Width, Height, IsDefault, CreatedAt, UpdatedAt)
-VALUES 
-(1, 1, 0, N'Bản đồ Tầng trệt', 'https://cdn.museum.gov.vn/maps/hcm-ground-floor.png', 1920, 1080, 1, GETUTCDATE(), GETUTCDATE()),
-(2, 1, 1, N'Bản đồ Lầu 1', 'https://cdn.museum.gov.vn/maps/hcm-first-floor.png', 1920, 1080, 0, GETUTCDATE(), GETUTCDATE());
-SET IDENTITY_INSERT MuseumMaps OFF;
-
--- 4. CHÈN CÁC ĐIỂM ĐỊNH VỊ TIỆN ÍCH (Bảng MapPOIs)
-INSERT INTO MapPOIs (MapId, POIType, LocationX, LocationY, Description)
-VALUES 
-(1, 'TicketCounter', 15.5, 10.2, N'Quầy bán vé sảnh chính tầng trệt'),
-(1, 'WC', 85.0, 90.5, N'Nhà vệ sinh khu vực Khảo cổ'),
-(2, 'Exit', 50.0, 5.0, N'Lối thoát hiểm ban công phía Tây');
-
--- 5. CHÈN CHỦ ĐỀ & TRIỂN LÃM (Bảng Themes và Exhibitions)
-SET IDENTITY_INSERT Themes ON;
-INSERT INTO Themes (Id, MuseumId, ThemeName, Description, CreatedAt)
-VALUES 
-(1, 1, N'Lịch sử Sài Gòn - Gia Định', N'Quá trình hình thành và phát triển đô thị', GETUTCDATE()),
-(2, 1, N'Kháng chiến thế kỷ XX', N'Phong trào cách mạng địa phương', GETUTCDATE());
-SET IDENTITY_INSERT Themes OFF;
-
-SET IDENTITY_INSERT Exhibitions ON;
-INSERT INTO Exhibitions (Id, MuseumId, ThemeId, ThumbnailUrl, StartDate, EndDate, Status, CreatedAt, UpdatedAt)
-VALUES 
-(1, 1, 1, 'https://cdn.museum.gov.vn/exhibitions/thien-nhien.jpg', '2026-01-01', '2026-12-31', 'Active', GETUTCDATE(), GETUTCDATE()),
-(2, 1, 2, 'https://cdn.museum.gov.vn/exhibitions/khang-chien.jpg', '2026-05-01', '2026-10-31', 'Active', GETUTCDATE(), GETUTCDATE());
-SET IDENTITY_INSERT Exhibitions OFF;
-
-INSERT INTO ExhibitionTranslations (ExhibitionId, LanguageCode, Name, Description)
-VALUES 
-(1, 'vi', N'Triển lãm Thiên nhiên và Khảo cổ đất Sài Gòn', N'Minh chứng về địa chất, sinh thái cổ sơ.'),
-(1, 'en', N'Saigon Nature and Archaeology Exhibition', N'Evidence of ancient geology and ecology.'),
-(2, 'vi', N'Triển lãm Đấu tranh chính trị 1954 - 1975', N'Tái hiện các phong trào học sinh sinh viên nội thành.'),
-(2, 'en', N'Political Resistance 1954 - 1975', N'Showcasing urban student movements.');
-
--- 6. CHÈN DANH MỤC HIỆN VẬT (Bảng Categories)
-SET IDENTITY_INSERT Categories ON;
-INSERT INTO Categories (Id, MuseumId, ParentId, SortOrder, IconUrl, Status, CreatedAt, UpdatedAt)
-VALUES 
-(1, 1, NULL, 1, 'https://cdn.museum.gov.vn/icons/archeology.png', 'Active', GETUTCDATE(), GETUTCDATE()),
-(2, 1, NULL, 2, 'https://cdn.museum.gov.vn/icons/weapons.png', 'Active', GETUTCDATE(), GETUTCDATE());
-SET IDENTITY_INSERT Categories OFF;
-
-INSERT INTO CategoryTranslations (CategoryId, LanguageCode, CategoryName, Description)
-VALUES 
-(1, 'vi', N'Cổ vật Khảo cổ', N'Công cụ đá, gốm, mộ táng cổ'),
-(1, 'en', N'Archaeological Artifacts', N'Stone tools, ancient pottery'),
-(2, 'vi', N'Vũ khí Lịch sử', N'Phương tiện, súng pháo chiến tranh'),
-(2, 'en', 'Historical Weapons', 'Military firearms and equipment');
-
--- 7. CHÈN PHÂN KHÚC ĐỘ TUỔI CÁ NHÂN HÓA (Bảng AgeGroups)
-SET IDENTITY_INSERT AgeGroups ON;
-INSERT INTO AgeGroups (Id, GroupName, MinAge, MaxAge, CreatedAt)
-VALUES 
-(1, N'Trẻ em & Học sinh', 6, 17, GETUTCDATE()),
-(2, N'Người lớn', 18, 59, GETUTCDATE());
-SET IDENTITY_INSERT AgeGroups OFF;
-
--- 7.1. CHÈN DỮ LIỆU MẪU PHÒNG TRƯNG BÀY (Bảng Rooms)
-SET IDENTITY_INSERT Rooms ON;
-INSERT INTO Rooms (Id, MuseumId, MapId, RoomCode, RoomName, FloorNumber, Description, CreatedAt, UpdatedAt)
-VALUES
-(1, 1, 1, 'P101', N'Phòng 101 - Tiền sử & Sơ sử', 0, N'Trưng bày hiện vật thời kỳ đồ đá và đồ đồng thau', GETUTCDATE(), GETUTCDATE()),
-(2, 1, 1, 'P102', N'Phòng 102 - Văn hóa Đông Sơn', 0, N'Trưng bày trống đồng và vũ khí cổ', GETUTCDATE(), GETUTCDATE()),
-(3, 1, 2, 'P201', N'Phòng 201 - Kháng chiến chống Pháp', 1, N'Trưng bày tài liệu và hiện vật thời kỳ 1858-1954', GETUTCDATE(), GETUTCDATE()),
-(4, 1, 2, 'P202', N'Phòng 202 - Kháng chiến chống Mỹ', 1, N'Trưng bày phương tiện, vũ khí chiến dịch Hồ Chí Minh', GETUTCDATE(), GETUTCDATE());
-SET IDENTITY_INSERT Rooms OFF;
-
--- 8. CHÈN HIỆN VẬT (Bảng Exhibits - Đối chiếu chính xác các cột vị trí)
-SET IDENTITY_INSERT Exhibits ON;
-INSERT INTO Exhibits (Id, MuseumId, CategoryId, ExhibitCode, QRCodeData, QRCodeImageUrl, ThumbnailUrl, MapId, RoomId, SortOrder, Status, PublishedAt, CreatedBy, UpdatedBy, CreatedAt, UpdatedAt)
-VALUES 
-(1, 1, 1, 'EX-HCM-001', 'MUSEUM_HCM_EX001_SECRET', 'https://cdn.museum.gov.vn/qrs/ex001.png', 'https://cdn.museum.gov.vn/exhibits/mo-chum.jpg', 1, 1, 1, 'Published', GETUTCDATE(), 3, 3, GETUTCDATE(), GETUTCDATE()),
-(2, 1, 2, 'EX-HCM-002', 'MUSEUM_HCM_EX002_SECRET', 'https://cdn.museum.gov.vn/qrs/ex002.png', 'https://cdn.museum.gov.vn/exhibits/uh1.jpg', 2, 4, 2, 'Published', GETUTCDATE(), 3, 3, GETUTCDATE(), GETUTCDATE());
-SET IDENTITY_INSERT Exhibits OFF;
-
--- Bảng ExhibitMetadata phụ thuộc
-INSERT INTO ExhibitMetadata (ExhibitId, AgeGroupId, Era, HistoricalEvent)
-VALUES 
-(1, 1, N'Thời đại đồ đồng thau (Văn hóa Đồng Nai)', N'Thời tiền sử Nam Bộ'),
-(2, 2, N'Kháng chiến chống Mỹ (1954-1975)', N'Chiến dịch Hồ Chí Minh 1975');
-
--- Bảng ExhibitImages phụ thuộc
-SET IDENTITY_INSERT ExhibitImages ON;
-INSERT INTO ExhibitImages (Id, ExhibitId, ImageUrl, Caption, SortOrder) VALUES 
-(1, 1, 'https://api.museumar.vn/images/exhibits/details/trong_dong_mat_tren.jpg', N'Hoa văn ngôi sao 14 cánh trên mặt trống', 1);
-SET IDENTITY_INSERT ExhibitImages OFF;
-
--- Bảng trung gian nối Hiện vật vào Triển lãm
-INSERT INTO ExhibitionExhibits (ExhibitionId, ExhibitId)
-VALUES (1, 1), (2, 2);
-
--- 9. CHÈN THUYẾT MINH ĐA NGÔN NGỮ (Bảng ExhibitTranslations)
-INSERT INTO ExhibitTranslations (ExhibitId, LanguageCode, Title, Description, AudioUrl, AudioDuration)
-VALUES 
-(1, 'vi', N'Mộ chum Khảo cổ học Dốc Chùa', N'Mộ chum bằng đất nung có niên đại khoảng 2.500 năm trước, minh chứng cho táng thức độc đáo cư dân cổ.', 'https://cdn.museum.gov.vn/audio/vi/mo-chum.mp3', 185),
-(1, 'en', N'Doc Chua Archaeological Jar Burial', N'A terracotta burial jar dating back 2,500 years ago, showcasing ancient traditions.', 'https://cdn.museum.gov.vn/audio/en/mo-chum.mp3', 195),
-(2, 'vi', N'Máy bay trực thăng chiến lợi phẩm UH-1', N'Chiếc trực thăng thu giữ từ quân đội đối phương, biểu tượng chiến thắng năm 1975.', 'https://cdn.museum.gov.vn/audio/vi/uh1.mp3', 120),
-(2, 'en', N'Captured UH-1 Huey Helicopter', N'A helicopter seized during the 1975 spring offensive, a symbol of historical victory.', 'https://cdn.museum.gov.vn/audio/en/uh1.mp3', 132);
-
--- 10. CHÈN TÀI NGUYÊN AR THỰC TẾ ẢO (Bảng ExhibitARAssets sử dụng AssetUrl chung)
-INSERT INTO ExhibitARAssets (ExhibitId, AssetType, AssetUrl, FileSizeBytes, Width, Height, Description, SortOrder, CreatedAt)
-VALUES 
-(1, 'MarkerImage', 'https://cdn.museum.gov.vn/ar/markers/mo-chum.jpg', 102450, 800, 800, N'Ảnh target nhận diện mộ chum', 1, GETUTCDATE()),
-(1, 'Model3D', 'https://cdn.museum.gov.vn/ar/models/mo-chum-3d.glb', 15428900, NULL, NULL, N'Mô hình 3D đám mây điểm của mộ chum', 2, GETUTCDATE()),
-(2, 'MarkerImage', 'https://cdn.museum.gov.vn/ar/markers/uh1.jpg', 254800, 1024, 768, N'Ảnh target nhận diện trực thăng UH1', 1, GETUTCDATE()),
-(2, 'Model3D', 'https://cdn.museum.gov.vn/ar/models/uh1-helicopter.glb', 32451200, NULL, NULL, N'Mô hình khối kỹ thuật trực thăng UH1', 2, GETUTCDATE());
-
--- 11. CHÈN ĐỊNH NGHĨA LOẠI VÉ (Bảng TicketTypes sử dụng cột Name thay vì TypeName)
-SET IDENTITY_INSERT TicketTypes ON;
-INSERT INTO TicketTypes (Id, MuseumId, ExhibitionId, Name, Price, Description, IsActive, Status, CreatedAt, UpdatedAt)
-VALUES 
-(1, 1, NULL, N'Vé vào cổng phổ thông', 30000.00, N'Áp dụng tham quan toàn bộ khu vực cố định', 1, 'Approved', GETUTCDATE(), GETUTCDATE()),
-(2, 1, 2, N'Vé chuyên đề Kháng Chiến đặc biệt', 50000.00, N'Bao gồm lối đi sảnh chuyên đề và tặng kèm tai nghe', 1, 'Approved', GETUTCDATE(), GETUTCDATE());
-SET IDENTITY_INSERT TicketTypes OFF;
-
--- 12. CHÈN PHIÊN BẢN VÀ GÓI ĐỒNG BỘ OFFLINE (Bảng ContentVersions và OfflinePackages)
-SET IDENTITY_INSERT ContentVersions ON;
-INSERT INTO ContentVersions (Id, MuseumId, VersionNumber, ChangeDescription, TotalExhibits, TotalMediaFiles, PackageSizeBytes, PublishedBy, Status, PublishedAt, CreatedAt)
-VALUES 
-(1, 1, 'v1.0.0', N'Khởi tạo gói dữ liệu gốc cho Bảo tàng TPHCM bao gồm tầng trệt và lầu 1.', 2, 4, 48133350, 3, 'Published', GETUTCDATE(), GETUTCDATE());
-SET IDENTITY_INSERT ContentVersions OFF;
-
-SET IDENTITY_INSERT OfflinePackages ON;
-INSERT INTO OfflinePackages (Id, MuseumId, VersionId, PackageUrl, PackageSizeBytes, Checksum, AudioCount, ImageCount, ARAssetCount, ExhibitCount, Status, BuiltAt, CreatedAt)
-VALUES 
-(1, 1, 1, 'https://cdn.museum.gov.vn/offline/hcm_museum_v100.zip', 48133350, 'SHA256_7F8A9B2C3D4E5F6G7H8I9J0K', 4, 4, 4, 2, 'Available', GETUTCDATE(), GETUTCDATE());
-SET IDENTITY_INSERT OfflinePackages OFF;
-
--- 13. KHÁCH THAM QUAN APP MOBILE (VISITORS)
-INSERT INTO Visitors (DeviceId, DisplayName, Email, PreferredLang, DeviceType, DeviceModel, AppVersion) VALUES 
-('F39B672A-8811-4E1B-9473-D683A648AA29', N'Đức Mạnh', 'visitor.manh@gmail.com', 'vi', 'iOS', 'iPhone 15 Pro', '1.0.0'),
-('A28D471C-9922-4F2A-8361-C234E128BB88', 'John Doe', 'johndoe@gmail.com', 'en', 'Android', 'Samsung S24 Ultra', '1.0.0');
-
--- 14. CHÈN BẢNG TUYẾN THAM QUAN (TourRoutes)
--- Tuyến 1: Dành cho Học sinh (AgeGroupId = 1), ước tính 45 phút, là tuyến mặc định (IsDefault = 1)
--- Tuyến 2: Dành cho Người lớn (AgeGroupId = 2), ước tính 60 phút
-SET IDENTITY_INSERT TourRoutes ON;
-INSERT INTO TourRoutes (Id, MuseumId, EstimatedMinutes, ThumbnailUrl, AgeGroupId, ExhibitionId, IsDefault, Status, CreatedAt, UpdatedAt)
-VALUES 
-(1, 1, 45, 'https://cdn.museum.gov.vn/routes/hcm-student-tour.jpg', 1, NULL, 1, 'Active', GETUTCDATE(), GETUTCDATE()),
-(2, 1, 60, 'https://cdn.museum.gov.vn/routes/hcm-history-tour.jpg', 2, NULL, 0, 'Active', GETUTCDATE(), GETUTCDATE());
-SET IDENTITY_INSERT TourRoutes OFF;
-
-
--- 15. CHÈN BẢNG DỊCH THUẬT TUYẾN THAM QUAN (TourRouteTranslations)
--- Cung cấp đa ngôn ngữ (vi, en) cho cả 2 tuyến vừa tạo
-INSERT INTO TourRouteTranslations (TourRouteId, LanguageCode, RouteName, Description)
-VALUES 
--- Tuyến 1 (Tiếng Việt)
-(1, 'vi', N'Hành trình Khám phá Lịch sử xanh (Dành cho Học sinh)', 
- N'Tuyến tham quan được thiết kế ngắn gọn, trực quan, tập trung vào các cổ vật khảo cổ đất Sài Gòn xưa và các hoạt động trải nghiệm tương tác thực tế ảo tăng cường AR.'),
--- Tuyến 1 (Tiếng Anh)
-(1, 'en', N'Green History Discovery Tour (For Students)', 
- N'A concise, highly visual tour optimized for student groups, focusing on ancient Saigon archaeological artifacts and interactive AR multimedia experiences.'),
-
--- Tuyến 2 (Tiếng Việt)
-(2, 'vi', N'Sài Gòn - Gia Định: Từ Đô thị cổ đến Thành phố Anh hùng', 
- N'Tuyến đi chuyên sâu xuyên suốt từ tầng trệt lên lầu 1, giúp khách tham quan cái nhìn toàn cảnh từ thời tiền sử, giai đoạn phát triển thương cảng đến cuộc kháng chiến cứu nước vĩ đại.'),
--- Tuyến 2 (Tiếng Anh)
-(2, 'en', N'Saigon - Gia Dinh: From Ancient Town to Heroic City', 
- N'An in-depth historical timeline tour guiding visitors from prehistory through early commercial trading eras, culminating in the major 20th-century revolutionary resistance movements.');
-
-
--- 16. CHÈN BẢNG CHI TIẾT CÁC ĐIỂM DỪNG CỦA TUYẾN (TourRouteExhibits)
--- Liên kết các hiện vật (ExhibitId 1: Mộ chum, ExhibitId 2: Máy bay UH-1) vào các tuyến theo thứ tự (StopOrder)
-INSERT INTO TourRouteExhibits (TourRouteId, ExhibitId, StopOrder, EstimatedMinutes)
-VALUES 
--- Tuyến 1 (Học sinh): Ưu tiên xem Mộ chum khảo cổ học trước
-(1, 1, 1, 15), -- Điểm dừng 1: Mộ chum (Xem trong 15 phút)
-(1, 2, 2, 20), -- Điểm dừng 2: Máy bay UH-1 (Xem trong 20 phút)
-
--- Tuyến 2 (Người lớn): Đi theo trình tự thời gian từ cổ chí kim
-(2, 1, 1, 20), -- Điểm dừng 1: Mộ chum (Xem trong 20 phút)
-(2, 2, 2, 25); -- Điểm dừng 2: Máy bay UH-1 (Xem trong 25 phút)
-
-
--- 17. CHÈN WAYPOINTS MẪU (Bảng Waypoints)
-INSERT INTO Waypoints (Id, MuseumId, MapId, FloorNumber, Type, X, Y, Label, Code, RoomId, CreatedAt, UpdatedAt) VALUES
-('WP_ENT', 1, 1, 0, 'ENTRANCE', 500, 50, N'Cổng vào bảo tàng', 'ENT', NULL, GETUTCDATE(), GETUTCDATE()),
-('WP_HALL_G1', 1, 1, 0, 'HALLWAY', 500, 200, N'Hành lang tầng trệt - giữa', 'HALL_G1', NULL, GETUTCDATE(), GETUTCDATE()),
-('WP_DOOR_101', 1, 1, 0, 'DOOR', 300, 200, N'Cửa Phòng 101', 'DOOR_101', 1, GETUTCDATE(), GETUTCDATE()),
-('WP_ROOM_101', 1, 1, 0, 'ROOM', 200, 300, N'Phòng 101 - Tiền sử', 'ROOM_101', 1, GETUTCDATE(), GETUTCDATE()),
-('WP_DOOR_102', 1, 1, 0, 'DOOR', 700, 200, N'Cửa Phòng 102', 'DOOR_102', 2, GETUTCDATE(), GETUTCDATE()),
-('WP_ROOM_102', 1, 1, 0, 'ROOM', 800, 300, N'Phòng 102 - Đông Sơn', 'ROOM_102', 2, GETUTCDATE(), GETUTCDATE()),
-('WP_STAIR_G', 1, 1, 0, 'STAIRCASE', 500, 400, N'Cầu thang tầng trệt', 'STAIR_G', NULL, GETUTCDATE(), GETUTCDATE()),
-('WP_STAIR_1', 1, 2, 1, 'STAIRCASE', 500, 50, N'Cầu thang lầu 1', 'STAIR_1', NULL, GETUTCDATE(), GETUTCDATE()),
-('WP_HALL_F1', 1, 2, 1, 'HALLWAY', 500, 200, N'Hành lang lầu 1 - giữa', 'HALL_F1', NULL, GETUTCDATE(), GETUTCDATE()),
-('WP_DOOR_201', 1, 2, 1, 'DOOR', 300, 200, N'Cửa Phòng 201', 'DOOR_201', 3, GETUTCDATE(), GETUTCDATE()),
-('WP_ROOM_201', 1, 2, 1, 'ROOM', 200, 300, N'Phòng 201 - Chống Pháp', 'ROOM_201', 3, GETUTCDATE(), GETUTCDATE()),
-('WP_DOOR_202', 1, 2, 1, 'DOOR', 700, 200, N'Cửa Phòng 202', 'DOOR_202', 4, GETUTCDATE(), GETUTCDATE()),
-('WP_ROOM_202', 1, 2, 1, 'ROOM', 800, 300, N'Phòng 202 - Chống Mỹ', 'ROOM_202', 4, GETUTCDATE(), GETUTCDATE()),
-('WP_STAIR_1UP', 1, 2, 1, 'STAIRCASE', 500, 400, N'Cầu thang lên lầu 2', 'STAIR_1UP', NULL, GETUTCDATE(), GETUTCDATE()),
-('WP_STAIR_2', 1, 4, 2, 'STAIRCASE', 500, 50, N'Cầu thang lầu 2', 'STAIR_2', NULL, GETUTCDATE(), GETUTCDATE()),
-('WP_HALL_F2', 1, 4, 2, 'HALLWAY', 500, 200, N'Hành lang lầu 2', 'HALL_F2', NULL, GETUTCDATE(), GETUTCDATE());
-
--- 18. CHÈN WAYPOINT EDGES MẪU (Bảng WaypointEdges)
-INSERT INTO WaypointEdges (MuseumId, FromWaypointId, ToWaypointId, Distance, EdgeType, IsBidirectional, CreatedAt, UpdatedAt) VALUES
-(1, 'WP_ENT', 'WP_HALL_G1', 150, 'WALK', 1, GETUTCDATE(), GETUTCDATE()),
-(1, 'WP_HALL_G1', 'WP_DOOR_101', 200, 'WALK', 1, GETUTCDATE(), GETUTCDATE()),
-(1, 'WP_DOOR_101', 'WP_ROOM_101', 140, 'WALK', 1, GETUTCDATE(), GETUTCDATE()),
-(1, 'WP_HALL_G1', 'WP_DOOR_102', 200, 'WALK', 1, GETUTCDATE(), GETUTCDATE()),
-(1, 'WP_DOOR_102', 'WP_ROOM_102', 140, 'WALK', 1, GETUTCDATE(), GETUTCDATE()),
-(1, 'WP_HALL_G1', 'WP_STAIR_G', 200, 'WALK', 1, GETUTCDATE(), GETUTCDATE()),
-(1, 'WP_STAIR_G', 'WP_STAIR_1', 50, 'STAIR', 1, GETUTCDATE(), GETUTCDATE()),
-(1, 'WP_STAIR_1', 'WP_HALL_F1', 150, 'WALK', 1, GETUTCDATE(), GETUTCDATE()),
-(1, 'WP_HALL_F1', 'WP_DOOR_201', 200, 'WALK', 1, GETUTCDATE(), GETUTCDATE()),
-(1, 'WP_DOOR_201', 'WP_ROOM_201', 140, 'WALK', 1, GETUTCDATE(), GETUTCDATE()),
-(1, 'WP_HALL_F1', 'WP_DOOR_202', 200, 'WALK', 1, GETUTCDATE(), GETUTCDATE()),
-(1, 'WP_DOOR_202', 'WP_ROOM_202', 140, 'WALK', 1, GETUTCDATE(), GETUTCDATE()),
-(1, 'WP_HALL_F1', 'WP_STAIR_1UP', 200, 'WALK', 1, GETUTCDATE(), GETUTCDATE()),
-(1, 'WP_STAIR_1UP', 'WP_STAIR_2', 50, 'STAIR', 1, GETUTCDATE(), GETUTCDATE()),
-(1, 'WP_STAIR_2', 'WP_HALL_F2', 150, 'WALK', 1, GETUTCDATE(), GETUTCDATE());
-
--- 19. CẬP NHẬT LIÊN KẾT PHÒNG VÀ WAYPOINTS
-UPDATE Rooms SET WaypointId = 'WP_ROOM_101', DoorWaypointId = 'WP_DOOR_101' WHERE Id = 1;
-UPDATE Rooms SET WaypointId = 'WP_ROOM_102', DoorWaypointId = 'WP_DOOR_102' WHERE Id = 2;
-UPDATE Rooms SET WaypointId = 'WP_ROOM_201', DoorWaypointId = 'WP_DOOR_201' WHERE Id = 3;
-UPDATE Rooms SET WaypointId = 'WP_ROOM_202', DoorWaypointId = 'WP_DOOR_202' WHERE Id = 4;
-
-PRINT 'Seed data cho Bảo tàng Thành phố Hồ Chí Minh (Single-Museum) đã được chèn hoàn tất và chính xác với Schema!';
+PRINT 'Database schema created successfully!';
 GO

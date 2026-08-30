@@ -20,7 +20,11 @@ public class TicketRepository : GenericRepository<Entities.Ticket>, ITicketRepos
 
     public async Task<IEnumerable<Entities.Ticket>> GetTicketsByTransactionIdAsync(int transactionId)
     {
-        return await _dbSet.Where(t => t.TransactionId == transactionId).ToListAsync();
+        return await _dbSet
+            .Include(t => t.TicketType)
+                .ThenInclude(tt => tt.Exhibition)
+            .Where(t => t.TransactionId == transactionId)
+            .ToListAsync();
     }
 
     public async Task<Entities.Ticket?> GetTicketDetailByIdAsync(int id, int visitorId)

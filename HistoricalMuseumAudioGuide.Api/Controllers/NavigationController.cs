@@ -67,8 +67,19 @@ public class NavigationController : ControllerBase
     public async Task<IActionResult> CreateEdge([FromBody] CreateWaypointEdgeDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ResponseModel.BadRequest("Dữ liệu không hợp lệ", ModelState));
-        var result = await _navigationService.CreateEdgeAsync(dto);
-        return Ok(ResponseModel.Success("Tạo WaypointEdge thành công", result));
+        try
+        {
+            var result = await _navigationService.CreateEdgeAsync(dto);
+            return Ok(ResponseModel.Success("Tạo WaypointEdge thành công", result));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ResponseModel.BadRequest(ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ResponseModel.BadRequest(ex.Message));
+        }
     }
 
     [HttpDelete("edges/{id}")]

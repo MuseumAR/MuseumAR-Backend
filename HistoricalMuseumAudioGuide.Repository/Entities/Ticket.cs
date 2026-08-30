@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace HistoricalMuseumAudioGuide.Repository.Entities;
@@ -14,6 +14,8 @@ public partial class Ticket
     public int? TransactionId { get; set; }
 
     public string TicketCode { get; set; } = null!;
+
+    public decimal Price { get; set; }
 
     public DateTime PurchaseDate { get; set; }
 

@@ -273,6 +273,16 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
+        [Authorize(Roles = "ContentManager")]
+        [HttpPost("ar-assets/migrate-overlay")]
+        public async Task<IActionResult> MigrateOldOverlayAssets()
+        {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
+            var userMuseumId = GetCurrentUserMuseumId();
+            var response = await _contentService.MigrateOldOverlayAssetsAsync(museumId, userMuseumId);
+            return ResponseParser.Result(response);
+        }
+
         // --- Offline Package Management (Read - Public, Write - Authorized) ---
 
         [HttpGet("packages")]

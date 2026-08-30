@@ -295,6 +295,29 @@ public class TicketingService : ITicketingService
                 return ResponseModel.BadRequest("Invalid or inactive ticket type.");
             }
 
+            // Nếu là vé triển lãm: kiểm tra triển lãm còn mở và chưa hết hạn
+            DateTime? initialValidDate = null;
+            if (ticketType.ExhibitionId.HasValue)
+            {
+                var exhibition = await _unitOfWork.Exhibitions.GetByIdAsync(ticketType.ExhibitionId.Value);
+                if (exhibition != null)
+                {
+                    if (exhibition.EndDate.HasValue && exhibition.EndDate.Value.Date < now.Date)
+                    {
+                        return ResponseModel.BadRequest("Triển lãm này đã kết thúc, không thể mua vé.");
+                    }
+                    if (string.Equals(exhibition.Status, "Closed", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return ResponseModel.BadRequest("Triển lãm đã đóng cửa, không thể mua vé.");
+                    }
+                    if (exhibition.EndDate.HasValue)
+                    {
+                        initialValidDate = exhibition.EndDate.Value.Date.AddDays(1).AddSeconds(-1);
+                    }
+                }
+            }
+
+            decimal unitPrice = ticketType.Price;
             decimal totalAmount = ticketType.Price * request.Quantity;
 
             // Nếu visitor có chọn promotion cụ thể
@@ -308,8 +331,8 @@ public class TicketingService : ITicketingService
                     return ResponseModel.BadRequest("Selected ticket promotion is invalid, paused, or expired.");
                 }
 
-                decimal discountedUnitPrice = CalculateDiscountedPrice(selectedPromo, ticketType.Price);
-                totalAmount = discountedUnitPrice * request.Quantity;
+                unitPrice = CalculateDiscountedPrice(selectedPromo, ticketType.Price);
+                totalAmount = unitPrice * request.Quantity;
             }
 
             string orderCode = $"ORD{now:yyMMddHHmmss}{Random.Shared.Next(10, 99)}";
@@ -326,7 +349,7 @@ public class TicketingService : ITicketingService
                 UpdatedAt = now,
             };
 
-            // Pre-create tickets in Pending state
+            // Pre-create tickets in Pending state with snapshot unit price
             string ticketRandomGroup = Random.Shared.Next(1000, 9999).ToString();
             for (int i = 0; i < request.Quantity; i++)
             {
@@ -336,7 +359,9 @@ public class TicketingService : ITicketingService
                     VisitorId = visitorId,
                     TicketTypeId = request.TicketTypeId,
                     TicketCode = ticketCode,
+                    Price = unitPrice,
                     PurchaseDate = now,
+                    ValidDate = initialValidDate,
                     Status = "Pending",
                     CreatedAt = now,
                     UpdatedAt = now
@@ -426,10 +451,13 @@ public class TicketingService : ITicketingService
             ticket.TicketType?.DescriptionEn,
             en);
 
+        decimal purchasedPrice = ticket.Price > 0 ? ticket.Price : (ticket.TicketType?.Price ?? 0);
+
         var detailDto = new TicketDetailDto
         {
             Id = ticket.Id,
             TicketCode = ticket.TicketCode,
+            Price = purchasedPrice,
             Status = ticket.Status,
             PurchaseDate = ticket.PurchaseDate,
             ValidDate = ticket.ValidDate,
@@ -437,7 +465,7 @@ public class TicketingService : ITicketingService
             {
                 Id = ticket.TicketType?.Id ?? 0,
                 Name = ticketTypeName,
-                Price = ticket.TicketType?.Price ?? 0,
+                Price = purchasedPrice,
                 Description = ticketTypeDesc
             },
             Museum = new TicketDetailMuseumDto
@@ -456,7 +484,7 @@ public class TicketingService : ITicketingService
             Order = new TicketDetailOrderDto
             {
                 OrderCode = ticket.Transaction?.OrderCode ?? ticket.TicketCode,
-                TotalAmount = ticket.Transaction?.TotalAmount ?? ticket.TicketType?.Price ?? 0,
+                TotalAmount = ticket.Transaction?.TotalAmount ?? purchasedPrice,
                 Currency = ticket.Transaction?.Currency ?? "VND",
                 PaymentStatus = ticket.Transaction?.PaymentStatus ?? (ticket.Status == "Paid" ? "Completed" : ticket.Status),
                 PaymentMethod = ticket.Transaction?.PaymentMethod?.Name ?? "PayOS",
@@ -500,21 +528,26 @@ public class TicketingService : ITicketingService
         string visitorName = ticket.Visitor?.User?.FullName ?? ticket.Visitor?.DisplayName ?? "Khách tham quan";
         string? visitorEmail = ticket.Visitor?.Email ?? ticket.Visitor?.User?.Email;
         string ticketTypeName = ticket.TicketType?.Name ?? "Vé tham quan";
-        decimal price = ticket.TicketType?.Price ?? 0;
+        decimal price = ticket.Price > 0 ? ticket.Price : (ticket.TicketType?.Price ?? 0);
 
-        bool isExpired = ticket.ValidDate.HasValue && DateTime.UtcNow > ticket.ValidDate.Value;
-        bool isValid = (ticket.Status == "Paid" || ticket.Status == "Active") && !isExpired;
+        var now = DateTime.UtcNow.AddHours(7);
+        var exhibition = ticket.TicketType?.Exhibition;
+        bool notStartedYet = exhibition?.StartDate.HasValue == true && now.Date < exhibition.StartDate.Value.Date;
+        bool isExpired = ticket.ValidDate.HasValue && now > ticket.ValidDate.Value;
+        bool isValid = (ticket.Status == "Paid" || ticket.Status == "Active") && !isExpired && !notStartedYet;
 
-        string message = isExpired
-            ? $"Vé này đã hết hạn sử dụng vào lúc {ticket.ValidDate:dd/MM/yyyy HH:mm}!"
-            : ticket.Status switch
-            {
-                "Paid" or "Active" => "Vé hợp lệ! Có thể thực hiện Check-in.",
-                "Used" => $"Vé này đã được Check-in sử dụng trước đó vào lúc {ticket.UpdatedAt:dd/MM/yyyy HH:mm}!",
-                "Cancelled" => "Vé này đã bị hủy hoặc hết hạn thanh toán!",
-                "Pending" => "Vé này chưa được xác nhận thanh toán!",
-                _ => $"Trạng thái vé: {ticket.Status}"
-            };
+        string message = notStartedYet
+            ? $"Triển lãm chưa bắt đầu (Bắt đầu từ ngày {exhibition!.StartDate:dd/MM/yyyy})!"
+            : isExpired
+                ? $"Vé này đã hết hạn sử dụng vào lúc {ticket.ValidDate:dd/MM/yyyy HH:mm}!"
+                : ticket.Status switch
+                {
+                    "Paid" or "Active" => "Vé hợp lệ! Có thể thực hiện Check-in.",
+                    "Used" => $"Vé này đã được Check-in sử dụng trước đó vào lúc {ticket.UpdatedAt:dd/MM/yyyy HH:mm}!",
+                    "Cancelled" => "Vé này đã bị hủy hoặc hết hạn thanh toán!",
+                    "Pending" => "Vé này chưa được xác nhận thanh toán!",
+                    _ => $"Trạng thái vé: {ticket.Status}"
+                };
 
         var responseDto = new ValidateTicketResponseDto
         {
@@ -558,12 +591,18 @@ public class TicketingService : ITicketingService
             return ResponseModel.BadRequest($"Không thể check-in vé có trạng thái '{ticket.Status}'. Vé phải ở trạng thái Đã thanh toán (Paid).");
         }
 
-        if (ticket.ValidDate.HasValue && DateTime.UtcNow > ticket.ValidDate.Value)
+        var now = DateTime.UtcNow.AddHours(7);
+        var exhibition = ticket.TicketType?.Exhibition;
+        if (exhibition?.StartDate.HasValue == true && now.Date < exhibition.StartDate.Value.Date)
+        {
+            return ResponseModel.BadRequest($"Triển lãm chưa bắt đầu (Bắt đầu từ ngày {exhibition.StartDate:dd/MM/yyyy})!");
+        }
+
+        if (ticket.ValidDate.HasValue && now > ticket.ValidDate.Value)
         {
             return ResponseModel.BadRequest($"Vé này đã hết hạn sử dụng vào lúc {ticket.ValidDate:dd/MM/yyyy HH:mm}!");
         }
 
-        var now = DateTime.UtcNow.AddHours(7);
         ticket.Status = "Used";
         ticket.UpdatedAt = now;
 
@@ -571,6 +610,7 @@ public class TicketingService : ITicketingService
 
         string visitorName = ticket.Visitor?.User?.FullName ?? ticket.Visitor?.DisplayName ?? "Khách tham quan";
         string ticketTypeName = ticket.TicketType?.Name ?? "Vé tham quan";
+        decimal price = ticket.Price > 0 ? ticket.Price : (ticket.TicketType?.Price ?? 0);
 
         var responseDto = new ValidateTicketResponseDto
         {
@@ -580,7 +620,7 @@ public class TicketingService : ITicketingService
             IsValid = true,
             Message = "Check-in thành công! Chúc quý khách có buổi tham quan vui vẻ.",
             TicketTypeName = ticketTypeName,
-            Price = ticket.TicketType?.Price ?? 0,
+            Price = price,
             VisitorName = visitorName,
             VisitorEmail = ticket.Visitor?.Email ?? ticket.Visitor?.User?.Email,
             PurchaseDate = ticket.PurchaseDate,
