@@ -15,7 +15,7 @@ namespace HistoricalMuseumAudioGuide.Repository.Repositories.Category
 
         public async Task<IEnumerable<Entities.Category>> GetCategoriesWithTranslationsAsync(int? museumId = null)
         {
-            IQueryable<Entities.Category> query = _dbSet.Include(c => c.CategoryTranslations);
+            IQueryable<Entities.Category> query = _dbSet.AsNoTracking().Include(c => c.CategoryTranslations);
             if (museumId.HasValue)
             {
                 query = query.Where(c => c.MuseumId == museumId.Value);
@@ -25,7 +25,7 @@ namespace HistoricalMuseumAudioGuide.Repository.Repositories.Category
 
         public async Task<Entities.Category?> GetCategoryWithTranslationsByIdAsync(int categoryId)
         {
-            return await _dbSet
+            return await _dbSet.AsNoTracking()
                 .Include(c => c.CategoryTranslations)
                 .FirstOrDefaultAsync(c => c.Id == categoryId);
         }

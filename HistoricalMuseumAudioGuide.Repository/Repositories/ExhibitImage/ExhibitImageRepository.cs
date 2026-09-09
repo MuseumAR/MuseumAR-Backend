@@ -16,6 +16,6 @@ public class ExhibitImageRepository : GenericRepository<Entities.ExhibitImage>, 
 
     public async Task<IEnumerable<Entities.ExhibitImage>> GetImagesByExhibitIdAsync(int exhibitId)
     {
-        return await _dbSet.Where(i => i.ExhibitId == exhibitId).ToListAsync();
+        return await _dbSet.AsNoTracking().Where(i => i.ExhibitId == exhibitId).ToListAsync();
     }
 }

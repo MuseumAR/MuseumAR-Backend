@@ -2136,7 +2136,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
 
         public async Task<ResponseModel> GetTagGroupsAsync()
         {
-            var tagGroups = await _unitOfWork.TagGroups.GetAllAsync();
+            var tagGroups = await _unitOfWork.TagGroups.FindAsync(_ => true, "TagGroupTranslations");
             var dtos = _mapper.Map<IEnumerable<TagGroupDto>>(tagGroups);
             return ResponseModel.Success("Get tag groups successful", dtos);
         }
@@ -2147,7 +2147,10 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             tagGroup.CreatedAt = DateTime.UtcNow;
             await _unitOfWork.TagGroups.AddAsync(tagGroup);
             await _unitOfWork.CompleteAsync();
-            var dto = _mapper.Map<TagGroupDto>(tagGroup);
+            await UpsertTagGroupTranslationsAsync(tagGroup.Id, tagGroup.GroupName, tagGroupDto.Translations);
+            await _unitOfWork.CompleteAsync();
+            var saved = await _unitOfWork.TagGroups.GetFirstOrDefaultAsync(g => g.Id == tagGroup.Id, "TagGroupTranslations");
+            var dto = _mapper.Map<TagGroupDto>(saved ?? tagGroup);
             return ResponseModel.Success("Tag group created successfully", dto);
         }
 
@@ -2156,8 +2159,10 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             var tagGroup = await _unitOfWork.TagGroups.GetByIdAsync(id);
             if (tagGroup == null) return ResponseModel.NotFound("Tag group not found");
 
-            _mapper.Map(tagGroupDto, tagGroup);
+            tagGroup.GroupName = tagGroupDto.GroupName;
+            tagGroup.SortOrder = tagGroupDto.SortOrder;
             _unitOfWork.TagGroups.Update(tagGroup);
+            await UpsertTagGroupTranslationsAsync(id, tagGroup.GroupName, tagGroupDto.Translations);
             await _unitOfWork.CompleteAsync();
             return ResponseModel.Success("Tag group updated successfully");
         }
@@ -2370,6 +2375,49 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
                         TagId = tagId,
                         LanguageCode = code,
                         TagName = transDto.TagName.Trim()
+                    });
+                }
+            }
+        }
+
+        private async Task UpsertTagGroupTranslationsAsync(
+            int tagGroupId,
+            string groupName,
+            ICollection<TagGroupTranslationDto>? translations)
+        {
+            var incoming = (translations ?? Enumerable.Empty<TagGroupTranslationDto>())
+                .Where(t => !string.IsNullOrWhiteSpace(t.LanguageCode) && !string.IsNullOrWhiteSpace(t.GroupName))
+                .GroupBy(t => t.LanguageCode.Trim().ToLower())
+                .Select(g => g.Last())
+                .ToList();
+
+            if (!incoming.Any(t => t.LanguageCode.Equals("vi", StringComparison.OrdinalIgnoreCase)))
+            {
+                incoming.Insert(0, new TagGroupTranslationDto
+                {
+                    TagGroupId = tagGroupId,
+                    LanguageCode = "vi",
+                    GroupName = groupName
+                });
+            }
+
+            foreach (var transDto in incoming)
+            {
+                var code = transDto.LanguageCode.Trim().ToLower();
+                var existing = await _unitOfWork.TagGroupTranslations.GetFirstOrDefaultAsync(
+                    t => t.TagGroupId == tagGroupId && t.LanguageCode == code);
+                if (existing != null)
+                {
+                    existing.GroupName = transDto.GroupName.Trim();
+                    _unitOfWork.TagGroupTranslations.Update(existing);
+                }
+                else
+                {
+                    await _unitOfWork.TagGroupTranslations.AddAsync(new TagGroupTranslation
+                    {
+                        TagGroupId = tagGroupId,
+                        LanguageCode = code,
+                        GroupName = transDto.GroupName.Trim()
                     });
                 }
             }

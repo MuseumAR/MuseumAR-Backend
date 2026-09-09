@@ -392,7 +392,7 @@ CREATE TABLE ExhibitImages (
 CREATE TABLE ExhibitARAssets (
     Id              INT IDENTITY(1,1) PRIMARY KEY,
     ExhibitId       INT             NOT NULL,
-    AssetType       NVARCHAR(30)    NOT NULL DEFAULT 'OverlayImage'
+    AssetType       NVARCHAR(30)    NOT NULL DEFAULT 'Model3D'
                     CHECK (AssetType IN ('OverlayImage', 'MarkerImage', 'Model3D')),
     AssetUrl        NVARCHAR(500)   NOT NULL,
     FileSizeBytes   BIGINT          NULL,

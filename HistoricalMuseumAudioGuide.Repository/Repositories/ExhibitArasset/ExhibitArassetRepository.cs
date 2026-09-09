@@ -16,6 +16,6 @@ public class ExhibitArassetRepository : GenericRepository<Entities.ExhibitArasse
 
     public async Task<IEnumerable<Entities.ExhibitArasset>> GetArAssetsByExhibitIdAsync(int exhibitId)
     {
-        return await _dbSet.Where(a => a.ExhibitId == exhibitId).ToListAsync();
+        return await _dbSet.AsNoTracking().Where(a => a.ExhibitId == exhibitId).ToListAsync();
     }
 }

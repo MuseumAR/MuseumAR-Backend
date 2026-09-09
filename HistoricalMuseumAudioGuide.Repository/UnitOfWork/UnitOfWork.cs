@@ -61,6 +61,7 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
             AgeGroups = new GenericRepository<AgeGroup>(_context);
             ExhibitMetadata = new GenericRepository<ExhibitMetadatum>(_context);
             TagGroups = new GenericRepository<TagGroup>(_context);
+            TagGroupTranslations = new GenericRepository<TagGroupTranslation>(_context);
             Tags = new GenericRepository<Tag>(_context);
             TagTranslations = new GenericRepository<TagTranslation>(_context);
             RefreshTokens = new GenericRepository<RefreshToken>(_context);
@@ -102,6 +103,7 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         public IGenericRepository<AgeGroup> AgeGroups { get; private set; }
         public IGenericRepository<ExhibitMetadatum> ExhibitMetadata { get; private set; }
         public IGenericRepository<TagGroup> TagGroups { get; private set; }
+        public IGenericRepository<TagGroupTranslation> TagGroupTranslations { get; private set; }
         public IGenericRepository<Tag> Tags { get; private set; }
         public IGenericRepository<TagTranslation> TagTranslations { get; private set; }
         public IGenericRepository<RefreshToken> RefreshTokens { get; private set; }

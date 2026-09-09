@@ -14,20 +14,20 @@ public class UserRepository : GenericRepository<Entities.User>, IUserRepository
 
     public async Task<Entities.User?> GetUserByEmailAsync(string email)
     {
-        return await _dbSet
+        return await _dbSet.AsNoTracking()
             .Include(u => u.Role)
             .FirstOrDefaultAsync(u => u.Email == email);
     }
 
     public async Task<Entities.User?> GetByResetTokenAsync(string token)
     {
-        return await _dbSet
+        return await _dbSet.AsNoTracking()
             .FirstOrDefaultAsync(u => u.PasswordResetToken == token && u.ResetTokenExpiresAt > DateTime.UtcNow);
     }
 
     public async Task<System.Collections.Generic.IEnumerable<Entities.User>> GetAllUsersWithRoleAsync()
     {
-        return await _dbSet
+        return await _dbSet.AsNoTracking()
             .Include(u => u.Role)
             .ToListAsync();
     }

@@ -14,21 +14,21 @@ public class VisitorRepository : GenericRepository<Entities.Visitor>, IVisitorRe
 
     public async Task<Entities.Visitor?> GetVisitorByEmailAsync(string email)
     {
-        return await _dbSet.FirstOrDefaultAsync(v => v.Email == email);
+        return await _dbSet.AsNoTracking().FirstOrDefaultAsync(v => v.Email == email);
     }
 
     public async Task<Entities.Visitor?> GetVisitorByUserIdAsync(int userId)
     {
-        return await _dbSet.FirstOrDefaultAsync(v => v.UserId == userId);
+        return await _dbSet.AsNoTracking().FirstOrDefaultAsync(v => v.UserId == userId);
     }
 
     public async Task<Entities.Visitor?> GetVisitorByDeviceIdAsync(string deviceId)
     {
-        return await _dbSet.FirstOrDefaultAsync(v => v.DeviceId == deviceId);
+        return await _dbSet.AsNoTracking().FirstOrDefaultAsync(v => v.DeviceId == deviceId);
     }
 
     public async Task<Entities.Visitor?> GetVisitorWithUserByIdAsync(int id)
     {
-        return await _dbSet.Include(v => v.User).FirstOrDefaultAsync(v => v.Id == id);
+        return await _dbSet.AsNoTracking().Include(v => v.User).FirstOrDefaultAsync(v => v.Id == id);
     }
 }

@@ -56,6 +56,7 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         IGenericRepository<AgeGroup> AgeGroups { get; }
         IGenericRepository<ExhibitMetadatum> ExhibitMetadata { get; }
         IGenericRepository<TagGroup> TagGroups { get; }
+        IGenericRepository<TagGroupTranslation> TagGroupTranslations { get; }
         IGenericRepository<Tag> Tags { get; }
         IGenericRepository<TagTranslation> TagTranslations { get; }
         IGenericRepository<RefreshToken> RefreshTokens { get; }

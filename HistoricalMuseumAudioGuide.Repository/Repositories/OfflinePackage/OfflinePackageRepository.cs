@@ -16,6 +16,6 @@ public class OfflinePackageRepository : GenericRepository<Entities.OfflinePackag
 
     public async Task<IEnumerable<Entities.OfflinePackage>> GetPackagesByMuseumIdAsync(int museumId)
     {
-        return await _dbSet.Where(p => p.MuseumId == museumId).ToListAsync();
+        return await _dbSet.AsNoTracking().Where(p => p.MuseumId == museumId).ToListAsync();
     }
 }

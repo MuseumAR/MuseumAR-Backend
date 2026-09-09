@@ -14,6 +14,6 @@ public class RoleRepository : GenericRepository<Entities.Role>, IRoleRepository
 
     public async Task<Entities.Role?> GetRoleByNameAsync(string roleName)
     {
-        return await _dbSet.FirstOrDefaultAsync(r => r.RoleName == roleName);
+        return await _dbSet.AsNoTracking().FirstOrDefaultAsync(r => r.RoleName == roleName);
     }
 }
