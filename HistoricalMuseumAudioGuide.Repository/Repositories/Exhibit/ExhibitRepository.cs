@@ -43,5 +43,46 @@ namespace HistoricalMuseumAudioGuide.Repository.Repositories.Exhibit
                     e.ExhibitCode == cleanQr ||
                     (exhibitId > 0 && e.Id == exhibitId));
         }
+
+        public async Task<(IEnumerable<Entities.Exhibit> Items, int TotalCount)> GetExhibitsPagedAsync(
+            int museumId, int page, int pageSize, bool includeUnpublished, string? search, string? status)
+        {
+            var query = _dbSet.AsNoTracking()
+                .Include(e => e.ExhibitTranslations)
+                .Include(e => e.ExhibitArassets)
+                .Include(e => e.Room)
+                .Include(e => e.Map)
+                .Where(e => e.MuseumId == museumId);
+
+            if (!includeUnpublished)
+            {
+                query = query.Where(e => e.Status == "Published");
+            }
+
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                query = query.Where(e => e.Status == status);
+            }
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var term = search.Trim().ToLower();
+                query = query.Where(e =>
+                    (e.ExhibitCode != null && e.ExhibitCode.ToLower().Contains(term)) ||
+                    e.ExhibitTranslations.Any(t => t.Title != null && t.Title.ToLower().Contains(term)));
+            }
+
+            var totalCount = await query.CountAsync();
+
+            var items = await query
+                .OrderBy(e => e.SortOrder)
+                .ThenByDescending(e => e.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (items, totalCount);
+        }
     }
 }
+

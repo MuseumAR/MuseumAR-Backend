@@ -18,6 +18,7 @@ public class ExhibitScanResultDto
     public string? ThumbnailUrl { get; set; }
     public string? AroverlayUrl { get; set; }
     public string? ArmarkerUrl { get; set; }
+    public bool HasArModel { get; set; }
 
     public List<string> Images { get; set; } = new();
     public List<ArAssetScanDto> ArAssets { get; set; } = new();

@@ -71,11 +71,58 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             return ResponseModel.Success("Get all exhibits successful", exhibitDtos);
         }
 
+        public async Task<ResponseModel> GetExhibitsPagedAsync(int museumId, int page, int pageSize, bool includeUnpublished, string? search, string? status, string? lang)
+        {
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 20;
+            if (pageSize > 50) pageSize = 50;
+
+            var (exhibits, totalCount) = await _unitOfWork.Exhibits.GetExhibitsPagedAsync(
+                museumId, page, pageSize, includeUnpublished, search, status);
+
+            string targetLang = string.IsNullOrWhiteSpace(lang) ? "vi" : lang.Trim().ToLower();
+
+            var items = exhibits.Select(e =>
+            {
+                var translation = e.ExhibitTranslations?.FirstOrDefault(t => t.LanguageCode.ToLower() == targetLang)
+                    ?? e.ExhibitTranslations?.FirstOrDefault(t => t.LanguageCode.ToLower() == "vi")
+                    ?? e.ExhibitTranslations?.FirstOrDefault();
+
+                return new ExhibitListItemDto
+                {
+                    Id = e.Id,
+                    ExhibitCode = e.ExhibitCode,
+                    Status = e.Status,
+                    Title = translation?.Title ?? e.ExhibitCode ?? $"Exhibit #{e.Id}",
+                    ThumbnailUrl = e.ThumbnailUrl,
+                    HasArModel = e.ExhibitArassets?.Any(a => a.AssetType == "Model3D") == true,
+                    ArModelCount = e.ExhibitArassets?.Count(a => a.AssetType == "Model3D") ?? 0,
+                    HasAudio = e.ExhibitTranslations?.Any(t => !string.IsNullOrEmpty(t.AudioUrl)) == true,
+                    HasQr = !string.IsNullOrEmpty(e.QrcodeData),
+                    RoomId = e.RoomId,
+                    RoomName = e.Room?.RoomName,
+                    MapId = e.MapId,
+                    FloorNumber = e.Room?.FloorNumber ?? e.Map?.FloorNumber
+                };
+            }).ToList();
+
+            var result = new Repository.Data.DTOs.PagedResultDto<ExhibitListItemDto>
+            {
+                TotalItems = totalCount,
+                Page = page,
+                PageSize = pageSize,
+                TotalPages = (int)Math.Ceiling((double)totalCount / pageSize),
+                Items = items
+            };
+
+            return ResponseModel.Success("Get exhibits successful", result);
+        }
+
         public async Task<ResponseModel> GetExhibitByIdAsync(int id, bool includeUnpublished = false, string? lang = null)
         {
             var exhibit = await _unitOfWork.Exhibits.GetFirstOrDefaultAsync(
                 e => e.Id == id,
-                includeProperties: "ExhibitTranslations,ExhibitMetadatum,Map,Room"
+                includeProperties: "ExhibitTranslations,ExhibitMetadatum,ExhibitArassets,Map,Room"
             );
             if (exhibit == null) return ResponseModel.NotFound("Exhibit not found");
             if (!includeUnpublished && exhibit.Status != "Published")
@@ -144,7 +191,8 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
                 AroverlayUrl = exhibit.AroverlayUrl,
                 ArmarkerUrl = exhibit.ArmarkerUrl,
                 Images = images,
-                ArAssets = arAssets
+                ArAssets = arAssets,
+                HasArModel = arAssets.Any(a => a.AssetType == "Model3D")
             };
 
             if (visitorId.HasValue && visitorId.Value > 0)
@@ -392,15 +440,38 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
 
         // --- Room Management ---
 
-        public async Task<ResponseModel> GetRoomsByMuseumIdAsync(int museumId, string? lang = null)
+        public async Task<ResponseModel> GetRoomsByMuseumIdAsync(int museumId, string? lang = null, int? mapId = null)
         {
-            var rooms = await _unitOfWork.Rooms.FindAsync(
-                r => r.MuseumId == museumId,
-                includeProperties: "Map,RoomTranslations"
-            );
+            IEnumerable<Room> rooms;
+            if (mapId.HasValue)
+            {
+                rooms = await _unitOfWork.Rooms.FindAsync(
+                    r => r.MuseumId == museumId && r.MapId == mapId.Value,
+                    includeProperties: "Map,RoomTranslations"
+                );
+            }
+            else
+            {
+                rooms = await _unitOfWork.Rooms.FindAsync(
+                    r => r.MuseumId == museumId,
+                    includeProperties: "Map,RoomTranslations"
+                );
+            }
             var roomDtos = _mapper.Map<IEnumerable<RoomDto>>(rooms).ToList();
             ApplyRoomLanguage(roomDtos, lang);
             return ResponseModel.Success("Get rooms successful", roomDtos);
+        }
+
+        public async Task<ResponseModel> GetRoomByIdAsync(int id, string? lang = null)
+        {
+            var room = await _unitOfWork.Rooms.GetFirstOrDefaultAsync(
+                r => r.Id == id,
+                includeProperties: "Map,RoomTranslations"
+            );
+            if (room == null) return ResponseModel.NotFound("Room not found");
+            var roomDto = _mapper.Map<RoomDto>(room);
+            ApplyRoomLanguage(new[] { roomDto }, lang);
+            return ResponseModel.Success("Get room successful", roomDto);
         }
 
         public async Task<ResponseModel> CreateRoomAsync(CreateRoomDto roomDto, int? userMuseumId)
@@ -417,7 +488,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
                 r => r.MuseumId == roomDto.MuseumId && r.RoomCode.ToLower() == roomDto.RoomCode.Trim().ToLower());
             if (existingRoom != null)
             {
-                return ResponseModel.BadRequest($"Room with code '{roomDto.RoomCode}' already exists in this museum.");
+                return ResponseModel.Conflict($"Room with code '{roomDto.RoomCode}' already exists in this museum.");
             }
 
             var room = _mapper.Map<Room>(roomDto);
@@ -425,6 +496,15 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             room.RoomName = roomDto.RoomName.Trim();
             room.CreatedAt = DateTime.UtcNow;
             room.UpdatedAt = DateTime.UtcNow;
+
+            // Copy floorNumber from map if mapId is provided
+            if (roomDto.MapId.HasValue)
+            {
+                var map = await _unitOfWork.MuseumMaps.GetByIdAsync(roomDto.MapId.Value);
+                if (map == null) return ResponseModel.NotFound("Linked map not found.");
+                room.MapId = map.Id;
+                room.FloorNumber = map.FloorNumber; // always copy from map, ignore client
+            }
 
             await _unitOfWork.Rooms.AddAsync(room);
             await _unitOfWork.CompleteAsync();
@@ -436,7 +516,13 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             }
             await _unitOfWork.CompleteAsync();
 
-            return ResponseModel.Success("Room created successfully", room.Id);
+            // Return full RoomDto (not just id) so FE has the complete object
+            var createdRoom = await _unitOfWork.Rooms.GetFirstOrDefaultAsync(
+                r => r.Id == room.Id,
+                includeProperties: "Map,RoomTranslations"
+            );
+            var dto = _mapper.Map<RoomDto>(createdRoom);
+            return ResponseModel.Success("Room created successfully", dto);
         }
 
         public async Task<ResponseModel> UpdateRoomAsync(int id, UpdateRoomDto roomDto, int? userMuseumId)
@@ -453,7 +539,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
                     r => r.MuseumId == room.MuseumId && r.Id != id && r.RoomCode.ToLower() == roomDto.RoomCode.Trim().ToLower());
                 if (existingRoom != null)
                 {
-                    return ResponseModel.BadRequest($"Room with code '{roomDto.RoomCode}' already exists.");
+                    return ResponseModel.Conflict($"Room with code '{roomDto.RoomCode}' already exists.");
                 }
                 room.RoomCode = roomDto.RoomCode.Trim();
             }
@@ -463,8 +549,20 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
                 room.RoomName = roomDto.RoomName.Trim();
             }
 
-            if (roomDto.MapId.HasValue) room.MapId = roomDto.MapId;
-            if (roomDto.FloorNumber.HasValue) room.FloorNumber = roomDto.FloorNumber.Value;
+            // Copy floorNumber from map if mapId is provided — don't trust client floorNumber
+            if (roomDto.MapId.HasValue)
+            {
+                var map = await _unitOfWork.MuseumMaps.GetByIdAsync(roomDto.MapId.Value);
+                if (map == null) return ResponseModel.NotFound("Linked map not found.");
+                room.MapId = map.Id;
+                room.FloorNumber = map.FloorNumber; // always copy from map
+            }
+            else if (roomDto.FloorNumber.HasValue)
+            {
+                // Only use client floorNumber when no map is linked
+                room.FloorNumber = roomDto.FloorNumber.Value;
+            }
+
             if (roomDto.Description != null) room.Description = roomDto.Description;
 
             room.UpdatedAt = DateTime.UtcNow;
@@ -489,7 +587,13 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
 
             await _unitOfWork.CompleteAsync();
 
-            return ResponseModel.Success("Room updated successfully");
+            // Return full RoomDto after update
+            var updatedRoom = await _unitOfWork.Rooms.GetFirstOrDefaultAsync(
+                r => r.Id == room.Id,
+                includeProperties: "Map,RoomTranslations"
+            );
+            var dto = _mapper.Map<RoomDto>(updatedRoom);
+            return ResponseModel.Success("Room updated successfully", dto);
         }
 
         public async Task<ResponseModel> GetRoomTranslationsAsync(int roomId)
@@ -571,10 +675,18 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             var accessCheck = ValidateMuseumAccess(userMuseumId, room.MuseumId);
             if (accessCheck != null) return accessCheck;
 
-            var hasExhibits = await _unitOfWork.Exhibits.GetFirstOrDefaultAsync(e => e.RoomId == id);
-            if (hasExhibits != null)
+            // Check exhibits
+            var exhibitCount = (await _unitOfWork.Exhibits.FindAsync(e => e.RoomId == id)).Count();
+            if (exhibitCount > 0)
             {
-                return ResponseModel.BadRequest("Cannot delete room because it currently has exhibits assigned to it.");
+                return ResponseModel.Conflict($"Room has {exhibitCount} exhibit(s). Reassign or clear room first.");
+            }
+
+            // Check navigation waypoints
+            var waypointCount = (await _unitOfWork.Waypoints.FindAsync(w => w.RoomId == id)).Count();
+            if (waypointCount > 0)
+            {
+                return ResponseModel.Conflict($"Room has {waypointCount} navigation waypoint(s). Remove waypoints first.");
             }
 
             _unitOfWork.Rooms.Delete(room);
@@ -1864,6 +1976,66 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             }
 
             return ResponseModel.Success($"Migrated {deletedCount} old OverlayImage AR assets", deletedCount);
+        }
+
+        public async Task<ResponseModel> SignArAssetUploadAsync(int exhibitId, SignUploadRequestDto dto, int? userMuseumId)
+        {
+            var exhibit = await _unitOfWork.Exhibits.GetByIdAsync(exhibitId);
+            if (exhibit == null) return ResponseModel.NotFound("Exhibit not found");
+
+            var accessCheck = ValidateMuseumAccess(userMuseumId, exhibit.MuseumId);
+            if (accessCheck != null) return accessCheck;
+
+            const long maxBytes = 10485760; // 10 MiB — Cloudinary plan limit
+            if (dto.FileSize > maxBytes)
+            {
+                return ResponseModel.BadRequest($"File too large. Maximum is {maxBytes} bytes ({maxBytes / 1024 / 1024} MB). Got {dto.FileSize}.");
+            }
+
+            var publicId = $"exhibit-{exhibitId}-model-{Guid.NewGuid().ToString().Substring(0, 8)}";
+            var folder = "museum_ar/ar";
+
+            var signResult = _mediaService.GenerateSignedUpload(folder, publicId, maxBytes);
+            return ResponseModel.Success("Signed upload parameters generated", signResult);
+        }
+
+        public async Task<ResponseModel> ConfirmArAssetUploadAsync(int exhibitId, ConfirmUploadDto dto, int? userMuseumId)
+        {
+            var exhibit = await _unitOfWork.Exhibits.GetByIdAsync(exhibitId);
+            if (exhibit == null) return ResponseModel.NotFound("Exhibit not found");
+
+            var accessCheck = ValidateMuseumAccess(userMuseumId, exhibit.MuseumId);
+            if (accessCheck != null) return accessCheck;
+
+            if (string.IsNullOrWhiteSpace(dto.SecureUrl))
+            {
+                return ResponseModel.BadRequest("SecureUrl is required.");
+            }
+
+            var asset = new ExhibitArasset
+            {
+                ExhibitId = exhibitId,
+                AssetType = dto.AssetType ?? "Model3D",
+                AssetUrl = dto.SecureUrl,
+                FileSizeBytes = dto.Bytes,
+                Description = $"Uploaded via signed upload: {dto.PublicId}",
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _unitOfWork.ExhibitArassets.AddAsync(asset);
+
+            // Update AroverlayUrl on Exhibit for Model3D
+            if (asset.AssetType == "Model3D")
+            {
+                exhibit.AroverlayUrl = dto.SecureUrl;
+            }
+            exhibit.UpdatedAt = DateTime.UtcNow;
+            _unitOfWork.Exhibits.Update(exhibit);
+
+            await _unitOfWork.CompleteAsync();
+
+            var assetDto = _mapper.Map<ExhibitArassetDto>(asset);
+            return ResponseModel.Success("AR Asset confirmed and saved successfully", assetDto);
         }
 
         // --- Offline Package Management ---

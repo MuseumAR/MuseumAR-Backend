@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.ARAsset;
 
 namespace HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibit
 {
@@ -23,6 +24,12 @@ namespace HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibit
         public int? RoomId { get; set; }
         public string? RoomCode { get; set; }
         public string? RoomName { get; set; }
+
+        /// <summary>True if at least one AR asset with AssetType "Model3D" exists.</summary>
+        public bool HasArModel { get; set; }
+
+        /// <summary>Embedded AR assets — replaces the N+1 GET /ar-assets call.</summary>
+        public List<ExhibitArassetDto> ArAssets { get; set; } = new();
         
         public ExhibitMetadataDto? ExhibitMetadata { get; set; }
         

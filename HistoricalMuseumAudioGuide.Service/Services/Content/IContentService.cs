@@ -18,6 +18,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
     {
         // Exhibit Management
         Task<ResponseModel> GetAllExhibitsAsync(int museumId, bool includeUnpublished = false, string? lang = null);
+        Task<ResponseModel> GetExhibitsPagedAsync(int museumId, int page, int pageSize, bool includeUnpublished, string? search, string? status, string? lang);
         Task<ResponseModel> GetExhibitByIdAsync(int id, bool includeUnpublished = false, string? lang = null);
         Task<ResponseModel> ScanExhibitQrAsync(string qrData, string? lang = "vi", int? visitorId = null);
         Task<ResponseModel> CreateExhibitAsync(CreateExhibitDto exhibitDto, int? userMuseumId);
@@ -27,7 +28,8 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
         Task<ResponseModel> UnpublishExhibitAsync(int id, int? userMuseumId);
 
         // Room Management
-        Task<ResponseModel> GetRoomsByMuseumIdAsync(int museumId, string? lang = null);
+        Task<ResponseModel> GetRoomsByMuseumIdAsync(int museumId, string? lang = null, int? mapId = null);
+        Task<ResponseModel> GetRoomByIdAsync(int id, string? lang = null);
         Task<ResponseModel> CreateRoomAsync(CreateRoomDto roomDto, int? userMuseumId);
         Task<ResponseModel> UpdateRoomAsync(int id, UpdateRoomDto roomDto, int? userMuseumId);
         Task<ResponseModel> DeleteRoomAsync(int id, int? userMuseumId);
@@ -130,6 +132,8 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
         Task<ResponseModel> AddArAssetAsync(int exhibitId, string assetType, IFormFile file, string? description, int? userMuseumId);
         Task<ResponseModel> DeleteArAssetAsync(int id, int? userMuseumId);
         Task<ResponseModel> MigrateOldOverlayAssetsAsync(int museumId, int? userMuseumId);
+        Task<ResponseModel> SignArAssetUploadAsync(int exhibitId, SignUploadRequestDto dto, int? userMuseumId);
+        Task<ResponseModel> ConfirmArAssetUploadAsync(int exhibitId, ConfirmUploadDto dto, int? userMuseumId);
 
         // Offline Package Management
         Task<ResponseModel> GenerateOfflinePackageAsync(int museumId, int versionId, int? userMuseumId);
