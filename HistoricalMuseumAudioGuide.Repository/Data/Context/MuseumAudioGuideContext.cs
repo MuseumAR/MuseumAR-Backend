@@ -82,6 +82,8 @@ public partial class MuseumAudioGuideContext : DbContext
 
     public virtual DbSet<Tag> Tags { get; set; }
 
+    public virtual DbSet<TagGroupTranslation> TagGroupTranslations { get; set; }
+
     public virtual DbSet<TagTranslation> TagTranslations { get; set; }
 
     public virtual DbSet<Ticket> Tickets { get; set; }
@@ -709,6 +711,20 @@ public partial class MuseumAudioGuideContext : DbContext
 
             entity.Property(e => e.GroupName).HasMaxLength(100).IsRequired();
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
+        });
+
+        modelBuilder.Entity<TagGroupTranslation>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.TagGroupId, e.LanguageCode }, "UQ_TagGroupTrans").IsUnique();
+            entity.Property(e => e.LanguageCode)
+                .HasMaxLength(10)
+                .IsUnicode(false);
+            entity.Property(e => e.GroupName).HasMaxLength(100);
+            entity.HasOne(d => d.TagGroup).WithMany(p => p.TagGroupTranslations)
+                .HasForeignKey(d => d.TagGroupId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_TagGroupTrans_TagGroup");
         });
 
         modelBuilder.Entity<Tag>(entity =>

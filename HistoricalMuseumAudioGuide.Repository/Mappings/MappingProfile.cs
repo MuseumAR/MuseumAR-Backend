@@ -112,8 +112,11 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
             CreateMap<ThemeTranslation, ThemeTranslationDto>().ReverseMap();
 
             // Tag & TagGroup
-            CreateMap<TagGroup, TagGroupDto>().ReverseMap();
-            CreateMap<CreateTagGroupDto, TagGroup>();
+            CreateMap<TagGroup, TagGroupDto>()
+                .ForMember(dest => dest.Translations, opt => opt.MapFrom(src => src.TagGroupTranslations));
+            CreateMap<CreateTagGroupDto, TagGroup>()
+                .ForMember(dest => dest.TagGroupTranslations, opt => opt.Ignore());
+            CreateMap<TagGroupTranslation, TagGroupTranslationDto>().ReverseMap();
             CreateMap<Tag, TagDto>()
                 .ForMember(dest => dest.Translations, opt => opt.MapFrom(src => src.TagTranslations));
             CreateMap<CreateTagDto, Tag>()

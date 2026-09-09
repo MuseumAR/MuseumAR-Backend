@@ -14,4 +14,6 @@ public partial class TagGroup
     public DateTime CreatedAt { get; set; }
 
     public virtual ICollection<Tag> Tags { get; set; } = new List<Tag>();
+
+    public virtual ICollection<TagGroupTranslation> TagGroupTranslations { get; set; } = new List<TagGroupTranslation>();
 }

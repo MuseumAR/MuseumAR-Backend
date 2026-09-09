@@ -21,9 +21,25 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using PayOS;
 using Scalar.AspNetCore;
+using Microsoft.AspNetCore.ResponseCompression;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Response compression (Brotli & Gzip) to speed up JSON API transfers
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+});
+builder.Services.AddMemoryCache();
+
+// Increase Kestrel max request body size to 200MB for large file uploads (3D models, audio, etc.)
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 200 * 1024 * 1024; // 200 MB
+});
 
 // Load environment variables from .env file
 Env.Load();
@@ -131,6 +147,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseResponseCompression();
 
 app.UseStaticFiles();
 

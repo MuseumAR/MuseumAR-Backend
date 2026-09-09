@@ -257,6 +257,8 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
 
         [Authorize(Roles = "ContentManager")]
         [HttpPost("exhibits/{exhibitId}/ar-assets/upload")]
+        [DisableRequestSizeLimit]
+        [RequestFormLimits(MultipartBodyLengthLimit = 209715200)] // 200 MB
         public async Task<IActionResult> AddArAsset(int exhibitId, [FromForm] string assetType, [FromForm] IFormFile file, [FromForm] string? description)
         {
             var userMuseumId = GetCurrentUserMuseumId();

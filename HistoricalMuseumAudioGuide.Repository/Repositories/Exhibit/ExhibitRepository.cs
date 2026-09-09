@@ -15,7 +15,7 @@ namespace HistoricalMuseumAudioGuide.Repository.Repositories.Exhibit
 
         public async Task<IEnumerable<Entities.Exhibit>> GetExhibitsWithTranslationsAndMetadataAsync(int museumId)
         {
-            return await _dbSet
+            return await _dbSet.AsNoTracking()
                 .Include(e => e.ExhibitTranslations)
                 .Include(e => e.ExhibitMetadatum)
                 .Include(e => e.Map)
@@ -31,7 +31,7 @@ namespace HistoricalMuseumAudioGuide.Repository.Repositories.Exhibit
             string cleanQr = qrData.Trim();
             int.TryParse(cleanQr, out int exhibitId);
 
-            return await _dbSet
+            return await _dbSet.AsNoTracking()
                 .Include(e => e.ExhibitTranslations)
                 .Include(e => e.ExhibitImages)
                 .Include(e => e.ExhibitArassets)

@@ -34,7 +34,7 @@ namespace HistoricalMuseumAudioGuide.Repository.Interfaces
 
         public async Task<IEnumerable<T>> GetAllAsync()
         {
-            return await _dbSet.ToListAsync();
+            return await _dbSet.AsNoTracking().ToListAsync();
         }
 
         public async Task<T?> GetByIdAsync(object id)
@@ -44,7 +44,7 @@ namespace HistoricalMuseumAudioGuide.Repository.Interfaces
 
         public async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate, string includeProperties = "")
         {
-            IQueryable<T> query = _dbSet;
+            IQueryable<T> query = _dbSet.AsNoTracking();
             if (predicate != null)
             {
                 query = query.Where(predicate);
@@ -58,7 +58,7 @@ namespace HistoricalMuseumAudioGuide.Repository.Interfaces
 
         public async Task<T?> GetFirstOrDefaultAsync(Expression<Func<T, bool>> predicate, string includeProperties = "")
         {
-            IQueryable<T> query = _dbSet;
+            IQueryable<T> query = _dbSet.AsNoTracking();
             if (predicate != null)
             {
                 query = query.Where(predicate);

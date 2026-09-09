@@ -16,11 +16,11 @@ public class ExhibitTranslationRepository : GenericRepository<Entities.ExhibitTr
 
     public async Task<Entities.ExhibitTranslation?> GetTranslationAsync(int exhibitId, string languageCode)
     {
-        return await _dbSet.FirstOrDefaultAsync(t => t.ExhibitId == exhibitId && t.LanguageCode == languageCode);
+        return await _dbSet.AsNoTracking().FirstOrDefaultAsync(t => t.ExhibitId == exhibitId && t.LanguageCode == languageCode);
     }
 
     public async Task<IEnumerable<Entities.ExhibitTranslation>> GetTranslationsByExhibitIdAsync(int exhibitId)
     {
-        return await _dbSet.Where(t => t.ExhibitId == exhibitId).ToListAsync();
+        return await _dbSet.AsNoTracking().Where(t => t.ExhibitId == exhibitId).ToListAsync();
     }
 }

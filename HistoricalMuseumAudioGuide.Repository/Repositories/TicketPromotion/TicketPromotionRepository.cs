@@ -18,7 +18,7 @@ public class TicketPromotionRepository : GenericRepository<Entities.TicketPromot
     {
         var now = DateTime.UtcNow.AddHours(7);
         var ids = ticketTypeIds.ToList();
-        return await _dbSet
+        return await _dbSet.AsNoTracking()
             .Where(p => ids.Contains(p.TicketTypeId)
                         && p.IsActive
                         && p.StartDate <= now
@@ -28,7 +28,7 @@ public class TicketPromotionRepository : GenericRepository<Entities.TicketPromot
 
     public async Task<IEnumerable<Entities.TicketPromotion>> GetPromotionsByTicketTypeIdAsync(int ticketTypeId)
     {
-        return await _dbSet
+        return await _dbSet.AsNoTracking()
             .Where(p => p.TicketTypeId == ticketTypeId)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
@@ -37,7 +37,7 @@ public class TicketPromotionRepository : GenericRepository<Entities.TicketPromot
     public async Task<Entities.TicketPromotion?> GetActivePromotionByIdAndTicketTypeIdAsync(int promotionId, int ticketTypeId)
     {
         var now = DateTime.UtcNow.AddHours(7);
-        return await _dbSet
+        return await _dbSet.AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == promotionId
                                    && p.TicketTypeId == ticketTypeId
                                    && p.IsActive

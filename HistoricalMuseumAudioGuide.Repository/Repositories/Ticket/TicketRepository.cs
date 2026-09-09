@@ -15,12 +15,12 @@ public class TicketRepository : GenericRepository<Entities.Ticket>, ITicketRepos
 
     public async Task<IEnumerable<Entities.Ticket>> GetTicketsByVisitorIdAsync(int visitorId)
     {
-        return await _dbSet.Include(t => t.TicketType).Where(t => t.VisitorId == visitorId).ToListAsync();
+        return await _dbSet.AsNoTracking().Include(t => t.TicketType).Where(t => t.VisitorId == visitorId).ToListAsync();
     }
 
     public async Task<IEnumerable<Entities.Ticket>> GetTicketsByTransactionIdAsync(int transactionId)
     {
-        return await _dbSet
+        return await _dbSet.AsNoTracking()
             .Include(t => t.TicketType)
                 .ThenInclude(tt => tt.Exhibition)
             .Where(t => t.TransactionId == transactionId)
@@ -29,7 +29,7 @@ public class TicketRepository : GenericRepository<Entities.Ticket>, ITicketRepos
 
     public async Task<Entities.Ticket?> GetTicketDetailByIdAsync(int id, int visitorId)
     {
-        return await _dbSet
+        return await _dbSet.AsNoTracking()
             .Include(t => t.TicketType)
                 .ThenInclude(tt => tt.Museum)
                     .ThenInclude(m => m!.MuseumTranslations)
@@ -43,7 +43,7 @@ public class TicketRepository : GenericRepository<Entities.Ticket>, ITicketRepos
 
     public async Task<Entities.Ticket?> GetTicketByCodeAsync(string ticketCode)
     {
-        return await _dbSet
+        return await _dbSet.AsNoTracking()
             .Include(t => t.TicketType)
             .Include(t => t.Visitor)
                 .ThenInclude(v => v.User)

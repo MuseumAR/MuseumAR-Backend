@@ -15,11 +15,11 @@ public class TicketTypeRepository : GenericRepository<Entities.TicketType>, ITic
 
     public async Task<IEnumerable<Entities.TicketType>> GetActiveTicketTypesAsync()
     {
-        return await _dbSet.Where(t => t.IsActive && (t.Status == "Approved" || t.Status == "Active" || t.Status == null)).ToListAsync();
+        return await _dbSet.AsNoTracking().Where(t => t.IsActive && (t.Status == "Approved" || t.Status == "Active" || t.Status == null)).ToListAsync();
     }
 
     public async Task<IEnumerable<Entities.TicketType>> GetTicketTypesByMuseumIdAsync(int museumId)
     {
-        return await _dbSet.Where(t => t.MuseumId == museumId).ToListAsync();
+        return await _dbSet.AsNoTracking().Where(t => t.MuseumId == museumId).ToListAsync();
     }
 }
