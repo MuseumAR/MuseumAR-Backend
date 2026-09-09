@@ -57,6 +57,21 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
+        [HttpGet("exhibits/paged")]
+        public async Task<IActionResult> GetExhibitsPaged(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            [FromQuery] string? search = null,
+            [FromQuery] string? status = null,
+            [FromQuery] bool? includeUnpublished = false,
+            [FromQuery] string? lang = null)
+        {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
+            bool canSeeDrafts = (includeUnpublished == true) || User.IsInRole("ContentManager") || User.IsInRole("MuseumManager") || User.IsInRole("SystemAdmin");
+            var response = await _contentService.GetExhibitsPagedAsync(museumId, page, pageSize, canSeeDrafts, search, status, lang);
+            return ResponseParser.Result(response);
+        }
+
         [HttpGet("exhibits/{id}")]
         public async Task<IActionResult> GetExhibit(int id, [FromQuery] string? lang = null, [FromQuery] bool? includeUnpublished = false)
         {
@@ -119,12 +134,25 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
-        // --- Room Management ---
+        [HttpGet("rooms")]
+        public async Task<IActionResult> GetRooms([FromQuery] string? lang = null, [FromQuery] int? mapId = null)
+        {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
+            var result = await _contentService.GetRoomsByMuseumIdAsync(museumId, lang, mapId);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet("rooms/{id}")]
+        public async Task<IActionResult> GetRoomById(int id)
+        {
+            var result = await _contentService.GetRoomByIdAsync(id);
+            return StatusCode(result.StatusCode, result);
+        }
 
         [HttpGet("rooms/museum/{museumId}")]
-        public async Task<IActionResult> GetRoomsByMuseumId(int museumId, [FromQuery] string? lang = null)
+        public async Task<IActionResult> GetRoomsByMuseumId(int museumId, [FromQuery] string? lang = null, [FromQuery] int? mapId = null)
         {
-            var result = await _contentService.GetRoomsByMuseumIdAsync(museumId, lang);
+            var result = await _contentService.GetRoomsByMuseumIdAsync(museumId, lang, mapId);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -282,6 +310,24 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             var museumId = await _museumResolver.GetMuseumIdAsync();
             var userMuseumId = GetCurrentUserMuseumId();
             var response = await _contentService.MigrateOldOverlayAssetsAsync(museumId, userMuseumId);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "ContentManager")]
+        [HttpPost("exhibits/{exhibitId}/ar-assets/sign-upload")]
+        public async Task<IActionResult> SignArAssetUpload(int exhibitId, [FromBody] SignUploadRequestDto dto)
+        {
+            var userMuseumId = GetCurrentUserMuseumId();
+            var response = await _contentService.SignArAssetUploadAsync(exhibitId, dto, userMuseumId);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize(Roles = "ContentManager")]
+        [HttpPost("exhibits/{exhibitId}/ar-assets/confirm-upload")]
+        public async Task<IActionResult> ConfirmArAssetUpload(int exhibitId, [FromBody] ConfirmUploadDto dto)
+        {
+            var userMuseumId = GetCurrentUserMuseumId();
+            var response = await _contentService.ConfirmArAssetUploadAsync(exhibitId, dto, userMuseumId);
             return ResponseParser.Result(response);
         }
 
@@ -472,8 +518,9 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
-        // --- Tour Routes Management (Read - Public, Write - Authorized) ---
+        // --- Tour Routes Management (Deprecated - indoor navigation uses map + room + graph) ---
 
+        [Obsolete("Tour routes are deprecated in demo scope. Indoor navigation uses map + room + graph.")]
         [HttpGet("routes")]
         public async Task<IActionResult> GetTourRoutes()
         {

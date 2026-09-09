@@ -9,5 +9,7 @@ public class ExhibitArassetDto
     public string? AssetUrl { get; set; }
     public string? AssetType { get; set; }
     public string? Description { get; set; }
+    public long? FileSizeBytes { get; set; }
+    public string? FileName { get; set; }
     public DateTime CreatedAt { get; set; }
 }

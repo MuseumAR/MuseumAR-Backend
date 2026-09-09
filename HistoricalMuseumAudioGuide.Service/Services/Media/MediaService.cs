@@ -1,9 +1,12 @@
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
+using HistoricalMuseumAudioGuide.Repository.Data.DTOs.ARAsset;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace HistoricalMuseumAudioGuide.Service.Services.Media;
@@ -11,6 +14,9 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Media;
 public class MediaService : IMediaService
 {
     private readonly Cloudinary _cloudinary;
+    private readonly string _cloudName;
+    private readonly string _apiKey;
+    private readonly string _apiSecret;
 
     public MediaService(IConfiguration configuration)
     {
@@ -21,6 +27,13 @@ public class MediaService : IMediaService
         }
         _cloudinary = new Cloudinary(cloudinaryUrl);
         _cloudinary.Api.Secure = true;
+
+        // Parse CLOUDINARY_URL format: cloudinary://API_KEY:API_SECRET@CLOUD_NAME
+        var uri = new Uri(cloudinaryUrl);
+        _cloudName = uri.Host;
+        var userInfo = uri.UserInfo.Split(':');
+        _apiKey = userInfo.Length > 0 ? userInfo[0] : string.Empty;
+        _apiSecret = userInfo.Length > 1 ? userInfo[1] : string.Empty;
     }
 
     public async Task<string> UploadFileAsync(IFormFile file, string subDirectory)
@@ -89,4 +102,36 @@ public class MediaService : IMediaService
         // Public URLs are persistent and perfect for the Mobile App / AR views.
         return true; 
     }
+
+    /// <summary>
+    /// Generate Cloudinary signed upload parameters for browser-direct upload.
+    /// Signature = HMAC-SHA1(apiSecret, "folder={folder}&public_id={publicId}&timestamp={ts}")
+    /// </summary>
+    public SignUploadResponseDto GenerateSignedUpload(string folder, string publicId, long maxBytes)
+    {
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+        // Cloudinary signature: alphabetically sorted params concatenated with & 
+        var paramsToSign = $"folder={folder}&public_id={publicId}&timestamp={timestamp}";
+
+        string signature;
+        using (var hmac = new HMACSHA1(Encoding.UTF8.GetBytes(_apiSecret)))
+        {
+            var hashBytes = hmac.ComputeHash(Encoding.UTF8.GetBytes(paramsToSign));
+            signature = BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
+        }
+
+        return new SignUploadResponseDto
+        {
+            CloudName = _cloudName,
+            ApiKey = _apiKey,
+            Timestamp = timestamp,
+            Signature = signature,
+            Folder = folder,
+            PublicId = publicId,
+            UploadUrl = $"https://api.cloudinary.com/v1_1/{_cloudName}/raw/upload",
+            MaxBytes = maxBytes
+        };
+    }
 }
+

@@ -77,19 +77,36 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
                 .ForMember(dest => dest.FloorNumber, opt => opt.MapFrom(src => src.Room != null ? (int?)src.Room.FloorNumber : (src.Map != null ? (int?)src.Map.FloorNumber : null)))
                 .ForMember(dest => dest.RoomCode, opt => opt.MapFrom(src => src.Room != null ? src.Room.RoomCode : null))
                 .ForMember(dest => dest.RoomName, opt => opt.MapFrom(src => src.Room != null ? src.Room.RoomName : null))
+                .ForMember(dest => dest.HasArModel, opt => opt.MapFrom(src => src.ExhibitArassets != null && src.ExhibitArassets.Any(a => a.AssetType == "Model3D")))
+                .ForMember(dest => dest.ArAssets, opt => opt.MapFrom(src => src.ExhibitArassets))
                 .ReverseMap();
             CreateMap<CreateExhibitDto, Exhibit>()
                 .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
 
             // Room Mappings
             CreateMap<Room, RoomDto>()
-                .ForMember(dest => dest.Translations, opt => opt.MapFrom(src => src.RoomTranslations));
+                .ForMember(dest => dest.Translations, opt => opt.MapFrom(src => src.RoomTranslations))
+                .ForMember(dest => dest.RoomNameEn, opt => opt.MapFrom(src =>
+                    src.RoomTranslations != null
+                        ? src.RoomTranslations.Where(t => t.LanguageCode == "en").Select(t => t.RoomName).FirstOrDefault()
+                        : null))
+                .ForMember(dest => dest.DescriptionEn, opt => opt.MapFrom(src =>
+                    src.RoomTranslations != null
+                        ? src.RoomTranslations.Where(t => t.LanguageCode == "en").Select(t => t.Description).FirstOrDefault()
+                        : null));
             CreateMap<CreateRoomDto, Room>()
                 .ForMember(dest => dest.RoomTranslations, opt => opt.Ignore());
             CreateMap<UpdateRoomDto, Room>()
                 .ForMember(dest => dest.RoomTranslations, opt => opt.Ignore())
                 .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
             CreateMap<RoomTranslation, RoomTranslationDto>().ReverseMap();
+
+            // AR Asset Mapping
+            CreateMap<ExhibitArasset, ExhibitArassetDto>()
+                .ForMember(dest => dest.FileName, opt => opt.MapFrom(src =>
+                    !string.IsNullOrEmpty(src.AssetUrl)
+                        ? System.IO.Path.GetFileName(new System.Uri(src.AssetUrl).AbsolutePath)
+                        : null));
 
             // Exhibit Translation
             CreateMap<ExhibitTranslation, ExhibitTranslationDto>();
