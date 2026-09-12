@@ -13,5 +13,7 @@ namespace HistoricalMuseumAudioGuide.Repository.Repositories.Exhibit
         /// </summary>
         Task<(System.Collections.Generic.IEnumerable<HistoricalMuseumAudioGuide.Repository.Entities.Exhibit> Items, int TotalCount)>
             GetExhibitsPagedAsync(int museumId, int page, int pageSize, bool includeUnpublished, string? search, string? status);
+
+        Task<HistoricalMuseumAudioGuide.Repository.Entities.Exhibit?> GetExhibitByCodeAsync(string code);
     }
 }

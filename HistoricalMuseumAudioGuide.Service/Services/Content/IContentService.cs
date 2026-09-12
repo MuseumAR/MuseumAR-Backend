@@ -20,6 +20,8 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
         Task<ResponseModel> GetAllExhibitsAsync(int museumId, bool includeUnpublished = false, string? lang = null);
         Task<ResponseModel> GetExhibitsPagedAsync(int museumId, int page, int pageSize, bool includeUnpublished, string? search, string? status, string? lang);
         Task<ResponseModel> GetExhibitByIdAsync(int id, bool includeUnpublished = false, string? lang = null);
+        Task<ResponseModel> GetExhibitByCodeAsync(string code, bool includeUnpublished = false, string? lang = null);
+        Task<ResponseModel> GetExhibitStatsAsync(int museumId);
         Task<ResponseModel> ScanExhibitQrAsync(string qrData, string? lang = "vi", int? visitorId = null);
         Task<ResponseModel> CreateExhibitAsync(CreateExhibitDto exhibitDto, int? userMuseumId);
         Task<ResponseModel> UpdateExhibitAsync(int id, CreateExhibitDto exhibitDto, int? userMuseumId);

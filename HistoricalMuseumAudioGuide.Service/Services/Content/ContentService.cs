@@ -74,7 +74,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
         public async Task<ResponseModel> GetExhibitsPagedAsync(int museumId, int page, int pageSize, bool includeUnpublished, string? search, string? status, string? lang)
         {
             if (page < 1) page = 1;
-            if (pageSize < 1) pageSize = 20;
+            if (pageSize < 8) pageSize = 8;
             if (pageSize > 50) pageSize = 50;
 
             var (exhibits, totalCount) = await _unitOfWork.Exhibits.GetExhibitsPagedAsync(
@@ -88,6 +88,15 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
                     ?? e.ExhibitTranslations?.FirstOrDefault(t => t.LanguageCode.ToLower() == "vi")
                     ?? e.ExhibitTranslations?.FirstOrDefault();
 
+                bool hasArModel = (e.ExhibitArassets != null && e.ExhibitArassets.Any(a =>
+                    string.Equals(a.AssetType, "Model3D", StringComparison.OrdinalIgnoreCase) ||
+                    (!string.IsNullOrEmpty(a.AssetUrl) && a.AssetUrl.EndsWith(".glb", StringComparison.OrdinalIgnoreCase))))
+                    || (!string.IsNullOrEmpty(e.AroverlayUrl) && e.AroverlayUrl.EndsWith(".glb", StringComparison.OrdinalIgnoreCase));
+
+                int arModelCount = e.ExhibitArassets?.Count(a =>
+                    string.Equals(a.AssetType, "Model3D", StringComparison.OrdinalIgnoreCase) ||
+                    (!string.IsNullOrEmpty(a.AssetUrl) && a.AssetUrl.EndsWith(".glb", StringComparison.OrdinalIgnoreCase))) ?? 0;
+
                 return new ExhibitListItemDto
                 {
                     Id = e.Id,
@@ -95,8 +104,8 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
                     Status = e.Status,
                     Title = translation?.Title ?? e.ExhibitCode ?? $"Exhibit #{e.Id}",
                     ThumbnailUrl = e.ThumbnailUrl,
-                    HasArModel = e.ExhibitArassets?.Any(a => a.AssetType == "Model3D") == true,
-                    ArModelCount = e.ExhibitArassets?.Count(a => a.AssetType == "Model3D") ?? 0,
+                    HasArModel = hasArModel,
+                    ArModelCount = arModelCount,
                     HasAudio = e.ExhibitTranslations?.Any(t => !string.IsNullOrEmpty(t.AudioUrl)) == true,
                     HasQr = !string.IsNullOrEmpty(e.QrcodeData),
                     RoomId = e.RoomId,
@@ -133,6 +142,44 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             var exhibitDto = _mapper.Map<ExhibitDto>(exhibit);
             ApplyExhibitMetadataLanguage(new[] { exhibitDto }, lang);
             return ResponseModel.Success("Get exhibit successful", exhibitDto);
+        }
+
+        public async Task<ResponseModel> GetExhibitByCodeAsync(string code, bool includeUnpublished = false, string? lang = null)
+        {
+            if (string.IsNullOrWhiteSpace(code)) return ResponseModel.NotFound("Exhibit code is required");
+            var exhibit = await _unitOfWork.Exhibits.GetExhibitByCodeAsync(code);
+            if (exhibit == null) return ResponseModel.NotFound($"Exhibit with code '{code}' not found");
+            if (!includeUnpublished && exhibit.Status != "Published")
+            {
+                return ResponseModel.NotFound($"Exhibit with code '{code}' not found");
+            }
+
+            var exhibitDto = _mapper.Map<ExhibitDto>(exhibit);
+            ApplyExhibitMetadataLanguage(new[] { exhibitDto }, lang);
+            return ResponseModel.Success("Get exhibit by code successful", exhibitDto);
+        }
+
+        public async Task<ResponseModel> GetExhibitStatsAsync(int museumId)
+        {
+            var exhibits = (await _unitOfWork.Exhibits.FindAsync(
+                e => e.MuseumId == museumId,
+                includeProperties: "ExhibitArassets"
+            )).ToList();
+
+            var stats = new Repository.Data.DTOs.Exhibit.ExhibitStatsDto
+            {
+                Total = exhibits.Count,
+                Published = exhibits.Count(e => string.Equals(e.Status, "Published", StringComparison.OrdinalIgnoreCase)),
+                Draft = exhibits.Count(e => string.Equals(e.Status, "Draft", StringComparison.OrdinalIgnoreCase)),
+                WithArModel = exhibits.Count(e =>
+                    (e.ExhibitArassets != null && e.ExhibitArassets.Any(a =>
+                        string.Equals(a.AssetType, "Model3D", StringComparison.OrdinalIgnoreCase) ||
+                        (!string.IsNullOrEmpty(a.AssetUrl) && a.AssetUrl.EndsWith(".glb", StringComparison.OrdinalIgnoreCase))))
+                    || (!string.IsNullOrEmpty(e.AroverlayUrl) && e.AroverlayUrl.EndsWith(".glb", StringComparison.OrdinalIgnoreCase))),
+                WithQr = exhibits.Count(e => !string.IsNullOrWhiteSpace(e.QrcodeData))
+            };
+
+            return ResponseModel.Success("Get exhibit stats successful", stats);
         }
 
         public async Task<ResponseModel> ScanExhibitQrAsync(string qrData, string? lang = "vi", int? visitorId = null)
@@ -504,6 +551,10 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
                 if (map == null) return ResponseModel.NotFound("Linked map not found.");
                 room.MapId = map.Id;
                 room.FloorNumber = map.FloorNumber; // always copy from map, ignore client
+            }
+            else
+            {
+                room.FloorNumber = roomDto.FloorNumber ?? 1;
             }
 
             await _unitOfWork.Rooms.AddAsync(room);
@@ -1986,7 +2037,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             var accessCheck = ValidateMuseumAccess(userMuseumId, exhibit.MuseumId);
             if (accessCheck != null) return accessCheck;
 
-            const long maxBytes = 10485760; // 10 MiB — Cloudinary plan limit
+            const long maxBytes = 209715200; // 200 MiB — Khớp Kestrel 200 MB
             if (dto.FileSize > maxBytes)
             {
                 return ResponseModel.BadRequest($"File too large. Maximum is {maxBytes} bytes ({maxBytes / 1024 / 1024} MB). Got {dto.FileSize}.");

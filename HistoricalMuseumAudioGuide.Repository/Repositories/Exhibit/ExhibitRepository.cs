@@ -58,10 +58,18 @@ namespace HistoricalMuseumAudioGuide.Repository.Repositories.Exhibit
             {
                 query = query.Where(e => e.Status == "Published");
             }
-
-            if (!string.IsNullOrWhiteSpace(status))
+            else if (!string.IsNullOrWhiteSpace(status))
             {
-                query = query.Where(e => e.Status == status);
+                var s = status.Trim();
+                if (s.Equals("Published", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    query = query.Where(e => e.Status == "Published");
+                }
+                else if (s.Equals("Draft", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    query = query.Where(e => e.Status == "Draft");
+                }
+                // If unrecognized status (e.g. 'all'), do not filter — do not fail
             }
 
             if (!string.IsNullOrWhiteSpace(search))
@@ -82,6 +90,20 @@ namespace HistoricalMuseumAudioGuide.Repository.Repositories.Exhibit
                 .ToListAsync();
 
             return (items, totalCount);
+        }
+
+        public async Task<Entities.Exhibit?> GetExhibitByCodeAsync(string code)
+        {
+            if (string.IsNullOrWhiteSpace(code)) return null;
+            var trimmed = code.Trim().ToLower();
+
+            return await _dbSet.AsNoTracking()
+                .Include(e => e.ExhibitTranslations)
+                .Include(e => e.ExhibitMetadatum)
+                .Include(e => e.ExhibitArassets)
+                .Include(e => e.Map)
+                .Include(e => e.Room)
+                .FirstOrDefaultAsync(e => e.ExhibitCode != null && e.ExhibitCode.ToLower() == trimmed);
         }
     }
 }

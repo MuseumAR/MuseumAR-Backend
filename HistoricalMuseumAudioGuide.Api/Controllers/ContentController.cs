@@ -57,6 +57,15 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             return ResponseParser.Result(response);
         }
 
+        [HttpGet("exhibits/stats")]
+        public async Task<IActionResult> GetExhibitStats()
+        {
+            var userMuseumId = GetCurrentUserMuseumId();
+            int museumId = userMuseumId ?? await _museumResolver.GetMuseumIdAsync();
+            var response = await _contentService.GetExhibitStatsAsync(museumId);
+            return ResponseParser.Result(response);
+        }
+
         [HttpGet("exhibits/paged")]
         public async Task<IActionResult> GetExhibitsPaged(
             [FromQuery] int page = 1,
@@ -66,17 +75,34 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             [FromQuery] bool? includeUnpublished = false,
             [FromQuery] string? lang = null)
         {
-            var museumId = await _museumResolver.GetMuseumIdAsync();
+            var userMuseumId = GetCurrentUserMuseumId();
+            int museumId = userMuseumId ?? await _museumResolver.GetMuseumIdAsync();
             bool canSeeDrafts = (includeUnpublished == true) || User.IsInRole("ContentManager") || User.IsInRole("MuseumManager") || User.IsInRole("SystemAdmin");
             var response = await _contentService.GetExhibitsPagedAsync(museumId, page, pageSize, canSeeDrafts, search, status, lang);
             return ResponseParser.Result(response);
         }
 
-        [HttpGet("exhibits/{id}")]
-        public async Task<IActionResult> GetExhibit(int id, [FromQuery] string? lang = null, [FromQuery] bool? includeUnpublished = false)
+        [HttpGet("exhibits/by-code/{exhibitCode}")]
+        public async Task<IActionResult> GetExhibitByCode(string exhibitCode, [FromQuery] string? lang = null, [FromQuery] bool? includeUnpublished = false)
         {
             bool canSeeDrafts = (includeUnpublished == true) || User.IsInRole("ContentManager") || User.IsInRole("MuseumManager") || User.IsInRole("SystemAdmin");
-            var response = await _contentService.GetExhibitByIdAsync(id, canSeeDrafts, lang);
+            var response = await _contentService.GetExhibitByCodeAsync(exhibitCode, canSeeDrafts, lang);
+            return ResponseParser.Result(response);
+        }
+
+        [HttpGet("exhibits/{idOrCode}")]
+        public async Task<IActionResult> GetExhibit(string idOrCode, [FromQuery] string? lang = null, [FromQuery] bool? includeUnpublished = false)
+        {
+            bool canSeeDrafts = (includeUnpublished == true) || User.IsInRole("ContentManager") || User.IsInRole("MuseumManager") || User.IsInRole("SystemAdmin");
+            ResponseModel response;
+            if (int.TryParse(idOrCode, out int id))
+            {
+                response = await _contentService.GetExhibitByIdAsync(id, canSeeDrafts, lang);
+            }
+            else
+            {
+                response = await _contentService.GetExhibitByCodeAsync(idOrCode, canSeeDrafts, lang);
+            }
             return ResponseParser.Result(response);
         }
 

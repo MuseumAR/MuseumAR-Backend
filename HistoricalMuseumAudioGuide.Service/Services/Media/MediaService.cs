@@ -1,6 +1,7 @@
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.ARAsset;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using System;
@@ -17,9 +18,17 @@ public class MediaService : IMediaService
     private readonly string _cloudName;
     private readonly string _apiKey;
     private readonly string _apiSecret;
+    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IWebHostEnvironment? _environment;
 
-    public MediaService(IConfiguration configuration)
+    public MediaService(
+        IConfiguration configuration,
+        IHttpContextAccessor httpContextAccessor,
+        IWebHostEnvironment? environment = null)
     {
+        _httpContextAccessor = httpContextAccessor;
+        _environment = environment;
+
         var cloudinaryUrl = Environment.GetEnvironmentVariable("CLOUDINARY_URL") ?? configuration["Cloudinary:Url"];
         if (string.IsNullOrEmpty(cloudinaryUrl))
         {
@@ -40,6 +49,16 @@ public class MediaService : IMediaService
     {
         if (file == null || file.Length == 0)
             throw new ArgumentException("File is empty");
+
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var is3DModel = ext == ".glb" || ext == ".gltf" || ext == ".usdz" || ext == ".obj" || ext == ".fbx" || ext == ".bin";
+        var isArAsset = string.Equals(subDirectory, "ar", StringComparison.OrdinalIgnoreCase);
+
+        // 3D models and AR assets are saved locally on the backend server to support files up to 200MB without Cloudinary size limits
+        if (is3DModel || isArAsset)
+        {
+            return await SaveLocalFileAsync(file, subDirectory);
+        }
 
         using var stream = file.OpenReadStream();
         var fileDescription = new FileDescription(file.FileName, stream);
@@ -76,7 +95,7 @@ public class MediaService : IMediaService
         }
         else
         {
-            // Generic files (3D models, etc.)
+            // Generic files
             var uploadParams = new RawUploadParams()
             {
                 File = fileDescription,
@@ -95,8 +114,82 @@ public class MediaService : IMediaService
         return uploadResult.SecureUrl.ToString();
     }
 
+    private async Task<string> SaveLocalFileAsync(IFormFile file, string subDirectory)
+    {
+        var webRoot = _environment?.WebRootPath;
+        if (string.IsNullOrEmpty(webRoot))
+        {
+            webRoot = Path.Combine(_environment?.ContentRootPath ?? Directory.GetCurrentDirectory(), "wwwroot");
+        }
+
+        var uploadFolder = Path.Combine(webRoot, "uploads", subDirectory);
+        if (!Directory.Exists(uploadFolder))
+        {
+            Directory.CreateDirectory(uploadFolder);
+        }
+
+        var rawFileName = Path.GetFileNameWithoutExtension(file.FileName);
+        var ext = Path.GetExtension(file.FileName);
+        var normalizedFileName = System.Text.RegularExpressions.Regex.Replace(rawFileName, @"[^a-zA-Z0-9_\-]", "");
+        if (string.IsNullOrEmpty(normalizedFileName)) normalizedFileName = "file";
+        var fileName = $"{normalizedFileName}_{Guid.NewGuid().ToString().Substring(0, 8)}{ext}";
+        var filePath = Path.Combine(uploadFolder, fileName);
+
+        using (var fileStream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(fileStream);
+        }
+
+        var httpContext = _httpContextAccessor?.HttpContext;
+        if (httpContext != null && httpContext.Request != null)
+        {
+            var scheme = httpContext.Request.Scheme;
+            var host = httpContext.Request.Host.Value;
+            return $"{scheme}://{host}/uploads/{subDirectory}/{fileName}";
+        }
+
+        return $"/uploads/{subDirectory}/{fileName}";
+    }
+
     public bool DeleteFile(string fileUrl)
     {
+        if (string.IsNullOrWhiteSpace(fileUrl)) return false;
+
+        // If local file stored in wwwroot/uploads/
+        if (fileUrl.Contains("/uploads/"))
+        {
+            try
+            {
+                var webRoot = _environment?.WebRootPath;
+                if (string.IsNullOrEmpty(webRoot))
+                {
+                    webRoot = Path.Combine(_environment?.ContentRootPath ?? Directory.GetCurrentDirectory(), "wwwroot");
+                }
+
+                string relativePath;
+                if (Uri.TryCreate(fileUrl, UriKind.Absolute, out var uri))
+                {
+                    relativePath = uri.AbsolutePath.TrimStart('/');
+                }
+                else
+                {
+                    relativePath = fileUrl.TrimStart('/', '\\');
+                }
+
+                var localPath = Path.Combine(webRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
+                if (File.Exists(localPath))
+                {
+                    File.Delete(localPath);
+                    return true;
+                }
+            }
+            catch
+            {
+                // Ignore cleanup error
+            }
+            return true;
+        }
+
         // Deleting from Cloudinary via URL requires parsing the PublicID.
         // For this capstone prototype, we prioritize successful uploads and public access.
         // Public URLs are persistent and perfect for the Mobile App / AR views.
