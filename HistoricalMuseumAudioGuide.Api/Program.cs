@@ -22,9 +22,12 @@ using Microsoft.IdentityModel.Tokens;
 using PayOS;
 using Scalar.AspNetCore;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.AspNetCore.StaticFiles;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddHttpContextAccessor();
 
 // Response compression (Brotli & Gzip) to speed up JSON API transfers
 builder.Services.AddResponseCompression(options =>
@@ -150,7 +153,16 @@ app.UseHttpsRedirection();
 
 app.UseResponseCompression();
 
-app.UseStaticFiles();
+var contentTypeProvider = new FileExtensionContentTypeProvider();
+contentTypeProvider.Mappings[".glb"] = "model/gltf-binary";
+contentTypeProvider.Mappings[".gltf"] = "model/gltf+json";
+contentTypeProvider.Mappings[".usdz"] = "model/vnd.usdz+zip";
+contentTypeProvider.Mappings[".bin"] = "application/octet-stream";
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    ContentTypeProvider = contentTypeProvider
+});
 
 app.UseCors("AllowFrontend");
 

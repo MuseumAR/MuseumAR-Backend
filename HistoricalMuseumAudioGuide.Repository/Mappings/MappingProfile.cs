@@ -103,10 +103,7 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
 
             // AR Asset Mapping
             CreateMap<ExhibitArasset, ExhibitArassetDto>()
-                .ForMember(dest => dest.FileName, opt => opt.MapFrom(src =>
-                    !string.IsNullOrEmpty(src.AssetUrl)
-                        ? System.IO.Path.GetFileName(new System.Uri(src.AssetUrl).AbsolutePath)
-                        : null));
+                .ForMember(dest => dest.FileName, opt => opt.MapFrom(src => ExtractFileName(src.AssetUrl)));
 
             // Exhibit Translation
             CreateMap<ExhibitTranslation, ExhibitTranslationDto>();
@@ -250,6 +247,16 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
 
             // System Config
             CreateMap<SystemConfiguration, SystemConfigDto>();
+        }
+
+        private static string? ExtractFileName(string? url)
+        {
+            if (string.IsNullOrEmpty(url)) return null;
+            if (System.Uri.TryCreate(url, System.UriKind.Absolute, out var u))
+            {
+                return System.IO.Path.GetFileName(u.AbsolutePath);
+            }
+            return System.IO.Path.GetFileName(url);
         }
     }
 }
