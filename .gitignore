@@ -17,3 +17,7 @@
 ## Local Logs
 build_log.txt
 *.log
+
+## Uploads and dynamic media
+**/wwwroot/uploads/
+

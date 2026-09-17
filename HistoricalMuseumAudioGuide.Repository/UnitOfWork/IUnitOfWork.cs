@@ -1,3 +1,4 @@
+using HistoricalMuseumAudioGuide.Repository.Data.Context;
 using HistoricalMuseumAudioGuide.Repository.Entities;
 using HistoricalMuseumAudioGuide.Repository.Interfaces;
 using HistoricalMuseumAudioGuide.Repository.Repositories.Analytics;
@@ -66,5 +67,7 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         ITicketPromotionRepository TicketPromotions { get; }
         
         Task<int> CompleteAsync();
+        /// <summary>Exposes the underlying DbContext for tracked queries needed by many-to-many operations.</summary>
+        MuseumAudioGuideContext Context { get; }
     }
 }

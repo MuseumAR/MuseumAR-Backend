@@ -18,6 +18,7 @@ namespace HistoricalMuseumAudioGuide.Repository.Repositories.Exhibit
             return await _dbSet.AsNoTracking()
                 .Include(e => e.ExhibitTranslations)
                 .Include(e => e.ExhibitMetadatum)
+                .Include(e => e.ExhibitArassets)
                 .Include(e => e.Map)
                 .Include(e => e.Room)
                 .Where(e => e.MuseumId == museumId)
