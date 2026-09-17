@@ -1,4 +1,5 @@
 using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Exhibit;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.ARAsset;
 using HistoricalMuseumAudioGuide.Repository.Data.DTOs.OfflinePackage;
@@ -952,17 +953,19 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
                 return ResponseModel.BadRequest("Danh sách ID hiện vật không được để trống.");
             }
 
-            var exhibition = await _unitOfWork.Exhibitions.GetFirstOrDefaultAsync(
-                e => e.Id == exhibitionId,
-                includeProperties: "Exhibits"
-            );
+            var db = _unitOfWork.Context;
+            var exhibition = await db.Set<Exhibition>()
+                .Include(e => e.Exhibits)
+                .FirstOrDefaultAsync(e => e.Id == exhibitionId);
 
             if (exhibition == null) return ResponseModel.NotFound("Exhibition not found");
 
             var accessCheck = ValidateMuseumAccess(userMuseumId, exhibition.MuseumId);
             if (accessCheck != null) return accessCheck;
 
-            var exhibitsToAdd = await _unitOfWork.Exhibits.FindAsync(e => exhibitIds.Contains(e.Id) && e.MuseumId == exhibition.MuseumId);
+            var exhibitsToAdd = await db.Set<Exhibit>()
+                .Where(e => exhibitIds.Contains(e.Id) && e.MuseumId == exhibition.MuseumId)
+                .ToListAsync();
             int addedCount = 0;
 
             foreach (var exhibit in exhibitsToAdd)
@@ -976,7 +979,6 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
 
             if (addedCount > 0)
             {
-                _unitOfWork.Exhibitions.Update(exhibition);
                 await _unitOfWork.CompleteAsync();
             }
 
@@ -985,10 +987,10 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
 
         public async Task<ResponseModel> RemoveExhibitFromExhibitionAsync(int exhibitionId, int exhibitId, int? userMuseumId)
         {
-            var exhibition = await _unitOfWork.Exhibitions.GetFirstOrDefaultAsync(
-                e => e.Id == exhibitionId,
-                includeProperties: "Exhibits"
-            );
+            var db = _unitOfWork.Context;
+            var exhibition = await db.Set<Exhibition>()
+                .Include(e => e.Exhibits)
+                .FirstOrDefaultAsync(e => e.Id == exhibitionId);
 
             if (exhibition == null) return ResponseModel.NotFound("Exhibition not found");
 
@@ -1002,7 +1004,6 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             }
 
             exhibition.Exhibits.Remove(exhibitToRemove);
-            _unitOfWork.Exhibitions.Update(exhibition);
             await _unitOfWork.CompleteAsync();
 
             return ResponseModel.Success("Đã gỡ hiện vật khỏi triển lãm thành công.");

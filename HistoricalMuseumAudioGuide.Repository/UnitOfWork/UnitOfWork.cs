@@ -111,6 +111,7 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         public IGenericRepository<WaypointEdge> WaypointEdges { get; private set; }
         public IGenericRepository<MapPoi> MapPois { get; private set; }
         public ITicketPromotionRepository TicketPromotions { get; private set; }
+        public MuseumAudioGuideContext Context => _context;
  
         public async Task<int> CompleteAsync()
         {
