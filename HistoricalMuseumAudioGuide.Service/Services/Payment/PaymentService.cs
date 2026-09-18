@@ -31,6 +31,7 @@ public class PaymentService : IPaymentService
 
     private void TriggerTicketEmail(int visitorId, int transactionId, string orderCode, decimal totalAmount)
     {
+        Console.WriteLine($"[TriggerTicketEmail]: >>> BẮT ĐẦU gửi email cho VisitorId={visitorId}, TransactionId={transactionId}, OrderCode={orderCode}");
         var scopeFactory = _serviceProvider.GetRequiredService<IServiceScopeFactory>();
         _ = Task.Run(async () =>
         {
@@ -40,6 +41,7 @@ public class PaymentService : IPaymentService
 
             try
             {
+                Console.WriteLine($"[TriggerTicketEmail]: Đang lấy thông tin visitor {visitorId}...");
                 var visitor = await unitOfWork.Visitors.GetVisitorWithUserByIdAsync(visitorId);
                 string? email = !string.IsNullOrWhiteSpace(visitor?.Email) ? visitor.Email : visitor?.User?.Email;
                 if (string.IsNullOrWhiteSpace(email) && visitor?.UserId != null)
@@ -53,6 +55,8 @@ public class PaymentService : IPaymentService
                     Console.WriteLine($"[TriggerTicketEmail Warning]: VisitorId {visitorId} does not have a valid email address.");
                     return;
                 }
+
+                Console.WriteLine($"[TriggerTicketEmail]: Gửi email đến {email}...");
 
                 string visitorName = !string.IsNullOrWhiteSpace(visitor?.User?.FullName)
                     ? visitor.User.FullName
@@ -79,9 +83,29 @@ public class PaymentService : IPaymentService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[TriggerTicketEmail Exception]: {ex.Message}");
+                Console.WriteLine($"[TriggerTicketEmail Exception]: {ex.GetType().Name} - {ex.Message}");
+                if (ex.InnerException != null)
+                    Console.WriteLine($"[TriggerTicketEmail InnerException]: {ex.InnerException.Message}");
             }
         });
+    }
+
+    // =========================================================================
+    // 0. GỬI LẠI EMAIL XÁC NHẬN (Dành cho đơn đã Completed)
+    // =========================================================================
+    public async Task<ResponseModel> ResendTicketEmailAsync(string orderCode)
+    {
+        var transaction = await _unitOfWork.Transactions.GetByOrderCodeAsync(orderCode);
+        if (transaction == null)
+            return ResponseModel.NotFound("Order not found.");
+
+        if (transaction.PaymentStatus != "Completed")
+            return ResponseModel.BadRequest($"Order is not completed (status: {transaction.PaymentStatus}). Only completed orders can resend email.");
+
+        Console.WriteLine($"[ResendTicketEmail]: Trigger resend email for OrderCode={orderCode}, TransactionId={transaction.Id}");
+        TriggerTicketEmail(transaction.VisitorId, transaction.Id, transaction.OrderCode, transaction.TotalAmount);
+
+        return ResponseModel.Success($"Email resend triggered for order {orderCode}.");
     }
 
     private static DateTime GetVietnamTime() => DateTime.UtcNow.AddHours(7);

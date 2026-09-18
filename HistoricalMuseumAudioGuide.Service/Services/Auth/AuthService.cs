@@ -339,8 +339,8 @@ public class AuthService : IAuthService
 
                 if (user.Role == null)
                 {
-                    user.Role = await _unitOfWork.Roles.GetByIdAsync(user.RoleId) 
-                                ?? await _unitOfWork.Roles.GetRoleByNameAsync("Visitor");
+                    user.Role = (await _unitOfWork.Roles.GetByIdAsync(user.RoleId) 
+                                ?? await _unitOfWork.Roles.GetRoleByNameAsync("Visitor"))!;
                 }
 
                 // Update database directly without tracking conflicts or graph side-effects
