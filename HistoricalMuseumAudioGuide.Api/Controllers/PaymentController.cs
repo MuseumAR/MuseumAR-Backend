@@ -49,5 +49,14 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             var response = await _paymentService.CancelPaymentAsync(orderCode);
             return ResponseParser.Result(response);
         }
+
+        [AllowAnonymous]
+        [HttpPost("resend-email/{orderCode}")]
+        public async Task<IActionResult> ResendTicketEmail(string orderCode)
+        {
+            var response = await _paymentService.ResendTicketEmailAsync(orderCode);
+            return ResponseParser.Result(response);
+        }
+
     }
 }
