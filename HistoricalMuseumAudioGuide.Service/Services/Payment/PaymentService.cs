@@ -86,7 +86,7 @@ public class PaymentService : IPaymentService
 
     private static DateTime GetVietnamTime() => DateTime.UtcNow.AddHours(7);
 
-    private static DateTime CalculateTicketValidDate(Ticket ticket, DateTime now)
+    private static DateTime? CalculateTicketValidDate(Ticket ticket, DateTime now)
     {
         var exhibition = ticket.TicketType?.Exhibition;
         if (exhibition?.EndDate.HasValue == true)
@@ -94,8 +94,8 @@ public class PaymentService : IPaymentService
             // Đến cuối ngày (23:59:59) của ngày kết thúc triển lãm
             return exhibition.EndDate.Value.Date.AddDays(1).AddSeconds(-1);
         }
-        // Vé tham quan bảo tàng thông thường: có hiệu lực 24 giờ sau khi thanh toán
-        return now.AddDays(1);
+        // Vé tham quan bảo tàng thông thường: Không có thời hạn (vô thời hạn cho đến khi check-in)
+        return null;
     }
 
     // =========================================================================
@@ -110,6 +110,70 @@ public class PaymentService : IPaymentService
         if (transaction.PaymentStatus == "Completed")
             return ResponseModel.BadRequest("This order has already been paid.");
 
+        if (transaction.PaymentStatus == "Cancelled")
+            return ResponseModel.BadRequest("This order has been cancelled.");
+
+        // Kiểm tra xem đơn hàng đã có link PayOS hợp lệ và chưa hết 15 phút hay chưa
+        var elapsed = (GetVietnamTime() - transaction.CreatedAt).TotalSeconds;
+        if (elapsed < 15 * 60 &&
+            !string.IsNullOrEmpty(transaction.GatewayTransactionId) &&
+            long.TryParse(transaction.GatewayTransactionId, out long existingPayOSCode))
+        {
+            try
+            {
+                var existingInfo = await _payOS.PaymentRequests.GetAsync(existingPayOSCode);
+                if (existingInfo != null)
+                {
+                    var payOSStatus = existingInfo.Status.ToString();
+                    if (string.Equals(payOSStatus, "PAID", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var now = GetVietnamTime();
+                        transaction.PaymentStatus = "Completed";
+                        transaction.PaymentDate = now;
+                        transaction.UpdatedAt = now;
+                        _unitOfWork.Transactions.Update(transaction);
+
+                        var tickets = await _unitOfWork.Tickets.GetTicketsByTransactionIdAsync(transaction.Id);
+                        foreach (var ticket in tickets)
+                        {
+                            ticket.Status = "Paid";
+                            ticket.ValidDate = CalculateTicketValidDate(ticket, now);
+                            ticket.UpdatedAt = now;
+                            _unitOfWork.Tickets.Update(ticket);
+                        }
+
+                        await _unitOfWork.CompleteAsync();
+                        TriggerTicketEmail(transaction.VisitorId, transaction.Id, transaction.OrderCode, transaction.TotalAmount);
+
+                        return ResponseModel.Success("Payment completed", new
+                        {
+                            CheckoutUrl = transaction.Description,
+                            QrCode = transaction.Description,
+                            OrderCode = transaction.OrderCode,
+                            Amount = transaction.TotalAmount,
+                            IsPaid = true
+                        });
+                    }
+                    else if (string.Equals(payOSStatus, "PENDING", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(transaction.Description))
+                    {
+                        // Link PayOS còn hiệu lực và đang chờ thanh toán -> tái sử dụng, không tạo mới đè mã cũ
+                        return ResponseModel.Success("Existing payment link retrieved", new
+                        {
+                            CheckoutUrl = transaction.Description,
+                            QrCode = transaction.Description,
+                            OrderCode = transaction.OrderCode,
+                            Amount = transaction.TotalAmount,
+                            IsPaid = false
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[CheckExistingPayOS Warning]: {ex.Message}");
+            }
+        }
+
         // Mã PayOS số nguyên duy nhất (13 chữ số, an toàn không lo trùng)
         long payOSOrderCode = long.Parse($"{GetVietnamTime():MMddHHmmss}{Random.Shared.Next(100, 999)}");
         long amount = (long)transaction.TotalAmount;
@@ -117,8 +181,8 @@ public class PaymentService : IPaymentService
         string description = $"Ve {transaction.OrderCode}";
         if (description.Length > 25) description = description.Substring(0, 25);
 
-        string returnUrl = _configuration["PAYOS_RETURN_URL"] ?? "http://localhost:7225/payment-success";
-        string cancelUrl = _configuration["PAYOS_CANCEL_URL"] ?? "http://localhost:7225/payment-cancel";
+        string returnUrl = _configuration["PAYOS_RETURN_URL"] ?? "http://localhost:3000/tickets/mine?purchased=1";
+        string cancelUrl = _configuration["PAYOS_CANCEL_URL"] ?? "http://localhost:3000/tickets";
 
         int expiredAtUnix = (int)DateTimeOffset.UtcNow.AddMinutes(15).ToUnixTimeSeconds();
 
@@ -141,15 +205,17 @@ public class PaymentService : IPaymentService
             // Gọi API PayOS
             var result = await _payOS.PaymentRequests.CreateAsync(paymentRequest);
 
-            // Chỉ lưu vết GatewayTransactionId vào CSDL khi PayOS đã tạo link thành công
+            // Lưu GatewayTransactionId và link thanh toán vào Description để tái sử dụng
             transaction.GatewayTransactionId = payOSOrderCode.ToString();
+            transaction.Description = result.CheckoutUrl;
             transaction.UpdatedAt = GetVietnamTime();
+            _unitOfWork.Transactions.Update(transaction);
             await _unitOfWork.CompleteAsync();
 
             return ResponseModel.Success("Payment link created successfully", new
             {
                 CheckoutUrl = result.CheckoutUrl,
-                QrCode = result.QrCode,
+                QrCode = result.QrCode ?? result.CheckoutUrl,
                 OrderCode = transaction.OrderCode,
                 Amount = transaction.TotalAmount
             });
@@ -207,6 +273,7 @@ public class PaymentService : IPaymentService
             transaction.GatewayTransactionId = payOSOrderCodeStr;
             transaction.PaymentDate = now;
             transaction.UpdatedAt = now;
+            _unitOfWork.Transactions.Update(transaction);
 
             // Đổi trạng thái vé sang 'Paid'
             var tickets = await _unitOfWork.Tickets.GetTicketsByTransactionIdAsync(transaction.Id);
@@ -215,6 +282,7 @@ public class PaymentService : IPaymentService
                 ticket.Status = "Paid";
                 ticket.ValidDate = CalculateTicketValidDate(ticket, now);
                 ticket.UpdatedAt = now;
+                _unitOfWork.Tickets.Update(ticket);
             }
 
             await _unitOfWork.CompleteAsync();
@@ -255,12 +323,14 @@ public class PaymentService : IPaymentService
             var now = GetVietnamTime();
             transaction.PaymentStatus = "Cancelled";
             transaction.UpdatedAt = now;
+            _unitOfWork.Transactions.Update(transaction);
 
             var tickets = await _unitOfWork.Tickets.GetTicketsByTransactionIdAsync(transaction.Id);
             foreach (var ticket in tickets)
             {
                 ticket.Status = "Cancelled";
                 ticket.UpdatedAt = now;
+                _unitOfWork.Tickets.Update(ticket);
             }
 
             await _unitOfWork.CompleteAsync();
@@ -294,6 +364,7 @@ public class PaymentService : IPaymentService
                         transaction.PaymentStatus = "Completed";
                         transaction.PaymentDate = now;
                         transaction.UpdatedAt = now;
+                        _unitOfWork.Transactions.Update(transaction);
 
                         var tickets = await _unitOfWork.Tickets.GetTicketsByTransactionIdAsync(transaction.Id);
                         foreach (var ticket in tickets)
@@ -301,6 +372,7 @@ public class PaymentService : IPaymentService
                             ticket.Status = "Paid";
                             ticket.ValidDate = CalculateTicketValidDate(ticket, now);
                             ticket.UpdatedAt = now;
+                            _unitOfWork.Tickets.Update(ticket);
                         }
 
                         await _unitOfWork.CompleteAsync();
@@ -314,12 +386,14 @@ public class PaymentService : IPaymentService
                         var now = GetVietnamTime();
                         transaction.PaymentStatus = "Cancelled";
                         transaction.UpdatedAt = now;
+                        _unitOfWork.Transactions.Update(transaction);
 
                         var tickets = await _unitOfWork.Tickets.GetTicketsByTransactionIdAsync(transaction.Id);
                         foreach (var ticket in tickets)
                         {
                             ticket.Status = "Cancelled";
                             ticket.UpdatedAt = now;
+                            _unitOfWork.Tickets.Update(ticket);
                         }
 
                         await _unitOfWork.CompleteAsync();
@@ -355,12 +429,14 @@ public class PaymentService : IPaymentService
         var now = GetVietnamTime();
         transaction.PaymentStatus = "Cancelled";
         transaction.UpdatedAt = now;
+        _unitOfWork.Transactions.Update(transaction);
 
         var tickets = await _unitOfWork.Tickets.GetTicketsByTransactionIdAsync(transaction.Id);
         foreach (var ticket in tickets)
         {
             ticket.Status = "Cancelled";
             ticket.UpdatedAt = now;
+            _unitOfWork.Tickets.Update(ticket);
         }
 
         await _unitOfWork.CompleteAsync();

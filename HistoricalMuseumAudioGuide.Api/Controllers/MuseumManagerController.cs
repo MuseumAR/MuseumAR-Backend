@@ -166,5 +166,57 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
             var result = await _managerService.ToggleTicketPromotionAsync(museumId, promotionId, isActive);
             return StatusCode(result.StatusCode, result);
         }
+
+        /// <summary>
+        /// Lấy danh sách các yêu cầu hoàn tiền vé của bảo tàng
+        /// GET: api/MuseumManager/refund-requests
+        /// </summary>
+        [Authorize(Roles = "MuseumManager")]
+        [HttpGet("refund-requests")]
+        public async Task<IActionResult> GetRefundRequests([FromQuery] string? status)
+        {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
+            var result = await _managerService.GetRefundRequestsByMuseumAsync(museumId, status);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        /// <summary>
+        /// Duyệt hoặc từ chối yêu cầu hoàn tiền vé
+        /// PUT: api/MuseumManager/refund-requests/{id}/process
+        /// </summary>
+        [Authorize(Roles = "MuseumManager")]
+        [HttpPut("refund-requests/{id}/process")]
+        public async Task<IActionResult> ProcessRefundRequest(int id, [FromBody] ProcessTicketRefundRequestDto dto)
+        {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
+            var result = await _managerService.ProcessRefundRequestAsync(museumId, id, dto);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        /// <summary>
+        /// Báo cáo thống kê doanh thu và vé bán theo ngày
+        /// GET: api/MuseumManager/analytics/revenue
+        /// </summary>
+        [Authorize(Roles = "MuseumManager")]
+        [HttpGet("analytics/revenue")]
+        public async Task<IActionResult> GetRevenueAnalytics([FromQuery] System.DateTime? fromDate, [FromQuery] System.DateTime? toDate)
+        {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
+            var result = await _managerService.GetRevenueAnalyticsAsync(museumId, fromDate, toDate);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        /// <summary>
+        /// Báo cáo thống kê lưu lượng khách tham quan ra vào và khung giờ cao điểm
+        /// GET: api/MuseumManager/analytics/traffic
+        /// </summary>
+        [Authorize(Roles = "MuseumManager")]
+        [HttpGet("analytics/traffic")]
+        public async Task<IActionResult> GetVisitorTrafficAnalytics([FromQuery] System.DateTime? fromDate, [FromQuery] System.DateTime? toDate)
+        {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
+            var result = await _managerService.GetVisitorTrafficAnalyticsAsync(museumId, fromDate, toDate);
+            return StatusCode(result.StatusCode, result);
+        }
     }
 }

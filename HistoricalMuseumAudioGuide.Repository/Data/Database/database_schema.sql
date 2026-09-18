@@ -433,6 +433,15 @@ CREATE TABLE TagTranslations (
     CONSTRAINT UQ_TagTrans UNIQUE (TagId, LanguageCode)
 );
 
+CREATE TABLE TagGroupTranslations (
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    TagGroupId      INT             NOT NULL,
+    LanguageCode    VARCHAR(10)     NOT NULL,
+    GroupName       NVARCHAR(100)   NOT NULL,
+    CONSTRAINT FK_TagGroupTrans_TagGroup FOREIGN KEY (TagGroupId) REFERENCES TagGroups(Id) ON DELETE CASCADE,
+    CONSTRAINT UQ_TagGroupTrans UNIQUE (TagGroupId, LanguageCode)
+);
+
 CREATE TABLE ExhibitTags (
     ExhibitId       INT NOT NULL,
     TagId           INT NOT NULL,
@@ -586,13 +595,34 @@ CREATE TABLE Tickets (
     PurchaseDate    DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
     ValidDate       DATETIME2       NULL,
     Status          NVARCHAR(20)    NOT NULL DEFAULT 'Pending'
-                    CHECK (Status IN ('Pending', 'Paid', 'Used', 'Cancelled', 'Expired')),
+                    CHECK (Status IN ('Pending', 'Paid', 'Used', 'Cancelled', 'Expired', 'Refund_Pending', 'Refunded')),
     CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
     UpdatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
     CONSTRAINT FK_Tickets_Visitor FOREIGN KEY (VisitorId) REFERENCES Visitors(Id),
     CONSTRAINT FK_Tickets_Type FOREIGN KEY (TicketTypeId) REFERENCES TicketTypes(Id),
     CONSTRAINT FK_Tickets_Transaction FOREIGN KEY (TransactionId) REFERENCES Transactions(Id)
 );
+
+CREATE TABLE TicketRefundRequests (
+    Id                  INT IDENTITY(1,1) PRIMARY KEY,
+    TicketId            INT             NOT NULL,
+    VisitorId           INT             NOT NULL,
+    Amount              DECIMAL(18,2)   NOT NULL,
+    Reason              NVARCHAR(500)   NOT NULL,
+    BankName            NVARCHAR(100)   NOT NULL,
+    AccountNumber       NVARCHAR(50)    NOT NULL,
+    AccountHolderName   NVARCHAR(100)   NOT NULL,
+    Status              NVARCHAR(20)    NOT NULL DEFAULT 'Pending'
+                        CHECK (Status IN ('Pending', 'Approved', 'Rejected')),
+    RejectReason        NVARCHAR(500)   NULL,
+    CreatedAt           DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
+    ProcessedAt         DATETIME2       NULL,
+    CONSTRAINT FK_TicketRefundRequests_Ticket FOREIGN KEY (TicketId) REFERENCES Tickets(Id),
+    CONSTRAINT FK_TicketRefundRequests_Visitor FOREIGN KEY (VisitorId) REFERENCES Visitors(Id)
+);
+
+CREATE INDEX IX_TicketRefundRequests_TicketId ON TicketRefundRequests(TicketId);
+CREATE INDEX IX_TicketRefundRequests_VisitorId ON TicketRefundRequests(VisitorId);
 
 
 

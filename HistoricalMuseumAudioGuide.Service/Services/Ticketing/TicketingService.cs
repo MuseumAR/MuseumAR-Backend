@@ -91,7 +91,17 @@ public class TicketingService : ITicketingService
 
     public async Task<ResponseModel> GetTicketTypesAsync(string? lang = null)
     {
-        var ticketTypes = await _unitOfWork.TicketTypes.GetActiveTicketTypesAsync();
+        var ticketTypes = (await _unitOfWork.TicketTypes.GetActiveTicketTypesAsync()).ToList();
+
+        // Tự động ẩn khỏi quầy vé các loại vé dành cho triển lãm đã kết thúc hoặc đóng cửa
+        var today = DateTime.UtcNow.AddHours(7).Date;
+        ticketTypes = ticketTypes.Where(t =>
+            t.Exhibition == null ||
+            ((!t.Exhibition.EndDate.HasValue || t.Exhibition.EndDate.Value.Date >= today) &&
+             !string.Equals(t.Exhibition.Status, "Ended", StringComparison.OrdinalIgnoreCase) &&
+             !string.Equals(t.Exhibition.Status, "Closed", StringComparison.OrdinalIgnoreCase))
+        ).ToList();
+
         var dtos = _mapper.Map<IEnumerable<TicketTypeDto>>(ticketTypes).ToList();
 
         // Batch-load active promotions for all ticket types using the repository
@@ -135,6 +145,26 @@ public class TicketingService : ITicketingService
                 {
                     dto.Description = dto.DescriptionEn;
                 }
+            }
+        }
+
+        var ticketTypesList = ticketTypes.ToList();
+        var ticketTypeMap = ticketTypesList.ToDictionary(t => t.Id);
+        bool isEn = string.Equals(lang, "en", StringComparison.OrdinalIgnoreCase);
+
+        foreach (var dto in dtos)
+        {
+            if (ticketTypeMap.TryGetValue(dto.Id, out var entity) && entity.Exhibition != null)
+            {
+                var ex = entity.Exhibition;
+                var targetLang = isEn ? "en" : "vi";
+                var trans = ex.ExhibitionTranslations?.FirstOrDefault(t => string.Equals(t.LanguageCode, targetLang, StringComparison.OrdinalIgnoreCase))
+                    ?? ex.ExhibitionTranslations?.FirstOrDefault();
+
+                dto.ExhibitionName = trans?.Name;
+                dto.ExhibitionStartDate = ex.StartDate;
+                dto.ExhibitionEndDate = ex.EndDate;
+                dto.ExhibitionStatus = ex.Status;
             }
         }
 
@@ -189,6 +219,7 @@ public class TicketingService : ITicketingService
             {
                 t.PaymentStatus = "Cancelled";
                 t.UpdatedAt = now;
+                _unitOfWork.Transactions.Update(t);
                 dbChanged = true;
 
                 var oldTickets = await _unitOfWork.Tickets.GetTicketsByTransactionIdAsync(t.Id);
@@ -196,10 +227,39 @@ public class TicketingService : ITicketingService
                 {
                     ticket.Status = "Cancelled";
                     ticket.UpdatedAt = now;
+                    _unitOfWork.Tickets.Update(ticket);
                 }
             }
             else
             {
+                // Kiểm tra trực tiếp với PayOS xem đơn hàng này đã được thanh toán chưa
+                try
+                {
+                    var checkRes = await _paymentService.CheckPaymentStatusAsync(t.OrderCode);
+                    if (checkRes.StatusCode == 200 && checkRes.Data != null)
+                    {
+                        var dataObj = checkRes.Data;
+                        var isPaidProp = dataObj.GetType().GetProperty("isPaid");
+                        bool isPaid = isPaidProp?.GetValue(dataObj) as bool? ?? false;
+                        if (isPaid)
+                        {
+                            // Đơn đã thanh toán thành công và được CheckPaymentStatusAsync cập nhật xong
+                            continue;
+                        }
+
+                        var isCancelledProp = dataObj.GetType().GetProperty("isCancelled");
+                        bool isCancelled = isCancelledProp?.GetValue(dataObj) as bool? ?? false;
+                        if (isCancelled)
+                        {
+                            continue;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[GetPendingOrder CheckPayOS Warning]: {ex.Message}");
+                }
+
                 validPending.Add(t);
             }
         }
@@ -233,24 +293,28 @@ public class TicketingService : ITicketingService
             }
         }
 
-        string? checkoutUrl = null;
-        string? qrCode = null;
+        string? checkoutUrl = pendingTransaction.Description;
+        string? qrCode = pendingTransaction.Description;
 
-        try
+        // Nếu đơn chưa lưu link thanh toán thì mới gọi CreatePaymentLinkAsync để lấy link
+        if (string.IsNullOrEmpty(checkoutUrl))
         {
-            var paymentResponse = await _paymentService.CreatePaymentLinkAsync(pendingTransaction.OrderCode);
-            if (paymentResponse.StatusCode == 200 && paymentResponse.Data != null)
+            try
             {
-                var dataObj = paymentResponse.Data;
-                var checkoutProp = dataObj.GetType().GetProperty("CheckoutUrl");
-                var qrProp = dataObj.GetType().GetProperty("QrCode");
-                checkoutUrl = checkoutProp?.GetValue(dataObj)?.ToString();
-                qrCode = qrProp?.GetValue(dataObj)?.ToString();
+                var paymentResponse = await _paymentService.CreatePaymentLinkAsync(pendingTransaction.OrderCode);
+                if (paymentResponse.StatusCode == 200 && paymentResponse.Data != null)
+                {
+                    var dataObj = paymentResponse.Data;
+                    var checkoutProp = dataObj.GetType().GetProperty("CheckoutUrl");
+                    var qrProp = dataObj.GetType().GetProperty("QrCode");
+                    checkoutUrl = checkoutProp?.GetValue(dataObj)?.ToString();
+                    qrCode = qrProp?.GetValue(dataObj)?.ToString();
+                }
             }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[GetPendingOrder Warning]: CreatePaymentLink failed: {ex.Message}");
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GetPendingOrder Warning]: CreatePaymentLink failed: {ex.Message}");
+            }
         }
 
         var dto = new PendingOrderDto
@@ -261,7 +325,7 @@ public class TicketingService : ITicketingService
             Quantity = pendingTickets.Count,
             TotalAmount = pendingTransaction.TotalAmount,
             CheckoutUrl = checkoutUrl,
-            QrCode = qrCode,
+            QrCode = qrCode ?? checkoutUrl,
             CreatedAt = pendingTransaction.CreatedAt,
             ExpiresAt = pendingTransaction.CreatedAt.AddMinutes(15),
             RemainingSeconds = remainingSeconds
@@ -306,9 +370,10 @@ public class TicketingService : ITicketingService
                     {
                         return ResponseModel.BadRequest("Triển lãm này đã kết thúc, không thể mua vé.");
                     }
-                    if (string.Equals(exhibition.Status, "Closed", StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(exhibition.Status, "Closed", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(exhibition.Status, "Ended", StringComparison.OrdinalIgnoreCase))
                     {
-                        return ResponseModel.BadRequest("Triển lãm đã đóng cửa, không thể mua vé.");
+                        return ResponseModel.BadRequest("Triển lãm đã đóng cửa hoặc đã kết thúc, không thể mua vé.");
                     }
                     if (exhibition.EndDate.HasValue)
                     {
@@ -399,6 +464,16 @@ public class TicketingService : ITicketingService
 
     public async Task<ResponseModel> GetMyTicketsAsync(int visitorId, string? lang = null)
     {
+        // Tự động đồng bộ các đơn chờ thanh toán với PayOS để cập nhật vé mới mua
+        try
+        {
+            await GetPendingOrderAsync(visitorId, lang);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[GetMyTickets Sync Warning]: {ex.Message}");
+        }
+
         var tickets = await _unitOfWork.Tickets.GetTicketsByVisitorIdAsync(visitorId);
         // Return Paid and Used tickets to the user
         var activeTickets = tickets.Where(t => t.Status == "Paid" || t.Status == "Used");
@@ -544,6 +619,8 @@ public class TicketingService : ITicketingService
                 {
                     "Paid" or "Active" => "Vé hợp lệ! Có thể thực hiện Check-in.",
                     "Used" => $"Vé này đã được Check-in sử dụng trước đó vào lúc {ticket.UpdatedAt:dd/MM/yyyy HH:mm}!",
+                    "Refund_Pending" => "Vé này đang trong quá trình yêu cầu hoàn tiền!",
+                    "Refunded" => "Vé này đã được hoàn tiền và không còn hiệu lực!",
                     "Cancelled" => "Vé này đã bị hủy hoặc hết hạn thanh toán!",
                     "Pending" => "Vé này chưa được xác nhận thanh toán!",
                     _ => $"Trạng thái vé: {ticket.Status}"
@@ -584,6 +661,16 @@ public class TicketingService : ITicketingService
         if (ticket.Status == "Used")
         {
             return ResponseModel.BadRequest($"Vé này đã được check-in sử dụng trước đó vào {ticket.UpdatedAt:dd/MM/yyyy HH:mm}!");
+        }
+
+        if (ticket.Status == "Refund_Pending")
+        {
+            return ResponseModel.BadRequest("Vé này đang trong quá trình yêu cầu hoàn tiền, không thể check-in!");
+        }
+
+        if (ticket.Status == "Refunded")
+        {
+            return ResponseModel.BadRequest("Vé này đã được hoàn tiền, mã vé không còn hiệu lực để vào cổng!");
         }
 
         if (ticket.Status != "Paid" && ticket.Status != "Active")
@@ -629,5 +716,76 @@ public class TicketingService : ITicketingService
         };
 
         return ResponseModel.Success("Check-in ticket successfully.", responseDto);
+    }
+
+    public async Task<ResponseModel> RequestTicketRefundAsync(int visitorId, int ticketId, CreateTicketRefundRequestDto dto)
+    {
+        var ticket = await _unitOfWork.Tickets.GetByIdAsync(ticketId);
+        if (ticket == null || ticket.VisitorId != visitorId)
+        {
+            return ResponseModel.NotFound("Không tìm thấy vé hoặc bạn không có quyền thao tác trên vé này.");
+        }
+
+        if (ticket.Status == "Used")
+        {
+            return ResponseModel.BadRequest("Vé này đã được check-in sử dụng, không thể yêu cầu hoàn tiền!");
+        }
+
+        if (ticket.Status == "Refund_Pending")
+        {
+            return ResponseModel.BadRequest("Vé này đã có yêu cầu hoàn tiền đang chờ ban quản lý xét duyệt!");
+        }
+
+        if (ticket.Status == "Refunded")
+        {
+            return ResponseModel.BadRequest("Vé này đã được hoàn tiền trước đó!");
+        }
+
+        if (ticket.Status != "Paid" && ticket.Status != "Active")
+        {
+            return ResponseModel.BadRequest($"Chỉ có thể yêu cầu hoàn tiền cho vé đã thanh toán. Trạng thái hiện tại: {ticket.Status}.");
+        }
+
+        var now = DateTime.UtcNow.AddHours(7);
+        if (ticket.ValidDate.HasValue && now > ticket.ValidDate.Value)
+        {
+            return ResponseModel.BadRequest("Vé đã hết hạn sử dụng, không thể gửi yêu cầu hoàn tiền!");
+        }
+
+        decimal refundAmount = ticket.Price;
+        if (refundAmount <= 0)
+        {
+            var ticketType = await _unitOfWork.TicketTypes.GetByIdAsync(ticket.TicketTypeId);
+            refundAmount = ticketType?.Price ?? 0;
+        }
+
+        var refundRequest = new TicketRefundRequest
+        {
+            TicketId = ticket.Id,
+            VisitorId = visitorId,
+            Amount = refundAmount,
+            Reason = dto.Reason.Trim(),
+            BankName = dto.BankName.Trim(),
+            AccountNumber = dto.AccountNumber.Trim(),
+            AccountHolderName = dto.AccountHolderName.Trim(),
+            Status = "Pending",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _unitOfWork.TicketRefundRequests.AddAsync(refundRequest);
+
+        ticket.Status = "Refund_Pending";
+        ticket.UpdatedAt = DateTime.UtcNow;
+        _unitOfWork.Tickets.Update(ticket);
+
+        await _unitOfWork.CompleteAsync();
+
+        return ResponseModel.Success("Yêu cầu hoàn vé đã được gửi thành công. Ban quản lý bảo tàng sẽ kiểm tra và hoàn tiền cho bạn sớm nhất có thể!", new
+        {
+            refundRequestId = refundRequest.Id,
+            ticketId = ticket.Id,
+            amount = refundAmount,
+            status = refundRequest.Status
+        });
     }
 }

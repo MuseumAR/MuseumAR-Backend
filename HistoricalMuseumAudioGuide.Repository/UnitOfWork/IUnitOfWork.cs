@@ -65,6 +65,7 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         IGenericRepository<WaypointEdge> WaypointEdges { get; }
         IGenericRepository<MapPoi> MapPois { get; }
         ITicketPromotionRepository TicketPromotions { get; }
+        IGenericRepository<TicketRefundRequest> TicketRefundRequests { get; }
         
         Task<int> CompleteAsync();
         /// <summary>Exposes the underlying DbContext for tracked queries needed by many-to-many operations.</summary>

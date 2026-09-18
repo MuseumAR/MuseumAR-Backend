@@ -20,7 +20,7 @@ public class TicketRepository : GenericRepository<Entities.Ticket>, ITicketRepos
 
     public async Task<IEnumerable<Entities.Ticket>> GetTicketsByTransactionIdAsync(int transactionId)
     {
-        return await _dbSet.AsNoTracking()
+        return await _dbSet
             .Include(t => t.TicketType)
                 .ThenInclude(tt => tt.Exhibition)
             .Where(t => t.TransactionId == transactionId)
@@ -43,7 +43,7 @@ public class TicketRepository : GenericRepository<Entities.Ticket>, ITicketRepos
 
     public async Task<Entities.Ticket?> GetTicketByCodeAsync(string ticketCode)
     {
-        return await _dbSet.AsNoTracking()
+        return await _dbSet
             .Include(t => t.TicketType)
             .Include(t => t.Visitor)
                 .ThenInclude(v => v.User)

@@ -13,6 +13,12 @@ public class TicketTypeDto
     public string Status { get; set; } = null!;
     public bool IsActive { get; set; }
 
+    // Exhibition fields
+    public string? ExhibitionName { get; set; }
+    public System.DateTime? ExhibitionStartDate { get; set; }
+    public System.DateTime? ExhibitionEndDate { get; set; }
+    public string? ExhibitionStatus { get; set; }
+
     // Promotion fields
     public System.Collections.Generic.List<TicketPromotionDto>? ActivePromotions { get; set; }
     public decimal? OriginalPrice { get; set; }

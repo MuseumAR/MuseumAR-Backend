@@ -14,4 +14,5 @@ public interface ITicketingService
     Task<ResponseModel> GetPendingOrderAsync(int visitorId, string? lang = null);
     Task<ResponseModel> ValidateTicketAsync(string ticketCode);
     Task<ResponseModel> CheckInTicketAsync(string ticketCode);
+    Task<ResponseModel> RequestTicketRefundAsync(int visitorId, int ticketId, CreateTicketRefundRequestDto dto);
 }

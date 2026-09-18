@@ -90,6 +90,17 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         }
 
         [Authorize]
+        [HttpPost("my-tickets/{id}/refund-request")]
+        public async Task<IActionResult> RequestTicketRefund(int id, [FromBody] CreateTicketRefundRequestDto dto)
+        {
+            var (visitor, errorResponse) = await GetCurrentVisitorAsync();
+            if (errorResponse != null) return errorResponse;
+
+            var response = await _ticketingService.RequestTicketRefundAsync(visitor!.Id, id, dto);
+            return ResponseParser.Result(response);
+        }
+
+        [Authorize]
         [HttpGet("pending-order")]
         public async Task<IActionResult> GetPendingOrder([FromQuery] string? lang = null)
         {
