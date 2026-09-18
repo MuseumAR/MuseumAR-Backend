@@ -17,7 +17,7 @@ public class TicketTypeRepository : GenericRepository<Entities.TicketType>, ITic
     {
         return await _dbSet.AsNoTracking()
             .Include(t => t.Exhibition)
-                .ThenInclude(e => e.ExhibitionTranslations)
+                .ThenInclude(e => e!.ExhibitionTranslations)
             .Where(t => t.IsActive && (t.Status == "Approved" || t.Status == "Active" || t.Status == null))
             .ToListAsync();
     }
@@ -26,7 +26,7 @@ public class TicketTypeRepository : GenericRepository<Entities.TicketType>, ITic
     {
         return await _dbSet.AsNoTracking()
             .Include(t => t.Exhibition)
-                .ThenInclude(e => e.ExhibitionTranslations)
+                .ThenInclude(e => e!.ExhibitionTranslations)
             .Where(t => t.MuseumId == museumId)
             .ToListAsync();
     }

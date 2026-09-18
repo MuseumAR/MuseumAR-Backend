@@ -40,9 +40,10 @@ namespace HistoricalMuseumAudioGuide.Repository.Repositories.Exhibit
                     .ThenInclude(c => c!.CategoryTranslations)
                 .Include(e => e.Room)
                 .FirstOrDefaultAsync(e =>
-                    e.QrcodeData == cleanQr ||
+                    (e.QrcodeData == cleanQr ||
                     e.ExhibitCode == cleanQr ||
-                    (exhibitId > 0 && e.Id == exhibitId));
+                    (exhibitId > 0 && e.Id == exhibitId)) &&
+                    e.Status != "Archived");
         }
 
         public async Task<(IEnumerable<Entities.Exhibit> Items, int TotalCount)> GetExhibitsPagedAsync(
@@ -70,7 +71,22 @@ namespace HistoricalMuseumAudioGuide.Repository.Repositories.Exhibit
                 {
                     query = query.Where(e => e.Status == "Draft");
                 }
-                // If unrecognized status (e.g. 'all'), do not filter — do not fail
+                else if (s.Equals("Archived", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    query = query.Where(e => e.Status == "Archived");
+                }
+                else if (s.Equals("All", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    // Do not filter out any status when "All" is requested
+                }
+                else
+                {
+                    query = query.Where(e => e.Status != "Archived");
+                }
+            }
+            else
+            {
+                query = query.Where(e => e.Status != "Archived");
             }
 
             if (!string.IsNullOrWhiteSpace(search))
