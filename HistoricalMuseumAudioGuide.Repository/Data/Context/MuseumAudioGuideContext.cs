@@ -88,6 +88,8 @@ public partial class MuseumAudioGuideContext : DbContext
 
     public virtual DbSet<Ticket> Tickets { get; set; }
 
+    public virtual DbSet<TicketRefundRequest> TicketRefundRequests { get; set; }
+
     public virtual DbSet<TicketType> TicketTypes { get; set; }
 
     public virtual DbSet<TicketPromotion> TicketPromotions { get; set; }
@@ -844,6 +846,31 @@ public partial class MuseumAudioGuideContext : DbContext
                 .HasForeignKey(d => d.TicketTypeId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("FK_TicketPromotions_TicketType");
+        });
+
+        modelBuilder.Entity<TicketRefundRequest>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.BankName).HasMaxLength(100);
+            entity.Property(e => e.AccountNumber).HasMaxLength(50);
+            entity.Property(e => e.AccountHolderName).HasMaxLength(100);
+            entity.Property(e => e.Reason).HasMaxLength(500);
+            entity.Property(e => e.RejectReason).HasMaxLength(500);
+            entity.Property(e => e.Status).HasMaxLength(20).HasDefaultValue("Pending");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
+
+            entity.HasOne(d => d.Ticket)
+                .WithMany()
+                .HasForeignKey(d => d.TicketId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_TicketRefundRequests_Ticket");
+
+            entity.HasOne(d => d.Visitor)
+                .WithMany()
+                .HasForeignKey(d => d.VisitorId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_TicketRefundRequests_Visitor");
         });
 
         modelBuilder.Entity<TourRoute>(entity =>

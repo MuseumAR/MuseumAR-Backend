@@ -4,6 +4,7 @@ using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Auth;
 using HistoricalMuseumAudioGuide.Repository.UnitOfWork;
 using HistoricalMuseumAudioGuide.Service.Services.Audit;
 using HistoricalMuseumAudioGuide.Service.Services.Email;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using HistoricalMuseumAudioGuide.Repository.Entities;
@@ -295,16 +296,21 @@ public class AuthService : IAuthService
                 {
                     Email = payload.Email,
                     FullName = payload.Name,
+                    AvatarUrl = payload.Picture,
                     PasswordHash = "GOOGLE_OAUTH_USER", // No password for Google users
                     RoleId = visitorRole.Id,
                     Status = "Active",
                     IsEmailConfirmed = true,
                     CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    UpdatedAt = DateTime.UtcNow,
+                    LastLoginAt = DateTime.UtcNow
                 };
 
                 await _unitOfWork.Users.AddAsync(user);
                 await _unitOfWork.CompleteAsync();
+
+                // Attach role in-memory for JWT claims and DTO mapping
+                user.Role = visitorRole;
 
                 await _auditService.LogActionAsync(
                     userId: user.Id, 
@@ -314,26 +320,38 @@ public class AuthService : IAuthService
                     ipAddress: "System",
                     userAgent: "GoogleOAuth"
                 );
-                
-                // Re-fetch to get includes
-                user = await _unitOfWork.Users.GetUserByEmailAsync(payload.Email);
             }
-            else if (!user.IsEmailConfirmed)
+            else
             {
+                if (user.Status != "Active")
+                {
+                    return ResponseModel.Unauthorized("Account is inactive.");
+                }
+
+                var now = DateTime.UtcNow;
                 user.IsEmailConfirmed = true;
-                _unitOfWork.Users.Update(user);
-                await _unitOfWork.CompleteAsync();
-            }
+                user.LastLoginAt = now;
+                user.UpdatedAt = now;
+                if (!string.IsNullOrEmpty(payload.Picture) && string.IsNullOrEmpty(user.AvatarUrl))
+                {
+                    user.AvatarUrl = payload.Picture;
+                }
 
-            if (user!.Status != "Active")
-            {
-                return ResponseModel.Unauthorized("Account is inactive.");
-            }
+                if (user.Role == null)
+                {
+                    user.Role = await _unitOfWork.Roles.GetByIdAsync(user.RoleId) 
+                                ?? await _unitOfWork.Roles.GetRoleByNameAsync("Visitor");
+                }
 
-            // Update Last Login
-            user.LastLoginAt = DateTime.UtcNow;
-            _unitOfWork.Users.Update(user);
-            await _unitOfWork.CompleteAsync();
+                // Update database directly without tracking conflicts or graph side-effects
+                await _unitOfWork.Context.Users
+                    .Where(u => u.Id == user.Id)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(u => u.LastLoginAt, user.LastLoginAt)
+                        .SetProperty(u => u.IsEmailConfirmed, true)
+                        .SetProperty(u => u.UpdatedAt, user.UpdatedAt)
+                        .SetProperty(u => u.AvatarUrl, user.AvatarUrl));
+            }
 
             // Generate Local JWT
             var token = GenerateJwtToken(user);

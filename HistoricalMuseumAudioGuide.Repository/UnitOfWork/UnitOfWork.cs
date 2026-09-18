@@ -69,6 +69,7 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
             WaypointEdges = new GenericRepository<WaypointEdge>(_context);
             MapPois = new GenericRepository<MapPoi>(_context);
             TicketPromotions = new TicketPromotionRepository(_context);
+            TicketRefundRequests = new GenericRepository<TicketRefundRequest>(_context);
         }
         public IAnalyticsRepository Analytics { get; private set; }
         public IMuseumRepository Museums { get; private set; }
@@ -111,6 +112,7 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         public IGenericRepository<WaypointEdge> WaypointEdges { get; private set; }
         public IGenericRepository<MapPoi> MapPois { get; private set; }
         public ITicketPromotionRepository TicketPromotions { get; private set; }
+        public IGenericRepository<TicketRefundRequest> TicketRefundRequests { get; private set; }
         public MuseumAudioGuideContext Context => _context;
  
         public async Task<int> CompleteAsync()

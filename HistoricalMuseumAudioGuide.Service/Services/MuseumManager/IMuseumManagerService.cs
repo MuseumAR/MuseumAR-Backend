@@ -31,5 +31,13 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Analytics
         Task<ResponseModel> UpdateTicketPromotionAsync(int museumId, int promotionId, UpdateTicketPromotionDto dto);
         Task<ResponseModel> DeleteTicketPromotionAsync(int museumId, int promotionId);
         Task<ResponseModel> ToggleTicketPromotionAsync(int museumId, int promotionId, bool isActive);
+
+        // Refund management
+        Task<ResponseModel> GetRefundRequestsByMuseumAsync(int museumId, string? status = null);
+        Task<ResponseModel> ProcessRefundRequestAsync(int museumId, int refundRequestId, ProcessTicketRefundRequestDto dto);
+
+        // Revenue & Visitor Traffic Analytics
+        Task<ResponseModel> GetRevenueAnalyticsAsync(int museumId, System.DateTime? fromDate = null, System.DateTime? toDate = null);
+        Task<ResponseModel> GetVisitorTrafficAnalyticsAsync(int museumId, System.DateTime? fromDate = null, System.DateTime? toDate = null);
     }
 }

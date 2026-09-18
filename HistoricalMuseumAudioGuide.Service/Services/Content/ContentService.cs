@@ -751,7 +751,8 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
 
         public async Task<ResponseModel> GetExhibitionsByMuseumIdAsync(int museumId, string? lang = null)
         {
-            var exhibitions = await _unitOfWork.Exhibitions.FindAsync(e => e.MuseumId == museumId, includeProperties: "ExhibitionTranslations,Theme");
+            var exhibitions = (await _unitOfWork.Exhibitions.FindAsync(e => e.MuseumId == museumId, includeProperties: "ExhibitionTranslations,Theme")).ToList();
+            await SyncExhibitionStatusesAsync(exhibitions);
             var dtos = _mapper.Map<IEnumerable<ExhibitionDto>>(exhibitions).ToList();
             ApplyExhibitionLanguage(dtos, lang);
             return ResponseModel.Success("Exhibitions retrieved successfully", dtos);
@@ -761,8 +762,46 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
         {
             var exhibition = await _unitOfWork.Exhibitions.GetFirstOrDefaultAsync(e => e.Id == id, includeProperties: "ExhibitionTranslations,Exhibits,Theme");
             if (exhibition == null) return ResponseModel.NotFound("Exhibition not found");
+            await SyncExhibitionStatusesAsync(new[] { exhibition });
             var dto = _mapper.Map<ExhibitionDto>(exhibition);
             return ResponseModel.Success("Exhibition retrieved successfully", dto);
+        }
+
+        private async Task SyncExhibitionStatusesAsync(IEnumerable<Exhibition> exhibitions)
+        {
+            var today = DateTime.UtcNow.AddHours(7).Date;
+            bool hasChanges = false;
+
+            foreach (var ex in exhibitions)
+            {
+                // Nếu đã qua ngày kết thúc -> tự động chuyển sang Ended
+                if (ex.EndDate.HasValue && ex.EndDate.Value.Date < today)
+                {
+                    if (!string.Equals(ex.Status, "Ended", StringComparison.OrdinalIgnoreCase))
+                    {
+                        ex.Status = "Ended";
+                        ex.UpdatedAt = DateTime.UtcNow;
+                        _unitOfWork.Exhibitions.Update(ex);
+                        hasChanges = true;
+                    }
+                }
+                // Nếu đã tới ngày hẹn (today >= StartDate) và chưa hết hạn -> tự động kích hoạt nếu đang Inactive
+                else if (ex.StartDate.HasValue && today >= ex.StartDate.Value.Date && (!ex.EndDate.HasValue || today <= ex.EndDate.Value.Date))
+                {
+                    if (string.Equals(ex.Status, "Inactive", StringComparison.OrdinalIgnoreCase))
+                    {
+                        ex.Status = "Active";
+                        ex.UpdatedAt = DateTime.UtcNow;
+                        _unitOfWork.Exhibitions.Update(ex);
+                        hasChanges = true;
+                    }
+                }
+            }
+
+            if (hasChanges)
+            {
+                await _unitOfWork.CompleteAsync();
+            }
         }
 
         private static void ApplyExhibitionLanguage(IEnumerable<ExhibitionDto> exhibitions, string? lang)
@@ -824,15 +863,28 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             var accessCheck = ValidateMuseumAccess(userMuseumId, createExhibitionDto.MuseumId);
             if (accessCheck != null) return accessCheck;
 
+            var today = DateTime.UtcNow.AddHours(7).Date;
+
+            if (createExhibitionDto.StartDate.HasValue && createExhibitionDto.StartDate.Value.Date < today)
+            {
+                return ResponseModel.BadRequest("Ngày bắt đầu không được ở trong quá khứ (Start date cannot be in the past).");
+            }
+
+            if (createExhibitionDto.EndDate.HasValue && createExhibitionDto.EndDate.Value.Date < today)
+            {
+                return ResponseModel.BadRequest("Ngày kết thúc không được ở trong quá khứ (End date cannot be in the past).");
+            }
+
             if (createExhibitionDto.StartDate.HasValue && createExhibitionDto.EndDate.HasValue)
             {
-                if (createExhibitionDto.StartDate.Value > createExhibitionDto.EndDate.Value)
+                if (createExhibitionDto.StartDate.Value.Date > createExhibitionDto.EndDate.Value.Date)
                 {
-                    return ResponseModel.BadRequest("End date must be after or equal to start date.");
+                    return ResponseModel.BadRequest("Ngày kết thúc phải diễn ra sau hoặc cùng ngày với ngày bắt đầu (End date must be after or equal to start date).");
                 }
             }
 
             var exhibition = _mapper.Map<Exhibition>(createExhibitionDto);
+            exhibition.Status = "Inactive";
             
             exhibition.ExhibitionTranslations = new List<ExhibitionTranslation>
             {
@@ -863,11 +915,28 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             var accessCheck = ValidateMuseumAccess(userMuseumId, exhibition.MuseumId);
             if (accessCheck != null) return accessCheck;
 
+            var today = DateTime.UtcNow.AddHours(7).Date;
+
+            // Nếu người dùng thay đổi ngày bắt đầu, không cho phép chọn ngày trong quá khứ
+            if (exhibitionDto.StartDate.HasValue)
+            {
+                bool isStartDateChanged = !exhibition.StartDate.HasValue || exhibition.StartDate.Value.Date != exhibitionDto.StartDate.Value.Date;
+                if (isStartDateChanged && exhibitionDto.StartDate.Value.Date < today)
+                {
+                    return ResponseModel.BadRequest("Ngày bắt đầu không được ở trong quá khứ (Start date cannot be in the past).");
+                }
+            }
+
+            if (exhibitionDto.EndDate.HasValue && exhibitionDto.EndDate.Value.Date < today)
+            {
+                return ResponseModel.BadRequest("Ngày kết thúc không được ở trong quá khứ (End date cannot be in the past).");
+            }
+
             if (exhibitionDto.StartDate.HasValue && exhibitionDto.EndDate.HasValue)
             {
-                if (exhibitionDto.StartDate.Value > exhibitionDto.EndDate.Value)
+                if (exhibitionDto.StartDate.Value.Date > exhibitionDto.EndDate.Value.Date)
                 {
-                    return ResponseModel.BadRequest("End date must be after or equal to start date.");
+                    return ResponseModel.BadRequest("Ngày kết thúc phải diễn ra sau hoặc cùng ngày với ngày bắt đầu (End date must be after or equal to start date).");
                 }
             }
 

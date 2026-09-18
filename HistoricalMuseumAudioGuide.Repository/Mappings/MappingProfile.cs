@@ -183,6 +183,12 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
             CreateMap<Ticket, TicketDto>()
                 .ForMember(dest => dest.TicketTypeName, opt => opt.MapFrom(src => src.TicketType != null ? src.TicketType.Name : null))
                 .ForMember(dest => dest.Price, opt => opt.MapFrom(src => src.Price > 0 ? src.Price : (src.TicketType != null ? src.TicketType.Price : 0)));
+            CreateMap<TicketRefundRequest, TicketRefundRequestDto>()
+                .ForMember(dest => dest.TicketCode, opt => opt.MapFrom(src => src.Ticket != null ? src.Ticket.TicketCode : string.Empty))
+                .ForMember(dest => dest.TicketTypeName, opt => opt.MapFrom(src => src.Ticket != null && src.Ticket.TicketType != null ? src.Ticket.TicketType.Name : string.Empty))
+                .ForMember(dest => dest.VisitorName, opt => opt.MapFrom(src => src.Visitor != null ? (src.Visitor.User != null ? src.Visitor.User.FullName : (src.Visitor.DisplayName ?? "Khách tham quan")) : "Khách tham quan"))
+                .ForMember(dest => dest.VisitorEmail, opt => opt.MapFrom(src => src.Visitor != null ? (src.Visitor.Email ?? (src.Visitor.User != null ? src.Visitor.User.Email : null)) : null))
+                .ForMember(dest => dest.VisitorPhone, opt => opt.MapFrom(src => src.Visitor != null && src.Visitor.User != null ? src.Visitor.User.PhoneNumber : null));
 
             // Visitor
             CreateMap<Bookmark, BookmarkDto>();
