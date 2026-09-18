@@ -442,6 +442,11 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             var accessCheck = ValidateMuseumAccess(userMuseumId, exhibit.MuseumId);
             if (accessCheck != null) return accessCheck;
 
+            if (string.Equals(exhibit.Status, "Archived", StringComparison.OrdinalIgnoreCase))
+            {
+                return ResponseModel.BadRequest("Hiện vật này đã bị xóa (Archived) trước đó.");
+            }
+
             exhibit.Status = "Archived";
             exhibit.UpdatedAt = DateTime.UtcNow;
             

@@ -475,8 +475,8 @@ public class TicketingService : ITicketingService
         }
 
         var tickets = await _unitOfWork.Tickets.GetTicketsByVisitorIdAsync(visitorId);
-        // Return Paid and Used tickets to the user
-        var activeTickets = tickets.Where(t => t.Status == "Paid" || t.Status == "Used");
+        // Return Paid, Used, Refund_Pending, and Refunded tickets to the user
+        var activeTickets = tickets.Where(t => t.Status == "Paid" || t.Status == "Used" || t.Status == "Refund_Pending" || t.Status == "Refunded");
         var dtos = _mapper.Map<IEnumerable<TicketDto>>(activeTickets).ToList();
         var en = string.Equals(lang, "en", StringComparison.OrdinalIgnoreCase);
         if (en)
