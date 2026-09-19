@@ -779,15 +779,14 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
 
             foreach (var ex in exhibitions)
             {
+                string? newStatus = null;
+
                 // Nếu đã qua ngày kết thúc -> tự động chuyển sang Ended
                 if (ex.EndDate.HasValue && ex.EndDate.Value.Date < today)
                 {
                     if (!string.Equals(ex.Status, "Ended", StringComparison.OrdinalIgnoreCase))
                     {
-                        ex.Status = "Ended";
-                        ex.UpdatedAt = DateTime.UtcNow;
-                        _unitOfWork.Exhibitions.Update(ex);
-                        hasChanges = true;
+                        newStatus = "Ended";
                     }
                 }
                 // Nếu đã tới ngày hẹn (today >= StartDate) và chưa hết hạn -> tự động kích hoạt nếu đang Inactive
@@ -795,9 +794,21 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
                 {
                     if (string.Equals(ex.Status, "Inactive", StringComparison.OrdinalIgnoreCase))
                     {
-                        ex.Status = "Active";
-                        ex.UpdatedAt = DateTime.UtcNow;
-                        _unitOfWork.Exhibitions.Update(ex);
+                        newStatus = "Active";
+                    }
+                }
+
+                if (newStatus != null)
+                {
+                    var now = DateTime.UtcNow;
+                    ex.Status = newStatus;
+                    ex.UpdatedAt = now;
+
+                    var entityToUpdate = await _unitOfWork.Exhibitions.GetByIdAsync(ex.Id);
+                    if (entityToUpdate != null)
+                    {
+                        entityToUpdate.Status = newStatus;
+                        entityToUpdate.UpdatedAt = now;
                         hasChanges = true;
                     }
                 }
