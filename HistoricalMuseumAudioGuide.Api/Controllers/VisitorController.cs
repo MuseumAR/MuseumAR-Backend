@@ -61,10 +61,25 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         }
 
         [HttpGet("sync-check")]
-        public async Task<IActionResult> CheckForUpdates()
+        public async Task<IActionResult> CheckForUpdates([FromQuery] int? exhibitionId = null)
         {
             var museumId = await _museumResolver.GetMuseumIdAsync();
-            var response = await _visitorService.GetLatestOfflinePackageAsync(museumId);
+            var response = await _visitorService.GetLatestOfflinePackageAsync(museumId, exhibitionId);
+            return ResponseParser.Result(response);
+        }
+
+        [HttpGet("offline-package/latest")]
+        public async Task<IActionResult> GetLatestOfflinePackage([FromQuery] int? exhibitionId = null)
+        {
+            var museumId = await _museumResolver.GetMuseumIdAsync();
+            var response = await _visitorService.GetLatestOfflinePackageAsync(museumId, exhibitionId);
+            return ResponseParser.Result(response);
+        }
+
+        [HttpGet("offline-package/by-ticket/{ticketCode}")]
+        public async Task<IActionResult> GetOfflinePackageByTicket(string ticketCode)
+        {
+            var response = await _visitorService.GetOfflinePackageByTicketAsync(ticketCode);
             return ResponseParser.Result(response);
         }
 

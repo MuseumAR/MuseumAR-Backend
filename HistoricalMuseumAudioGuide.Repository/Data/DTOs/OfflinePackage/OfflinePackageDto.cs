@@ -6,6 +6,8 @@ public class CreateOfflinePackageDto
 {
     public int MuseumId { get; set; }
     public int VersionId { get; set; }
+    public int? ExhibitionId { get; set; }
+    public string? PackageName { get; set; }
 }
 
 public class OfflinePackageDto
@@ -13,6 +15,9 @@ public class OfflinePackageDto
     public int Id { get; set; }
     public int MuseumId { get; set; }
     public int VersionId { get; set; }
+    public int? ExhibitionId { get; set; }
+    public string? ExhibitionTitle { get; set; }
+    public string? PackageName { get; set; }
     public string? PackageUrl { get; set; }
     public long? PackageSizeBytes { get; set; }
     public string? Checksum { get; set; }

@@ -7,7 +7,8 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Visitor;
 
 public interface IVisitorService
 {
-    Task<ResponseModel> GetLatestOfflinePackageAsync(int museumId);
+    Task<ResponseModel> GetLatestOfflinePackageAsync(int museumId, int? exhibitionId = null);
+    Task<ResponseModel> GetOfflinePackageByTicketAsync(string ticketCode);
     Task<ResponseModel> GetVisitorProfileAsync(int visitorId);
     Task<ResponseModel> GetBookmarksAsync(int visitorId);
     Task<ResponseModel> AddBookmarkAsync(int visitorId, CreateBookmarkDto dto);

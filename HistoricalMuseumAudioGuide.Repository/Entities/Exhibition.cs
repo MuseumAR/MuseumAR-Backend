@@ -34,4 +34,6 @@ public partial class Exhibition
     public virtual ICollection<Exhibit> Exhibits { get; set; } = new List<Exhibit>();
 
     public virtual ICollection<TourRoute> TourRoutes { get; set; } = new List<TourRoute>();
+
+    public virtual ICollection<OfflinePackage> OfflinePackages { get; set; } = new List<OfflinePackage>();
 }
