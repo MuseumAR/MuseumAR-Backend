@@ -11,6 +11,10 @@ public partial class OfflinePackage
 
     public int VersionId { get; set; }
 
+    public int? ExhibitionId { get; set; }
+
+    public string? PackageName { get; set; }
+
     public string PackageUrl { get; set; } = null!;
 
     public long PackageSizeBytes { get; set; }
@@ -34,4 +38,6 @@ public partial class OfflinePackage
     public virtual Museum Museum { get; set; } = null!;
 
     public virtual ContentVersion Version { get; set; } = null!;
+
+    public virtual Exhibition? Exhibition { get; set; }
 }

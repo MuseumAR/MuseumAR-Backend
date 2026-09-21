@@ -360,10 +360,10 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         // --- Offline Package Management (Read - Public, Write - Authorized) ---
 
         [HttpGet("packages")]
-        public async Task<IActionResult> GetOfflinePackages()
+        public async Task<IActionResult> GetOfflinePackages([FromQuery] int? exhibitionId = null)
         {
             var museumId = await _museumResolver.GetMuseumIdAsync();
-            var response = await _contentService.GetOfflinePackagesByMuseumIdAsync(museumId);
+            var response = await _contentService.GetOfflinePackagesByMuseumIdAsync(museumId, exhibitionId);
             return ResponseParser.Result(response);
         }
 
@@ -373,7 +373,7 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         {
             var museumId = await _museumResolver.GetMuseumIdAsync();
             var userMuseumId = GetCurrentUserMuseumId();
-            var response = await _contentService.GenerateOfflinePackageAsync(museumId, dto.VersionId, userMuseumId);
+            var response = await _contentService.GenerateOfflinePackageAsync(museumId, dto.VersionId, dto.ExhibitionId, dto.PackageName, userMuseumId);
             return ResponseParser.Result(response);
         }
 

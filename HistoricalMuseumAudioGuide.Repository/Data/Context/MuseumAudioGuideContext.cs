@@ -577,6 +577,7 @@ public partial class MuseumAudioGuideContext : DbContext
 
             entity.Property(e => e.ArassetCount).HasColumnName("ARAssetCount");
             entity.Property(e => e.Checksum).HasMaxLength(128);
+            entity.Property(e => e.PackageName).HasMaxLength(255);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
             entity.Property(e => e.PackageUrl).HasMaxLength(500);
             entity.Property(e => e.Status)
@@ -592,6 +593,11 @@ public partial class MuseumAudioGuideContext : DbContext
                 .HasForeignKey(d => d.VersionId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_OfflinePackages_Version");
+
+            entity.HasOne(d => d.Exhibition).WithMany(p => p.OfflinePackages)
+                .HasForeignKey(d => d.ExhibitionId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FK_OfflinePackages_Exhibitions");
         });
 
 

@@ -21,21 +21,65 @@ public class VisitorService : IVisitorService
         _mapper = mapper;
     }
 
-    public async Task<ResponseModel> GetLatestOfflinePackageAsync(int museumId)
+    public async Task<ResponseModel> GetLatestOfflinePackageAsync(int museumId, int? exhibitionId = null)
     {
-        var packages = await _unitOfWork.OfflinePackages.GetPackagesByMuseumIdAsync(museumId);
+        var packages = await _unitOfWork.OfflinePackages.GetPackagesByMuseumIdAsync(museumId, exhibitionId);
+        var today = DateTime.UtcNow.AddHours(7).Date;
         var latest = packages
-            .Where(p => p.Status == "Available")
+            .Where(p => p.Status == "Available" &&
+                        (p.Exhibition == null ||
+                         ((!p.Exhibition.EndDate.HasValue || p.Exhibition.EndDate.Value.Date >= today) &&
+                          !string.Equals(p.Exhibition.Status, "Ended", StringComparison.OrdinalIgnoreCase) &&
+                          !string.Equals(p.Exhibition.Status, "Closed", StringComparison.OrdinalIgnoreCase))))
             .OrderByDescending(p => p.CreatedAt)
             .FirstOrDefault();
 
         if (latest == null)
         {
-            return ResponseModel.NotFound("No offline package available for this museum.");
+            string scopeText = exhibitionId.HasValue ? "cho chuyên đề triển lãm này (hoặc triển lãm đã kết thúc)" : "cho bảo tàng này";
+            return ResponseModel.NotFound($"Không tìm thấy gói dữ liệu offline khả dụng {scopeText}.");
         }
 
         var dto = _mapper.Map<OfflinePackageDto>(latest);
         return ResponseModel.Success("Latest offline package retrieved", dto);
+    }
+
+    public async Task<ResponseModel> GetOfflinePackageByTicketAsync(string ticketCode)
+    {
+        if (string.IsNullOrWhiteSpace(ticketCode))
+        {
+            return ResponseModel.BadRequest("Mã vé không hợp lệ.");
+        }
+
+        var ticket = await _unitOfWork.Tickets.GetFirstOrDefaultAsync(
+            t => t.TicketCode == ticketCode,
+            "TicketType,TicketType.Exhibition");
+
+        if (ticket == null)
+        {
+            return ResponseModel.NotFound("Không tìm thấy vé với mã đã cung cấp.");
+        }
+
+        int museumId = ticket.TicketType?.MuseumId ?? 0;
+        if (museumId == 0)
+        {
+            return ResponseModel.BadRequest("Không xác định được bảo tàng từ thông tin vé.");
+        }
+
+        if (ticket.TicketType?.Exhibition != null)
+        {
+            var exhibition = ticket.TicketType.Exhibition;
+            var today = DateTime.UtcNow.AddHours(7).Date;
+            if ((exhibition.EndDate.HasValue && exhibition.EndDate.Value.Date < today) ||
+                string.Equals(exhibition.Status, "Ended", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(exhibition.Status, "Closed", StringComparison.OrdinalIgnoreCase))
+            {
+                return ResponseModel.BadRequest("Triển lãm của vé này đã kết thúc hoặc đóng cửa, gói dữ liệu offline không còn khả dụng.");
+            }
+        }
+
+        int? exhibitionId = ticket.TicketType?.ExhibitionId;
+        return await GetLatestOfflinePackageAsync(museumId, exhibitionId);
     }
 
     public async Task<ResponseModel> GetVisitorProfileAsync(int visitorId)

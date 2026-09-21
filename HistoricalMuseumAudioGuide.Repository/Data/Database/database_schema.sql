@@ -725,6 +725,8 @@ CREATE TABLE OfflinePackages (
     Id              INT IDENTITY(1,1) PRIMARY KEY,
     MuseumId        INT             NOT NULL,
     VersionId       INT             NOT NULL,
+    ExhibitionId    INT             NULL,
+    PackageName     NVARCHAR(255)   NULL,
     PackageUrl      NVARCHAR(500)   NOT NULL,
     PackageSizeBytes BIGINT         NOT NULL,
     Checksum        NVARCHAR(128)   NULL,  -- SHA256 for integrity
@@ -737,7 +739,8 @@ CREATE TABLE OfflinePackages (
     BuiltAt         DATETIME2       NULL,
     CreatedAt       DATETIME2       NOT NULL DEFAULT GETUTCDATE(),
     CONSTRAINT FK_OfflinePackages_Museum FOREIGN KEY (MuseumId) REFERENCES Museums(Id),
-    CONSTRAINT FK_OfflinePackages_Version FOREIGN KEY (VersionId) REFERENCES ContentVersions(Id)
+    CONSTRAINT FK_OfflinePackages_Version FOREIGN KEY (VersionId) REFERENCES ContentVersions(Id),
+    CONSTRAINT FK_OfflinePackages_Exhibitions FOREIGN KEY (ExhibitionId) REFERENCES Exhibitions(Id) ON DELETE SET NULL
 );
 
 

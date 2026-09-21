@@ -14,8 +14,18 @@ public class OfflinePackageRepository : GenericRepository<Entities.OfflinePackag
     {
     }
 
-    public async Task<IEnumerable<Entities.OfflinePackage>> GetPackagesByMuseumIdAsync(int museumId)
+    public async Task<IEnumerable<Entities.OfflinePackage>> GetPackagesByMuseumIdAsync(int museumId, int? exhibitionId = null)
     {
-        return await _dbSet.AsNoTracking().Where(p => p.MuseumId == museumId).ToListAsync();
+        var query = _dbSet.AsNoTracking()
+            .Include(p => p.Exhibition)
+                .ThenInclude(e => e!.ExhibitionTranslations)
+            .Where(p => p.MuseumId == museumId);
+
+        if (exhibitionId.HasValue)
+        {
+            query = query.Where(p => p.ExhibitionId == exhibitionId.Value);
+        }
+
+        return await query.OrderByDescending(p => p.CreatedAt).ThenByDescending(p => p.Id).ToListAsync();
     }
 }

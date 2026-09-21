@@ -2178,7 +2178,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
         // --- Offline Package Management ---
 
 
-        public async Task<ResponseModel> GenerateOfflinePackageAsync(int museumId, int versionId, int? userMuseumId)
+        public async Task<ResponseModel> GenerateOfflinePackageAsync(int museumId, int versionId, int? exhibitionId, string? packageName, int? userMuseumId)
         {
             var accessCheck = ValidateMuseumAccess(userMuseumId, museumId);
             if (accessCheck != null) return accessCheck;
@@ -2210,24 +2210,66 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
                 }
             }
 
-            // Check if there is already an offline package for this version
-            var existingPackage = await _unitOfWork.OfflinePackages.GetFirstOrDefaultAsync(p => p.VersionId == versionId);
+            // Validate exhibition if specified
+            if (exhibitionId.HasValue)
+            {
+                var exhibitionEntity = await _unitOfWork.Exhibitions.GetFirstOrDefaultAsync(e => e.Id == exhibitionId.Value && e.MuseumId == museumId);
+                if (exhibitionEntity == null)
+                {
+                    return ResponseModel.NotFound($"Triển lãm với ID {exhibitionId.Value} không tồn tại hoặc không thuộc bảo tàng này.");
+                }
+
+                var today = DateTime.UtcNow.AddHours(7).Date;
+                if ((exhibitionEntity.EndDate.HasValue && exhibitionEntity.EndDate.Value.Date < today) ||
+                    string.Equals(exhibitionEntity.Status, "Ended", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(exhibitionEntity.Status, "Closed", StringComparison.OrdinalIgnoreCase))
+                {
+                    return ResponseModel.BadRequest("Không thể tạo gói dữ liệu offline cho chuyên đề triển lãm đã kết thúc hoặc đóng cửa.");
+                }
+            }
+
+            // Check if there is already an offline package for this version and exhibition scope
+            var existingPackage = await _unitOfWork.OfflinePackages.GetFirstOrDefaultAsync(p => p.VersionId == versionId && p.ExhibitionId == exhibitionId);
             if (existingPackage != null)
             {
-                return ResponseModel.BadRequest("Gói dữ liệu offline cho phiên bản này đã tồn tại.");
+                string scopeText = exhibitionId.HasValue ? "cho chuyên đề triển lãm này" : "toàn bảo tàng";
+                return ResponseModel.BadRequest($"Gói dữ liệu offline {scopeText} cho phiên bản này đã tồn tại.");
             }
 
             // Fetch museum & content entities for the package
             var museum = await _unitOfWork.Museums.GetByIdAsync(museumId);
             var allExhibits = (await _unitOfWork.Exhibits.GetExhibitsWithTranslationsAndMetadataAsync(museumId)).ToList();
-            var exhibits = allExhibits.Where(e => string.Equals(e.Status, "Published", StringComparison.OrdinalIgnoreCase)).ToList();
+            
+            // Filter exhibits based on scope (Exhibition vs Full Museum)
+            List<Repository.Entities.Exhibit> exhibits;
+            if (exhibitionId.HasValue)
+            {
+                exhibits = allExhibits
+                    .Where(e => string.Equals(e.Status, "Published", StringComparison.OrdinalIgnoreCase) && 
+                                e.Exhibitions.Any(ex => ex.Id == exhibitionId.Value))
+                    .ToList();
+            }
+            else
+            {
+                exhibits = allExhibits
+                    .Where(e => string.Equals(e.Status, "Published", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+
             var maps = (await _unitOfWork.MuseumMaps.FindAsync(m => m.MuseumId == museumId)).ToList();
-            var tourRoutes = (await _unitOfWork.TourRoutes.FindAsync(r => r.MuseumId == museumId, "TourRouteExhibits,TourRouteTranslations")).ToList();
+            var tourRoutes = exhibitionId.HasValue
+                ? (await _unitOfWork.TourRoutes.FindAsync(r => r.MuseumId == museumId && (r.ExhibitionId == exhibitionId.Value || r.ExhibitionId == null), "TourRouteExhibits,TourRouteTranslations")).ToList()
+                : (await _unitOfWork.TourRoutes.FindAsync(r => r.MuseumId == museumId, "TourRouteExhibits,TourRouteTranslations")).ToList();
+
             var categories = (await _unitOfWork.Categories.FindAsync(c => c.MuseumId == museumId, "CategoryTranslations")).ToList();
             var rooms = (await _unitOfWork.Rooms.FindAsync(r => r.MuseumId == museumId)).ToList();
             var waypoints = (await _unitOfWork.Waypoints.FindAsync(w => w.MuseumId == museumId)).ToList();
             var edges = (await _unitOfWork.WaypointEdges.FindAsync(e => e.MuseumId == museumId)).ToList();
-            var exhibitions = (await _unitOfWork.Exhibitions.FindAsync(e => e.MuseumId == museumId, "ExhibitionTranslations")).ToList();
+            
+            var exhibitions = exhibitionId.HasValue
+                ? (await _unitOfWork.Exhibitions.FindAsync(e => e.Id == exhibitionId.Value && e.MuseumId == museumId, "ExhibitionTranslations")).ToList()
+                : (await _unitOfWork.Exhibitions.FindAsync(e => e.MuseumId == museumId, "ExhibitionTranslations")).ToList();
+
             var mapIds = maps.Select(m => m.Id).ToList();
             var pois = (await _unitOfWork.MapPois.FindAsync(p => mapIds.Contains(p.MapId))).ToList();
 
@@ -2248,6 +2290,8 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             {
                 MuseumId = museumId,
                 VersionId = versionId,
+                ExhibitionId = exhibitionId,
+                PackageName = packageName,
                 Status = "Building",
                 CreatedAt = DateTime.UtcNow,
                 PackageSizeBytes = 0,
@@ -2271,7 +2315,9 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
                     Directory.CreateDirectory(packagesDir);
                 }
 
-                var fileName = $"museum_{museumId}_v{versionId}.zip";
+                var fileName = exhibitionId.HasValue
+                    ? $"museum_{museumId}_exhibition_{exhibitionId.Value}_v{versionId}.zip"
+                    : $"museum_{museumId}_v{versionId}.zip";
                 var zipFilePath = Path.Combine(packagesDir, fileName);
 
                 using (var httpClient = new HttpClient())
@@ -2289,6 +2335,8 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
                                 MuseumName = museum?.Name,
                                 VersionId = versionId,
                                 VersionNumber = version.VersionNumber,
+                                ExhibitionId = exhibitionId,
+                                PackageName = packageName,
                                 GeneratedAt = DateTime.UtcNow,
                                 ExhibitCount = exhibitCount,
                                 ArAssetCount = arAssetCount,
@@ -2434,10 +2482,11 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             }
         }
 
-        public async Task<ResponseModel> GetOfflinePackagesByMuseumIdAsync(int museumId)
+        public async Task<ResponseModel> GetOfflinePackagesByMuseumIdAsync(int museumId, int? exhibitionId = null)
         {
-            var packages = await _unitOfWork.OfflinePackages.GetPackagesByMuseumIdAsync(museumId);
-            var packageDtos = _mapper.Map<IEnumerable<OfflinePackageDto>>(packages);
+            var packages = await _unitOfWork.OfflinePackages.GetPackagesByMuseumIdAsync(museumId, exhibitionId);
+            var sorted = packages.OrderByDescending(p => p.CreatedAt).ThenByDescending(p => p.Id);
+            var packageDtos = _mapper.Map<IEnumerable<OfflinePackageDto>>(sorted);
             return ResponseModel.Success("Get offline packages successful", packageDtos);
         }
 

@@ -171,7 +171,11 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
             CreateMap<CreateExhibitArassetDto, ExhibitArasset>();
 
             // Offline Package
-            CreateMap<OfflinePackage, OfflinePackageDto>();
+            CreateMap<OfflinePackage, OfflinePackageDto>()
+                .ForMember(dest => dest.ExhibitionTitle, opt => opt.MapFrom(src => 
+                    src.Exhibition != null && src.Exhibition.ExhibitionTranslations.Any() 
+                        ? src.Exhibition.ExhibitionTranslations.FirstOrDefault()!.Name 
+                        : null));
 
             // Ticketing
             CreateMap<TicketType, TicketTypeDto>();

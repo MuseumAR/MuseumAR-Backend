@@ -7,5 +7,5 @@ namespace HistoricalMuseumAudioGuide.Repository.Repositories.OfflinePackage;
 
 public interface IOfflinePackageRepository : IGenericRepository<Entities.OfflinePackage>
 {
-    Task<IEnumerable<Entities.OfflinePackage>> GetPackagesByMuseumIdAsync(int museumId);
+    Task<IEnumerable<Entities.OfflinePackage>> GetPackagesByMuseumIdAsync(int museumId, int? exhibitionId = null);
 }
