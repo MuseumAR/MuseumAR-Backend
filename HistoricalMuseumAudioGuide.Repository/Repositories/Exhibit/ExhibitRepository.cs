@@ -21,6 +21,7 @@ namespace HistoricalMuseumAudioGuide.Repository.Repositories.Exhibit
                 .Include(e => e.ExhibitArassets)
                 .Include(e => e.Map)
                 .Include(e => e.Room)
+                .Include(e => e.Exhibitions)
                 .Where(e => e.MuseumId == museumId)
                 .ToListAsync();
         }
