@@ -519,7 +519,7 @@ CREATE TABLE Visitors (
 CREATE TABLE PaymentMethods (
     Id              INT IDENTITY(1,1) PRIMARY KEY,
     Name            NVARCHAR(50)    NOT NULL UNIQUE, -- 'PAYOS', 'MOMO', 'CASH'
-    DisplaynName     NVARCHAR(100)   NOT NULL,        -- 'PayOS Payment Gateway'
+    DisplayName     NVARCHAR(100)   NOT NULL,        -- 'PayOS Payment Gateway'
     Description     NVARCHAR(255)   NULL,
     IconUrl         NVARCHAR(500)   NULL,
     IsActive        BIT             NOT NULL DEFAULT 1,
