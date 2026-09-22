@@ -2361,15 +2361,42 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
                                 await writer.WriteAsync(jsonString);
                             }
 
-                            // Helper function to download and pack a media file into zip
-                            async Task AddUrlFileToZipAsync(string? url, string folderName, string defaultName)
+                            // Collect all media items to pack
+                            var mediaItems = new List<(string? Url, string FolderName, string DefaultName)>();
+                            foreach (var map in maps)
                             {
-                                if (string.IsNullOrWhiteSpace(url)) return;
+                                mediaItems.Add((map.MapImageUrl, "maps", $"map_{map.Id}"));
+                            }
+                            foreach (var exhibit in exhibits)
+                            {
+                                mediaItems.Add((exhibit.ThumbnailUrl, "images", $"exhibit_{exhibit.Id}_thumb"));
+                                mediaItems.Add((exhibit.AroverlayUrl, "ar", $"exhibit_{exhibit.Id}_overlay"));
+                                mediaItems.Add((exhibit.ArmarkerUrl, "ar", $"exhibit_{exhibit.Id}_marker"));
+                            }
+                            foreach (var img in images)
+                            {
+                                mediaItems.Add((img.ImageUrl, "images", $"exhibit_{img.ExhibitId}_img_{img.Id}"));
+                            }
+                            foreach (var trans in translations)
+                            {
+                                mediaItems.Add((trans.AudioUrl, "audio", $"exhibit_{trans.ExhibitId}_{trans.LanguageCode}"));
+                            }
+                            foreach (var ar in arAssets)
+                            {
+                                mediaItems.Add((ar.AssetUrl, "ar", $"exhibit_{ar.ExhibitId}_ar_{ar.Id}"));
+                            }
+
+                            // Download/resolve media in parallel (max 8 concurrent downloads)
+                            var validMediaItems = mediaItems.Where(m => !string.IsNullOrWhiteSpace(m.Url)).ToList();
+                            var downloadedEntries = new System.Collections.Concurrent.ConcurrentBag<(string EntryName, byte[]? Bytes, string? LocalFilePath)>();
+                            var semaphore = new System.Threading.SemaphoreSlim(8, 8);
+
+                            var downloadTasks = validMediaItems.Select(async item =>
+                            {
+                                await semaphore.WaitAsync();
                                 try
                                 {
-                                    string trimmedUrl = url.Trim();
-
-                                    // If URL is an absolute HTTP/HTTPS URL
+                                    string trimmedUrl = item.Url!.Trim();
                                     if (trimmedUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                                         trimmedUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                                     {
@@ -2377,79 +2404,57 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
                                         var pathPart = uri.AbsolutePath.TrimStart('/');
                                         var localFileFromUri = Path.Combine(wwwroot, pathPart.Replace('/', Path.DirectorySeparatorChar));
 
-                                        // 1. Try reading directly from local wwwroot if file exists locally
                                         if (File.Exists(localFileFromUri))
                                         {
                                             var fileExt = Path.GetExtension(localFileFromUri);
                                             if (string.IsNullOrEmpty(fileExt)) fileExt = ".jpg";
-                                            var entryName = $"{folderName}/{defaultName}{fileExt}";
-                                            archive.CreateEntryFromFile(localFileFromUri, entryName, CompressionLevel.Optimal);
+                                            downloadedEntries.Add(($"{item.FolderName}/{item.DefaultName}{fileExt}", null, localFileFromUri));
                                             return;
                                         }
 
-                                        // 2. Otherwise download via HTTP
                                         var escapedUrl = new Uri(trimmedUrl).AbsoluteUri;
                                         var bytes = await httpClient.GetByteArrayAsync(escapedUrl);
                                         var ext = Path.GetExtension(uri.AbsolutePath);
                                         if (string.IsNullOrEmpty(ext)) ext = ".jpg";
-                                        var httpEntryName = $"{folderName}/{defaultName}{ext}";
-                                        var entry = archive.CreateEntry(httpEntryName, CompressionLevel.Optimal);
-                                        using (var entryStream = entry.Open())
-                                        {
-                                            await entryStream.WriteAsync(bytes, 0, bytes.Length);
-                                        }
+                                        downloadedEntries.Add(($"{item.FolderName}/{item.DefaultName}{ext}", bytes, null));
                                     }
                                     else
                                     {
-                                        // Handle local relative paths (e.g. "/uploads/...", "uploads/...", "uploads\...")
                                         var cleanPath = trimmedUrl.TrimStart('/', '\\').Replace('/', Path.DirectorySeparatorChar);
                                         var localPath = Path.Combine(wwwroot, cleanPath);
-
                                         if (File.Exists(localPath))
                                         {
                                             var fileExt = Path.GetExtension(localPath);
                                             if (string.IsNullOrEmpty(fileExt)) fileExt = ".jpg";
-                                            var entryName = $"{folderName}/{defaultName}{fileExt}";
-                                            archive.CreateEntryFromFile(localPath, entryName, CompressionLevel.Optimal);
+                                            downloadedEntries.Add(($"{item.FolderName}/{item.DefaultName}{fileExt}", null, localPath));
                                         }
                                     }
                                 }
                                 catch
                                 {
-                                    // Skip inaccessible external media without crashing package generation
+                                    // Ignore individual media download failures to ensure package builds
                                 }
-                            }
+                                finally
+                                {
+                                    semaphore.Release();
+                                }
+                            });
 
-                            // 2. Add Map Images
-                            foreach (var map in maps)
-                            {
-                                await AddUrlFileToZipAsync(map.MapImageUrl, "maps", $"map_{map.Id}");
-                            }
+                            await Task.WhenAll(downloadTasks);
 
-                            // 3. Add Exhibit Primary Thumbnails & AR Overlays/Markers
-                            foreach (var exhibit in exhibits)
+                            // Write all downloaded media files to zip archive
+                            foreach (var entryData in downloadedEntries)
                             {
-                                await AddUrlFileToZipAsync(exhibit.ThumbnailUrl, "images", $"exhibit_{exhibit.Id}_thumb");
-                                await AddUrlFileToZipAsync(exhibit.AroverlayUrl, "ar", $"exhibit_{exhibit.Id}_overlay");
-                                await AddUrlFileToZipAsync(exhibit.ArmarkerUrl, "ar", $"exhibit_{exhibit.Id}_marker");
-                            }
-
-                            // 4. Add Exhibit Gallery Images
-                            foreach (var img in images)
-                            {
-                                await AddUrlFileToZipAsync(img.ImageUrl, "images", $"exhibit_{img.ExhibitId}_img_{img.Id}");
-                            }
-
-                            // 5. Add Audio Guides
-                            foreach (var trans in translations)
-                            {
-                                await AddUrlFileToZipAsync(trans.AudioUrl, "audio", $"exhibit_{trans.ExhibitId}_{trans.LanguageCode}");
-                            }
-
-                            // 6. Add AR Assets
-                            foreach (var ar in arAssets)
-                            {
-                                await AddUrlFileToZipAsync(ar.AssetUrl, "ar", $"exhibit_{ar.ExhibitId}_ar_{ar.Id}");
+                                if (entryData.LocalFilePath != null)
+                                {
+                                    archive.CreateEntryFromFile(entryData.LocalFilePath, entryData.EntryName, CompressionLevel.Optimal);
+                                }
+                                else if (entryData.Bytes != null)
+                                {
+                                    var entry = archive.CreateEntry(entryData.EntryName, CompressionLevel.Optimal);
+                                    using var entryStream = entry.Open();
+                                    await entryStream.WriteAsync(entryData.Bytes, 0, entryData.Bytes.Length);
+                                }
                             }
                         }
 
