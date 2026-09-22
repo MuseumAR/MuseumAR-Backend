@@ -115,6 +115,15 @@ public class NavigationService : INavigationService
         var entity = await _unitOfWork.Waypoints.GetByIdAsync(id);
         if (entity == null) return false;
 
+        // Unlink rooms referencing this waypoint to prevent foreign key constraint violation (FK_Rooms_Waypoint)
+        var rooms = await _unitOfWork.Rooms.FindAsync(r => r.WaypointId == id || r.DoorWaypointId == id);
+        foreach (var room in rooms)
+        {
+            if (room.WaypointId == id) room.WaypointId = null;
+            if (room.DoorWaypointId == id) room.DoorWaypointId = null;
+            _unitOfWork.Rooms.Update(room);
+        }
+
         // Delete connected edges
         var edges = await _unitOfWork.WaypointEdges.FindAsync(e => e.FromWaypointId == id || e.ToWaypointId == id);
         foreach (var edge in edges)
