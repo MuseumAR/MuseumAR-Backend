@@ -3,6 +3,7 @@ using HistoricalMuseumAudioGuide.Repository.Data.DTOs.Ticketing;
 using HistoricalMuseumAudioGuide.Repository.Entities;
 using HistoricalMuseumAudioGuide.Repository.UnitOfWork;
 using HistoricalMuseumAudioGuide.Service.Services.Payment;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
@@ -568,6 +569,29 @@ public class TicketingService : ITicketingService
             QrCodeData = ticket.TicketCode,
             QrCodeImageUrl = null
         };
+
+        var latestRefund = await _unitOfWork.Context.TicketRefundRequests
+            .AsNoTracking()
+            .Where(r => r.TicketId == ticket.Id)
+            .OrderByDescending(r => r.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        if (latestRefund != null)
+        {
+            detailDto.LatestRefundRequest = new TicketDetailRefundRequestDto
+            {
+                Id = latestRefund.Id,
+                Amount = latestRefund.Amount,
+                Reason = latestRefund.Reason,
+                BankName = latestRefund.BankName,
+                AccountNumber = latestRefund.AccountNumber,
+                AccountHolderName = latestRefund.AccountHolderName,
+                Status = latestRefund.Status,
+                RejectReason = latestRefund.RejectReason,
+                CreatedAt = latestRefund.CreatedAt,
+                ProcessedAt = latestRefund.ProcessedAt
+            };
+        }
 
         return ResponseModel.Success("Get ticket detail successfully.", detailDto);
     }
