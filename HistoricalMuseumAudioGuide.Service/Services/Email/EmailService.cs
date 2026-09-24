@@ -247,7 +247,7 @@ public class EmailService : IEmailService
             using var message = new MailMessage();
             message.From = new MailAddress(fromEmail, "Museum Audio Guide");
             message.To.Add(new MailAddress(toEmail));
-            message.Subject = "[Museum AR] Mã xác thực OTP thay đổi mật khẩu";
+            message.Subject = "[Museum AR] Mã xác thực OTP đặt lại mật khẩu";
             message.SubjectEncoding = Encoding.UTF8;
             message.BodyEncoding = Encoding.UTF8;
             message.IsBodyHtml = true;
@@ -275,12 +275,12 @@ public class EmailService : IEmailService
         </div>
         <div class=""content"">
             <p>Xin chào <strong>{userName}</strong>,</p>
-            <p>Chúng tôi nhận được yêu cầu cập nhật / thiết lập mật khẩu cho tài khoản Museum AR của bạn. Vui lòng nhập mã OTP dưới đây để hoàn tất xác thực:</p>
+            <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản Museum AR của bạn. Vui lòng nhập mã OTP 6 số dưới đây để đặt lại mật khẩu mới:</p>
             
             <div class=""code-box"">{otpCode}</div>
             
             <div class=""warning"">
-                ⚠️ Mã OTP có hiệu lực trong vòng <strong>10 phút</strong>. Tuyệt đối không chia sẻ mã này cho bất kỳ ai để đảm bảo an toàn cho tài khoản.
+                ⚠️ Mã OTP có hiệu lực trong vòng <strong>15 phút</strong>. Tuyệt đối không chia sẻ mã này cho bất kỳ ai để đảm bảo an toàn cho tài khoản.
             </div>
             
             <p style=""margin-top: 20px; font-size: 13px; color: #64748b;"">Nếu bạn không yêu cầu thay đổi mật khẩu, vui lòng bỏ qua email này hoặc đổi ngay thông tin bảo mật của bạn.</p>

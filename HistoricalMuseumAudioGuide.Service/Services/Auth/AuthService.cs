@@ -205,29 +205,68 @@ public class AuthService : IAuthService
 
     public async Task<ResponseModel> ForgotPasswordAsync(string email)
     {
-        var user = await _unitOfWork.Users.GetUserByEmailAsync(email);
-        if (user == null)
+        if (string.IsNullOrWhiteSpace(email))
         {
-            return ResponseModel.Success("If the email exists, a reset link has been sent.");
+            return ResponseModel.BadRequest("Email không được để trống.");
         }
 
-        user.PasswordResetToken = Guid.NewGuid().ToString("N");
-        user.ResetTokenExpiresAt = DateTime.UtcNow.AddHours(1);
+        var trimmedEmail = email.Trim();
+        var user = await _unitOfWork.Users.GetUserByEmailAsync(trimmedEmail);
+        if (user == null)
+        {
+            return ResponseModel.Success("Nếu email tồn tại trong hệ thống, mã OTP đặt lại mật khẩu đã được gửi tới email của bạn.");
+        }
+
+        var otp = Random.Shared.Next(100000, 999999).ToString();
+        user.PasswordResetToken = otp;
+        user.ResetTokenExpiresAt = DateTime.UtcNow.AddMinutes(15);
+        user.UpdatedAt = DateTime.UtcNow;
 
         _unitOfWork.Users.Update(user);
         await _unitOfWork.CompleteAsync();
 
-        Console.WriteLine($"[MOCK EMAIL] To: {email}, Reset Token: {user.PasswordResetToken}");
-        return ResponseModel.Success("Reset link sent successfully.");
+        // Gửi email chứa mã OTP xác thực đặt lại mật khẩu
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _emailService.SendPasswordOtpAsync(user.Email, user.FullName, otp);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ForgotPasswordAsync Email Error]: {ex.Message}");
+            }
+        });
+
+        Console.WriteLine($"[AuthService]: Password reset OTP [{otp}] sent to {trimmedEmail}");
+        return ResponseModel.Success("Mã OTP đặt lại mật khẩu đã được gửi tới email của bạn.");
     }
 
     public async Task<ResponseModel> ResetPasswordAsync(ResetPasswordRequestDto request)
     {
-        var user = await _unitOfWork.Users.GetByResetTokenAsync(request.Token);
-
-        if (user == null)
+        if (string.IsNullOrWhiteSpace(request.Token))
         {
-            return ResponseModel.BadRequest("Invalid or expired reset token.");
+            return ResponseModel.BadRequest("Mã OTP không được để trống.");
+        }
+
+        var trimmedToken = request.Token.Trim();
+        User? user = null;
+
+        if (!string.IsNullOrWhiteSpace(request.Email))
+        {
+            user = await _unitOfWork.Users.GetUserByEmailAsync(request.Email.Trim());
+            if (user == null || user.PasswordResetToken != trimmedToken || (user.ResetTokenExpiresAt.HasValue && user.ResetTokenExpiresAt.Value < DateTime.UtcNow))
+            {
+                return ResponseModel.BadRequest("Mã OTP không chính xác hoặc đã hết hạn.");
+            }
+        }
+        else
+        {
+            user = await _unitOfWork.Users.GetByResetTokenAsync(trimmedToken);
+            if (user == null)
+            {
+                return ResponseModel.BadRequest("Mã OTP không chính xác hoặc đã hết hạn.");
+            }
         }
 
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
@@ -238,7 +277,7 @@ public class AuthService : IAuthService
         _unitOfWork.Users.Update(user);
         await _unitOfWork.CompleteAsync();
 
-        return ResponseModel.Success("Password has been reset successfully.");
+        return ResponseModel.Success("Đặt lại mật khẩu thành công! Bạn có thể đăng nhập bằng mật khẩu mới.");
     }
 
     public async Task<ResponseModel> SendPasswordOtpAsync(int userId)
