@@ -219,4 +219,91 @@ public class EmailService : IEmailService
             Console.WriteLine($"[EmailService Error]: Failed to send verification email to {toEmail}: {ex.Message}");
         }
     }
+
+    public async Task SendPasswordOtpAsync(string toEmail, string userName, string otpCode)
+    {
+        if (string.IsNullOrWhiteSpace(toEmail))
+        {
+            Console.WriteLine("[EmailService Warning]: Recipient email is empty. Skipping OTP email dispatch.");
+            return;
+        }
+
+        var smtpHost = Environment.GetEnvironmentVariable("SMTP_HOST") ?? _configuration["SMTP_HOST"] ?? _configuration["EmailSettings:SmtpServer"] ?? "smtp.gmail.com";
+        var smtpPortStr = Environment.GetEnvironmentVariable("SMTP_PORT") ?? _configuration["SMTP_PORT"] ?? _configuration["EmailSettings:SmtpPort"];
+        var smtpUser = Environment.GetEnvironmentVariable("SMTP_USER") ?? _configuration["SMTP_USER"] ?? _configuration["EmailSettings:Username"];
+        var smtpPass = Environment.GetEnvironmentVariable("SMTP_PASS") ?? _configuration["SMTP_PASS"] ?? _configuration["EmailSettings:Password"];
+        var fromEmail = Environment.GetEnvironmentVariable("SMTP_FROM") ?? _configuration["SMTP_FROM"] ?? _configuration["EmailSettings:FromEmail"] ?? smtpUser ?? "noreply@museumar.com";
+
+        if (string.IsNullOrWhiteSpace(smtpUser) || string.IsNullOrWhiteSpace(smtpPass) || string.IsNullOrWhiteSpace(smtpHost))
+        {
+            Console.WriteLine($"[EmailService Info]: SMTP credentials not fully configured. Password OTP [{otpCode}] for {toEmail} recorded locally.");
+            return;
+        }
+
+        int smtpPort = int.TryParse(smtpPortStr, out int p) ? p : 587;
+
+        try
+        {
+            using var message = new MailMessage();
+            message.From = new MailAddress(fromEmail, "Museum Audio Guide");
+            message.To.Add(new MailAddress(toEmail));
+            message.Subject = "[Museum AR] Mã xác thực OTP thay đổi mật khẩu";
+            message.SubjectEncoding = Encoding.UTF8;
+            message.BodyEncoding = Encoding.UTF8;
+            message.IsBodyHtml = true;
+
+            message.Body = $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset=""utf-8"">
+    <style>
+        body {{ font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f6f8; margin: 0; padding: 20px; }}
+        .container {{ max-width: 550px; background: #ffffff; margin: 0 auto; border-radius: 12px; padding: 30px; border: 1px solid #e0e0e0; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }}
+        .header {{ text-align: center; border-bottom: 2px solid #b8860b; padding-bottom: 15px; margin-bottom: 20px; }}
+        .header h2 {{ color: #1e293b; margin: 0; font-size: 22px; }}
+        .content {{ color: #334155; line-height: 1.6; font-size: 15px; }}
+        .code-box {{ background: #fdfaf4; border-radius: 8px; padding: 18px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #b8860b; margin: 24px 0; border: 2px dashed #d4af37; }}
+        .warning {{ background: #fff8e1; border-left: 4px solid #ffa000; padding: 10px 14px; border-radius: 4px; font-size: 13px; color: #795548; margin-top: 16px; }}
+        .footer {{ text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px; border-top: 1px solid #f1f5f9; padding-top: 15px; }}
+    </style>
+</head>
+<body>
+    <div class=""container"">
+        <div class=""header"">
+            <h2>🏛️ Bảo tàng Lịch sử - Museum AR</h2>
+        </div>
+        <div class=""content"">
+            <p>Xin chào <strong>{userName}</strong>,</p>
+            <p>Chúng tôi nhận được yêu cầu cập nhật / thiết lập mật khẩu cho tài khoản Museum AR của bạn. Vui lòng nhập mã OTP dưới đây để hoàn tất xác thực:</p>
+            
+            <div class=""code-box"">{otpCode}</div>
+            
+            <div class=""warning"">
+                ⚠️ Mã OTP có hiệu lực trong vòng <strong>10 phút</strong>. Tuyệt đối không chia sẻ mã này cho bất kỳ ai để đảm bảo an toàn cho tài khoản.
+            </div>
+            
+            <p style=""margin-top: 20px; font-size: 13px; color: #64748b;"">Nếu bạn không yêu cầu thay đổi mật khẩu, vui lòng bỏ qua email này hoặc đổi ngay thông tin bảo mật của bạn.</p>
+        </div>
+        <div class=""footer"">
+            <p>Email tự động từ Hệ thống Thuyết minh Bảo tàng Museum AR. Vui lòng không phản hồi email này.</p>
+        </div>
+    </div>
+</body>
+</html>";
+
+            using var smtpClient = new SmtpClient(smtpHost, smtpPort)
+            {
+                Credentials = new NetworkCredential(smtpUser, smtpPass),
+                EnableSsl = true
+            };
+
+            await smtpClient.SendMailAsync(message);
+            Console.WriteLine($"[EmailService]: Password OTP email sent successfully to {toEmail}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[EmailService Error]: Failed to send password OTP email to {toEmail}: {ex.Message}");
+        }
+    }
 }

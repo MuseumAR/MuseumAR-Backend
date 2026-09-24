@@ -241,20 +241,52 @@ public class AuthService : IAuthService
         return ResponseModel.Success("Password has been reset successfully.");
     }
 
+    public async Task<ResponseModel> SendPasswordOtpAsync(int userId)
+    {
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (user == null) return ResponseModel.NotFound("User not found.");
+
+        var otp = Random.Shared.Next(100000, 999999).ToString();
+        user.PasswordResetToken = otp;
+        user.ResetTokenExpiresAt = DateTime.UtcNow.AddMinutes(10);
+
+        _unitOfWork.Users.Update(user);
+        await _unitOfWork.CompleteAsync();
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _emailService.SendPasswordOtpAsync(user.Email, user.FullName, otp);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SendPasswordOtp Error]: {ex.Message}");
+            }
+        });
+
+        string masked = MaskEmail(user.Email);
+        return ResponseModel.Success($"Mã xác thực OTP đã được gửi đến {masked}.", new { email = masked });
+    }
+
     public async Task<ResponseModel> ChangePasswordAsync(int userId, ChangePasswordRequestDto request)
     {
         var user = await _unitOfWork.Users.GetByIdAsync(userId);
         if (user == null) return ResponseModel.NotFound("User not found.");
 
+        // Kiểm tra OTP
+        if (string.IsNullOrWhiteSpace(request.Otp) ||
+            user.PasswordResetToken != request.Otp.Trim() ||
+            user.ResetTokenExpiresAt == null ||
+            user.ResetTokenExpiresAt < DateTime.UtcNow)
+        {
+            return ResponseModel.BadRequest("Mã OTP không chính xác hoặc đã hết hạn. Vui lòng lấy mã mới.");
+        }
+
         bool isOAuthUser = string.IsNullOrEmpty(user.PasswordHash) || user.PasswordHash == "GOOGLE_OAUTH_USER";
 
-        if (!isOAuthUser)
+        if (!isOAuthUser && !string.IsNullOrWhiteSpace(request.OldPassword))
         {
-            if (string.IsNullOrWhiteSpace(request.OldPassword))
-            {
-                return ResponseModel.BadRequest("Vui lòng nhập mật khẩu hiện tại.");
-            }
-
             try
             {
                 if (!BCrypt.Net.BCrypt.Verify(request.OldPassword, user.PasswordHash))
@@ -267,6 +299,10 @@ public class AuthService : IAuthService
                 return ResponseModel.BadRequest("Mật khẩu hiện tại không hợp lệ.");
             }
         }
+
+        // Hủy OTP sau khi xác thực thành công
+        user.PasswordResetToken = null;
+        user.ResetTokenExpiresAt = null;
 
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
         user.UpdatedAt = DateTime.UtcNow;
@@ -285,7 +321,17 @@ public class AuthService : IAuthService
         if (user == null) return ResponseModel.NotFound("User not found.");
 
         bool hasPassword = !string.IsNullOrEmpty(user.PasswordHash) && user.PasswordHash != "GOOGLE_OAUTH_USER";
-        return ResponseModel.Success("Success", new { hasPassword });
+        return ResponseModel.Success("Success", new { hasPassword, email = MaskEmail(user.Email) });
+    }
+
+    private static string MaskEmail(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email) || !email.Contains('@')) return email;
+        var parts = email.Split('@');
+        var name = parts[0];
+        var domain = parts[1];
+        if (name.Length <= 2) return $"{name[0]}*@{domain}";
+        return $"{name[0]}***{name[^1]}@{domain}";
     }
 
     public async Task<ResponseModel> LoginWithGoogleAsync(string idToken)

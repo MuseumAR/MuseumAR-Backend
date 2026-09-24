@@ -13,4 +13,6 @@ public interface IEmailService
         string ticketTypeName);
 
     Task SendEmailVerificationAsync(string toEmail, string userName, string tokenCode);
+
+    Task SendPasswordOtpAsync(string toEmail, string userName, string otpCode);
 }
