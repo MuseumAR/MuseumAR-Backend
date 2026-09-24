@@ -138,7 +138,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
         Task<ResponseModel> ConfirmArAssetUploadAsync(int exhibitId, ConfirmUploadDto dto, int? userMuseumId);
 
         // Offline Package Management
-        Task<ResponseModel> GenerateOfflinePackageAsync(int museumId, int versionId, int? exhibitionId, string? packageName, int? userMuseumId);
+        Task<ResponseModel> GenerateOfflinePackageAsync(int museumId, int versionId, int? exhibitionId, string? packageName, string? packageNameEn, string? description, string? descriptionEn, int? userMuseumId);
         Task<ResponseModel> GetOfflinePackagesByMuseumIdAsync(int museumId, int? exhibitionId = null);
     }
 }

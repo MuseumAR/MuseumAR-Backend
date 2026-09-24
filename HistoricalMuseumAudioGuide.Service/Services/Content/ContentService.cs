@@ -1098,7 +1098,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
 
         public async Task<ResponseModel> GetMuseumMapsAsync(int museumId)
         {
-            var maps = await _unitOfWork.MuseumMaps.FindAsync(m => m.MuseumId == museumId);
+            var maps = await _unitOfWork.MuseumMaps.FindAsync(m => m.MuseumId == museumId, "MuseumMapTranslations");
             var dtos = _mapper.Map<IEnumerable<MuseumMapDto>>(maps);
             return ResponseModel.Success("Maps retrieved successfully", dtos);
         }
@@ -1128,7 +1128,39 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
 
             await _unitOfWork.MuseumMaps.AddAsync(map);
             await _unitOfWork.CompleteAsync();
-            var dto = _mapper.Map<MuseumMapDto>(map);
+
+            // Save translations
+            var translations = new List<MuseumMapTranslation>();
+            if (!string.IsNullOrWhiteSpace(mapDto.MapName))
+            {
+                translations.Add(new MuseumMapTranslation
+                {
+                    MapId = map.Id,
+                    LanguageCode = "vi",
+                    MapName = mapDto.MapName,
+                    Description = mapDto.Description
+                });
+            }
+            if (!string.IsNullOrWhiteSpace(mapDto.MapNameEn))
+            {
+                translations.Add(new MuseumMapTranslation
+                {
+                    MapId = map.Id,
+                    LanguageCode = "en",
+                    MapName = mapDto.MapNameEn,
+                    Description = mapDto.DescriptionEn
+                });
+            }
+            if (translations.Any())
+            {
+                foreach (var t in translations)
+                    await _unitOfWork.MuseumMapTranslations.AddAsync(t);
+                await _unitOfWork.CompleteAsync();
+            }
+
+            // Reload with translations for response
+            var mapWithTrans = await _unitOfWork.MuseumMaps.FindAsync(m => m.Id == map.Id, "MuseumMapTranslations");
+            var dto = _mapper.Map<MuseumMapDto>(mapWithTrans.FirstOrDefault() ?? map);
             return ResponseModel.Success("Map created successfully", dto);
         }
 
@@ -1162,7 +1194,54 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             _unitOfWork.MuseumMaps.Update(map);
             await _unitOfWork.CompleteAsync();
 
-            var dto = _mapper.Map<MuseumMapDto>(map);
+            // Update/create translations
+            var existingTranslations = (await _unitOfWork.MuseumMapTranslations.FindAsync(t => t.MapId == id)).ToList();
+
+            if (!string.IsNullOrWhiteSpace(mapDto.MapName))
+            {
+                var viTrans = existingTranslations.FirstOrDefault(t => t.LanguageCode == "vi");
+                if (viTrans != null)
+                {
+                    viTrans.MapName = mapDto.MapName;
+                    if (mapDto.Description != null) viTrans.Description = mapDto.Description;
+                    _unitOfWork.MuseumMapTranslations.Update(viTrans);
+                }
+                else
+                {
+                    await _unitOfWork.MuseumMapTranslations.AddAsync(new MuseumMapTranslation
+                    {
+                        MapId = id,
+                        LanguageCode = "vi",
+                        MapName = mapDto.MapName,
+                        Description = mapDto.Description
+                    });
+                }
+            }
+            if (!string.IsNullOrWhiteSpace(mapDto.MapNameEn))
+            {
+                var enTrans = existingTranslations.FirstOrDefault(t => t.LanguageCode == "en");
+                if (enTrans != null)
+                {
+                    enTrans.MapName = mapDto.MapNameEn;
+                    if (mapDto.DescriptionEn != null) enTrans.Description = mapDto.DescriptionEn;
+                    _unitOfWork.MuseumMapTranslations.Update(enTrans);
+                }
+                else
+                {
+                    await _unitOfWork.MuseumMapTranslations.AddAsync(new MuseumMapTranslation
+                    {
+                        MapId = id,
+                        LanguageCode = "en",
+                        MapName = mapDto.MapNameEn,
+                        Description = mapDto.DescriptionEn
+                    });
+                }
+            }
+            await _unitOfWork.CompleteAsync();
+
+            // Reload with translations for response
+            var mapWithTrans = await _unitOfWork.MuseumMaps.FindAsync(m => m.Id == id, "MuseumMapTranslations");
+            var dto = _mapper.Map<MuseumMapDto>(mapWithTrans.FirstOrDefault() ?? map);
             return ResponseModel.Success("Map updated successfully", dto);
         }
 
@@ -2178,7 +2257,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
         // --- Offline Package Management ---
 
 
-        public async Task<ResponseModel> GenerateOfflinePackageAsync(int museumId, int versionId, int? exhibitionId, string? packageName, int? userMuseumId)
+        public async Task<ResponseModel> GenerateOfflinePackageAsync(int museumId, int versionId, int? exhibitionId, string? packageName, string? packageNameEn, string? description, string? descriptionEn, int? userMuseumId)
         {
             var accessCheck = ValidateMuseumAccess(userMuseumId, museumId);
             if (accessCheck != null) return accessCheck;
@@ -2256,7 +2335,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
                     .ToList();
             }
 
-            var maps = (await _unitOfWork.MuseumMaps.FindAsync(m => m.MuseumId == museumId)).ToList();
+            var maps = (await _unitOfWork.MuseumMaps.FindAsync(m => m.MuseumId == museumId, "MuseumMapTranslations")).ToList();
             var tourRoutes = exhibitionId.HasValue
                 ? (await _unitOfWork.TourRoutes.FindAsync(r => r.MuseumId == museumId && (r.ExhibitionId == exhibitionId.Value || r.ExhibitionId == null), TourRouteIncludes)).ToList()
                 : (await _unitOfWork.TourRoutes.FindAsync(r => r.MuseumId == museumId, TourRouteIncludes)).ToList();
@@ -2305,6 +2384,31 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
             await _unitOfWork.OfflinePackages.AddAsync(package);
             await _unitOfWork.CompleteAsync();
 
+            // Save translations for package name/description
+            if (!string.IsNullOrWhiteSpace(packageName))
+            {
+                await _unitOfWork.OfflinePackageTranslations.AddAsync(new OfflinePackageTranslation
+                {
+                    PackageId = package.Id,
+                    LanguageCode = "vi",
+                    PackageName = packageName,
+                    Description = description
+                });
+            }
+            if (!string.IsNullOrWhiteSpace(packageNameEn))
+            {
+                await _unitOfWork.OfflinePackageTranslations.AddAsync(new OfflinePackageTranslation
+                {
+                    PackageId = package.Id,
+                    LanguageCode = "en",
+                    PackageName = packageNameEn,
+                    Description = descriptionEn
+                });
+            }
+            if (!string.IsNullOrWhiteSpace(packageName) || !string.IsNullOrWhiteSpace(packageNameEn))
+            {
+                await _unitOfWork.CompleteAsync();
+            }
             try
             {
                 // Ensure output directory exists: wwwroot/uploads/packages

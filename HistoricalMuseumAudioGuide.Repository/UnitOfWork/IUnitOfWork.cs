@@ -65,6 +65,8 @@ namespace HistoricalMuseumAudioGuide.Repository.UnitOfWork
         IGenericRepository<WaypointEdge> WaypointEdges { get; }
         IGenericRepository<MapPoi> MapPois { get; }
         ITicketPromotionRepository TicketPromotions { get; }
+        IGenericRepository<MuseumMapTranslation> MuseumMapTranslations { get; }
+        IGenericRepository<OfflinePackageTranslation> OfflinePackageTranslations { get; }
         IGenericRepository<TicketRefundRequest> TicketRefundRequests { get; }
         
         Task<int> CompleteAsync();

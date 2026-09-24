@@ -8,5 +8,8 @@ public class CreateMuseumMapDto
     public IFormFile MapImage { get; set; } = null!;
     public string MapType { get; set; } = null!;
     public string MapName { get; set; } = null!;
+    public string? MapNameEn { get; set; }
     public int FloorNumber { get; set; }
+    public string? Description { get; set; }
+    public string? DescriptionEn { get; set; }
 }

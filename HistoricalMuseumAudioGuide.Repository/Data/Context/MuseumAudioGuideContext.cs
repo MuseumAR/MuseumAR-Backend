@@ -60,9 +60,11 @@ public partial class MuseumAudioGuideContext : DbContext
 
     public virtual DbSet<MuseumMap> MuseumMaps { get; set; }
 
+    public virtual DbSet<MuseumMapTranslation> MuseumMapTranslations { get; set; }
 
     public virtual DbSet<OfflinePackage> OfflinePackages { get; set; }
 
+    public virtual DbSet<OfflinePackageTranslation> OfflinePackageTranslations { get; set; }
 
     public virtual DbSet<PaymentMethod> PaymentMethods { get; set; }
 

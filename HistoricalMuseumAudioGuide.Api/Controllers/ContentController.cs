@@ -373,7 +373,7 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         {
             var museumId = await _museumResolver.GetMuseumIdAsync();
             var userMuseumId = GetCurrentUserMuseumId();
-            var response = await _contentService.GenerateOfflinePackageAsync(museumId, dto.VersionId, dto.ExhibitionId, dto.PackageName, userMuseumId);
+            var response = await _contentService.GenerateOfflinePackageAsync(museumId, dto.VersionId, dto.ExhibitionId, dto.PackageName, dto.PackageNameEn, dto.Description, dto.DescriptionEn, userMuseumId);
             return ResponseParser.Result(response);
         }
 

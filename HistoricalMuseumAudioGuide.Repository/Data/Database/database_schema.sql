@@ -743,6 +743,25 @@ CREATE TABLE OfflinePackages (
     CONSTRAINT FK_OfflinePackages_Exhibitions FOREIGN KEY (ExhibitionId) REFERENCES Exhibitions(Id) ON DELETE SET NULL
 );
 
+CREATE TABLE MuseumMapTranslations (
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    MapId           INT             NOT NULL,
+    LanguageCode    VARCHAR(10)     NOT NULL,
+    MapName         NVARCHAR(200)   NULL,
+    Description     NVARCHAR(MAX)   NULL,
+    CONSTRAINT FK_MuseumMapTranslations_Map FOREIGN KEY (MapId) REFERENCES MuseumMaps(Id) ON DELETE CASCADE
+);
+
+CREATE TABLE OfflinePackageTranslations (
+    Id              INT IDENTITY(1,1) PRIMARY KEY,
+    PackageId       INT             NOT NULL,
+    LanguageCode    VARCHAR(10)     NOT NULL,
+    PackageName     NVARCHAR(250)   NULL,
+    Description     NVARCHAR(MAX)   NULL,
+    CONSTRAINT FK_OfflinePackageTranslations_Package FOREIGN KEY (PackageId) REFERENCES OfflinePackages(Id) ON DELETE CASCADE
+);
+
+
 
 
 -- ============================================================

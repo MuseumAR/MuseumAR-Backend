@@ -1212,3 +1212,34 @@ VALUES (N'20260921092022_AddExhibitionIdToOfflinePackages', N'10.0.8');
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+CREATE TABLE [MuseumMapTranslations] (
+    [Id] int NOT NULL IDENTITY,
+    [MapId] int NOT NULL,
+    [LanguageCode] nvarchar(max) NOT NULL,
+    [MapName] nvarchar(max) NULL,
+    [Description] nvarchar(max) NULL,
+    CONSTRAINT [PK_MuseumMapTranslations] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_MuseumMapTranslations_MuseumMaps_MapId] FOREIGN KEY ([MapId]) REFERENCES [MuseumMaps] ([Id]) ON DELETE CASCADE
+);
+
+CREATE TABLE [OfflinePackageTranslations] (
+    [Id] int NOT NULL IDENTITY,
+    [PackageId] int NOT NULL,
+    [LanguageCode] nvarchar(max) NOT NULL,
+    [PackageName] nvarchar(max) NULL,
+    [Description] nvarchar(max) NULL,
+    CONSTRAINT [PK_OfflinePackageTranslations] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_OfflinePackageTranslations_OfflinePackages_PackageId] FOREIGN KEY ([PackageId]) REFERENCES [OfflinePackages] ([Id]) ON DELETE CASCADE
+);
+
+CREATE INDEX [IX_MuseumMapTranslations_MapId] ON [MuseumMapTranslations] ([MapId]);
+
+CREATE INDEX [IX_OfflinePackageTranslations_PackageId] ON [OfflinePackageTranslations] ([PackageId]);
+
+INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+VALUES (N'20260924102547_AddMuseumMapAndOfflinePackageTranslations', N'10.0.8');
+
+COMMIT;
+GO
+

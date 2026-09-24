@@ -40,4 +40,6 @@ public partial class OfflinePackage
     public virtual ContentVersion Version { get; set; } = null!;
 
     public virtual Exhibition? Exhibition { get; set; }
+
+    public virtual ICollection<OfflinePackageTranslation> OfflinePackageTranslations { get; set; } = new List<OfflinePackageTranslation>();
 }

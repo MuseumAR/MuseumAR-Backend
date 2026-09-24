@@ -31,5 +31,7 @@ public partial class MuseumMap
 
     public virtual ICollection<MapPoi> MapPois { get; set; } = new List<MapPoi>();
 
+    public virtual ICollection<MuseumMapTranslation> MuseumMapTranslations { get; set; } = new List<MuseumMapTranslation>();
+
     public virtual Museum Museum { get; set; } = null!;
 }
