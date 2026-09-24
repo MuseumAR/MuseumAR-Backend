@@ -8,6 +8,8 @@ namespace HistoricalMuseumAudioGuide.Repository.Data.DTOs.Ticketing
         public string TicketCode { get; set; } = null!;
         public decimal Price { get; set; }
         public string Status { get; set; } = null!;
+        public bool IsFoc { get; set; }
+        public bool IsGroupOrder { get; set; }
         public DateTime PurchaseDate { get; set; }
         public DateTime? ValidDate { get; set; }
 

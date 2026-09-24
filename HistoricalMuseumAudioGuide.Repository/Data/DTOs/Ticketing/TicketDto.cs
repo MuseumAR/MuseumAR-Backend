@@ -11,4 +11,6 @@ public class TicketDto
     public DateTime PurchaseDate { get; set; }
     public DateTime? ValidDate { get; set; }
     public string Status { get; set; } = null!;
+    public bool IsFoc { get; set; }
+    public string? OrderCode { get; set; }
 }

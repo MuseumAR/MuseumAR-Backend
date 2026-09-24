@@ -250,9 +250,7 @@ public class NavigationService : INavigationService
                     new NavigationInstructionDto
                     {
                         StepIndex = 1,
-                        Instruction = en
-                            ? $"Navigation waypoints are not set up for {fromRoomName} or {toRoomName}."
-                            : $"Chưa thiết lập nốt chỉ đường cho phòng {fromRoomName} hoặc {toRoomName}.",
+                        Instruction = NavigationLocalizer.FormatNoWaypoints(fromRoomName, toRoomName, en ? "en" : "vi"),
                         Action = "ARRIVE",
                         WaypointId = ""
                     }
@@ -330,9 +328,7 @@ public class NavigationService : INavigationService
                     new NavigationInstructionDto
                     {
                         StepIndex = 1,
-                        Instruction = en
-                            ? $"No path found from {fromRoomName} to {toRoomName}."
-                            : $"Không tìm thấy tuyến đường nối từ {fromRoomName} đến {toRoomName}.",
+                        Instruction = NavigationLocalizer.FormatNoPath(fromRoomName, toRoomName, en ? "en" : "vi"),
                         Action = "ARRIVE",
                         WaypointId = startWp.Id
                     }
@@ -447,13 +443,12 @@ public class NavigationService : INavigationService
         var instructions = new List<NavigationInstructionDto>();
         if (path == null || path.Count == 0) return instructions;
 
+        var lang = en ? "en" : "vi";
         int stepIndex = 1;
         instructions.Add(new NavigationInstructionDto
         {
             StepIndex = stepIndex++,
-            Instruction = en
-                ? $"Start from {fromRoomName}"
-                : $"Bắt đầu di chuyển từ {fromRoomName}",
+            Instruction = NavigationLocalizer.FormatStart(fromRoomName, lang),
             Action = "STRAIGHT",
             Distance = 0,
             FloorNumber = path[0].FloorNumber,
@@ -468,15 +463,12 @@ public class NavigationService : INavigationService
             if (w1.FloorNumber != w2.FloorNumber)
             {
                 var action = w2.FloorNumber > w1.FloorNumber ? "STAIR_UP" : "STAIR_DOWN";
-                var actionText = w2.WaypointType == "ELEVATOR"
-                    ? (en ? "Take the elevator" : "Đi thang máy")
-                    : (en ? "Take the stairs" : "Đi cầu thang");
-                var floorWord = en ? "Floor" : "Tầng";
-                var toWord = en ? "to" : "lên";
+                var instructionText = NavigationLocalizer.FormatFloorChange(w1.FloorNumber, w2.FloorNumber, w2.WaypointType, lang);
+
                 instructions.Add(new NavigationInstructionDto
                 {
                     StepIndex = stepIndex++,
-                    Instruction = $"{actionText} {toWord} {floorWord} {w2.FloorNumber}",
+                    Instruction = instructionText,
                     Action = action,
                     Distance = 1.0,
                     FloorNumber = w2.FloorNumber,
@@ -489,7 +481,6 @@ public class NavigationService : INavigationService
                 double dy = w2.LocationY - w1.LocationY;
                 double distVal = Math.Round(Math.Sqrt(dx * dx + dy * dy), 1);
 
-                string turnText = en ? "Go straight" : "Đi thẳng";
                 string action = "STRAIGHT";
 
                 if (i > 0)
@@ -505,26 +496,21 @@ public class NavigationService : INavigationService
                         double crossProduct = v1x * v2y - v1y * v2x;
                         if (crossProduct > 10)
                         {
-                            turnText = en ? "Turn right" : "Rẽ phải";
                             action = "TURN_RIGHT";
                         }
                         else if (crossProduct < -10)
                         {
-                            turnText = en ? "Turn left" : "Rẽ trái";
                             action = "TURN_LEFT";
                         }
                     }
                 }
 
-                var via = w2.Name ?? (w2.WaypointType == "DOOR"
-                    ? (en ? "the doorway" : "cửa phòng")
-                    : (en ? "the hallway" : "hành lang"));
-                var through = en ? "through" : "qua";
+                var instructionText = NavigationLocalizer.FormatTurn(action, w2.WaypointType, w2.Name, w2.Code, lang);
 
                 instructions.Add(new NavigationInstructionDto
                 {
                     StepIndex = stepIndex++,
-                    Instruction = $"{turnText} {through} {via}",
+                    Instruction = instructionText,
                     Action = action,
                     Distance = distVal,
                     FloorNumber = w2.FloorNumber,
@@ -537,7 +523,7 @@ public class NavigationService : INavigationService
         instructions.Add(new NavigationInstructionDto
         {
             StepIndex = stepIndex++,
-            Instruction = en ? $"Arrived at {toRoomName}" : $"Đã đến {toRoomName}",
+            Instruction = NavigationLocalizer.FormatArrival(toRoomName, lang),
             Action = "ARRIVE",
             Distance = 0,
             FloorNumber = lastWp.FloorNumber,
@@ -668,14 +654,10 @@ public class NavigationService : INavigationService
 
             if (fromStop.RoomId == toStop.RoomId)
             {
-                var sameRoomInstruction = en
-                    ? $"Proceed to the next exhibit inside {fromRoomName}"
-                    : $"Di chuyển đến hiện vật tiếp theo tại phòng {fromRoomName}";
-
                 mergedInstructions.Add(new NavigationInstructionDto
                 {
                     StepIndex = stepIndex++,
-                    Instruction = sameRoomInstruction,
+                    Instruction = NavigationLocalizer.FormatSameRoom(fromRoomName, en ? "en" : "vi"),
                     Action = "ARRIVE",
                     Distance = 0,
                     FloorNumber = fromStop.Room.FloorNumber,
@@ -726,9 +708,7 @@ public class NavigationService : INavigationService
                 mergedInstructions.Add(new NavigationInstructionDto
                 {
                     StepIndex = stepIndex++,
-                    Instruction = en
-                        ? $"Navigation waypoints are not set up between {fromRoomName} and {toRoomName}."
-                        : $"Chưa thiết lập nốt chỉ đường giữa phòng {fromRoomName} và phòng {toRoomName}.",
+                    Instruction = NavigationLocalizer.FormatNoWaypoints(fromRoomName, toRoomName, en ? "en" : "vi"),
                     Action = "ARRIVE",
                     WaypointId = ""
                 });
@@ -775,9 +755,7 @@ public class NavigationService : INavigationService
                 mergedInstructions.Add(new NavigationInstructionDto
                 {
                     StepIndex = stepIndex++,
-                    Instruction = en
-                        ? $"No path found from {fromRoomName} to {toRoomName}."
-                        : $"Không tìm thấy tuyến đường nối từ {fromRoomName} đến {toRoomName}.",
+                    Instruction = NavigationLocalizer.FormatNoPath(fromRoomName, toRoomName, en ? "en" : "vi"),
                     Action = "ARRIVE",
                     WaypointId = startWpSeg.Id
                 });

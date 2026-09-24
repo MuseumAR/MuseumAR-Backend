@@ -244,12 +244,39 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
                        src.Exhibit.ExhibitTranslations.FirstOrDefault(t => t.LanguageCode == "en")!.Title ??
                        (src.Exhibit.ExhibitTranslations.Any() ? src.Exhibit.ExhibitTranslations.First().Title : null))
                     : null))
+                .ForMember(dest => dest.ExhibitTitleVi, opt => opt.MapFrom(src => src.Exhibit != null
+                    ? src.Exhibit.ExhibitTranslations.FirstOrDefault(t => t.LanguageCode == "vi")!.Title
+                    : null))
+                .ForMember(dest => dest.ExhibitTitleEn, opt => opt.MapFrom(src => src.Exhibit != null
+                    ? src.Exhibit.ExhibitTranslations.FirstOrDefault(t => t.LanguageCode == "en")!.Title
+                    : null))
+                .ForMember(dest => dest.ExhibitDescriptionVi, opt => opt.MapFrom(src => src.Exhibit != null
+                    ? src.Exhibit.ExhibitTranslations.FirstOrDefault(t => t.LanguageCode == "vi")!.Description
+                    : null))
+                .ForMember(dest => dest.ExhibitDescriptionEn, opt => opt.MapFrom(src => src.Exhibit != null
+                    ? src.Exhibit.ExhibitTranslations.FirstOrDefault(t => t.LanguageCode == "en")!.Description
+                    : null))
+                .ForMember(dest => dest.AudioUrlVi, opt => opt.MapFrom(src => src.Exhibit != null
+                    ? src.Exhibit.ExhibitTranslations.FirstOrDefault(t => t.LanguageCode == "vi")!.AudioUrl
+                    : null))
+                .ForMember(dest => dest.AudioUrlEn, opt => opt.MapFrom(src => src.Exhibit != null
+                    ? src.Exhibit.ExhibitTranslations.FirstOrDefault(t => t.LanguageCode == "en")!.AudioUrl
+                    : null))
+                .ForMember(dest => dest.ThumbnailUrl, opt => opt.MapFrom(src => src.Exhibit != null ? src.Exhibit.ThumbnailUrl : null))
                 .ForMember(dest => dest.ExhibitCode, opt => opt.MapFrom(src => src.Exhibit != null ? src.Exhibit.ExhibitCode : null))
                 .ForMember(dest => dest.MapId, opt => opt.MapFrom(src => src.Exhibit != null ? src.Exhibit.MapId : null))
                 .ForMember(dest => dest.FloorNumber, opt => opt.MapFrom(src => src.Exhibit != null ? (src.Exhibit.Room != null ? (int?)src.Exhibit.Room.FloorNumber : (src.Exhibit.Map != null ? (int?)src.Exhibit.Map.FloorNumber : null)) : null))
                 .ForMember(dest => dest.RoomId, opt => opt.MapFrom(src => src.Exhibit != null ? src.Exhibit.RoomId : null))
                 .ForMember(dest => dest.RoomCode, opt => opt.MapFrom(src => src.Exhibit != null && src.Exhibit.Room != null ? src.Exhibit.Room.RoomCode : null))
-                .ForMember(dest => dest.RoomName, opt => opt.MapFrom(src => src.Exhibit != null && src.Exhibit.Room != null ? src.Exhibit.Room.RoomName : null));
+                .ForMember(dest => dest.RoomName, opt => opt.MapFrom(src => src.Exhibit != null && src.Exhibit.Room != null ? src.Exhibit.Room.RoomName : null))
+                .ForMember(dest => dest.RoomNameVi, opt => opt.MapFrom(src => src.Exhibit != null && src.Exhibit.Room != null
+                    ? (src.Exhibit.Room.RoomTranslations.FirstOrDefault(t => t.LanguageCode == "vi")!.RoomName ?? src.Exhibit.Room.RoomName)
+                    : null))
+                .ForMember(dest => dest.RoomNameEn, opt => opt.MapFrom(src => src.Exhibit != null && src.Exhibit.Room != null
+                    ? (src.Exhibit.Room.RoomTranslations.FirstOrDefault(t => t.LanguageCode == "en")!.RoomName ?? src.Exhibit.Room.RoomName)
+                    : null))
+                .ForMember(dest => dest.LocationX, opt => opt.MapFrom(src => src.Exhibit != null && src.Exhibit.Room != null ? src.Exhibit.Room.CenterX : null))
+                .ForMember(dest => dest.LocationY, opt => opt.MapFrom(src => src.Exhibit != null && src.Exhibit.Room != null ? src.Exhibit.Room.CenterY : null));
 #pragma warning restore CS8602
             CreateMap<CreateTourRouteStopDto, TourRouteExhibit>();
 

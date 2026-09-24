@@ -18,4 +18,13 @@ public class ValidateTicketResponseDto
     public DateTime PurchaseDate { get; set; }
     public DateTime? ValidDate { get; set; }
     public DateTime? UsedAt { get; set; }
+
+    // Group & Hybrid check-in support
+    public bool IsGroupOrder { get; set; }
+    public bool IsFoc { get; set; }
+    public string? OrderCode { get; set; }
+    public int TotalTickets { get; set; }
+    public int UsedTickets { get; set; }
+    public int RemainingTickets { get; set; }
+    public int FocTickets { get; set; }
 }

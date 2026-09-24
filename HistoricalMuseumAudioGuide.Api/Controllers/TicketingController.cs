@@ -123,7 +123,7 @@ namespace HistoricalMuseumAudioGuide.Api.Controllers
         [HttpPost("check-in")]
         public async Task<IActionResult> CheckInTicket([FromBody] CheckInRequestDto request)
         {
-            var response = await _ticketingService.CheckInTicketAsync(request.TicketCode);
+            var response = await _ticketingService.CheckInTicketAsync(request.TicketCode, request.Quantity);
             return ResponseParser.Result(response);
         }
 

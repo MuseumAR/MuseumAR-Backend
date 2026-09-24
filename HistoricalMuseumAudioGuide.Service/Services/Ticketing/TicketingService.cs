@@ -354,6 +354,11 @@ public class TicketingService : ITicketingService
                 });
             }
 
+            if (request.Quantity <= 0 || request.Quantity > 500)
+            {
+                return ResponseModel.BadRequest("Số lượng vé đặt mua phải từ 1 đến tối đa 500 vé cho mỗi đơn hàng.");
+            }
+
             var ticketType = await _unitOfWork.TicketTypes.GetByIdAsync(request.TicketTypeId);
             if (ticketType == null || !ticketType.IsActive || (ticketType.Status != "Approved" && ticketType.Status != "Active" && !string.IsNullOrEmpty(ticketType.Status)))
             {
@@ -383,12 +388,28 @@ public class TicketingService : ITicketingService
                 }
             }
 
-            decimal unitPrice = ticketType.Price;
-            decimal totalAmount = ticketType.Price * request.Quantity;
+            decimal basePrice = ticketType.Price;
+            decimal unitPrice = basePrice;
+            int quantity = request.Quantity;
+            decimal discountPercent = 0m;
+            int focCount = 0;
 
-            // Nếu visitor có chọn promotion cụ thể
-            if (request.PromotionId.HasValue)
+            // Tiered discount for group orders (>= 30 tickets: disable vouchers, auto apply group discount + FOC)
+            if (quantity >= 50)
             {
+                discountPercent = 0.10m; // Giảm 10% cho đoàn >= 50 vé
+                focCount = quantity / 30; // Cứ 30 vé tặng 1 vé FOC
+                unitPrice = Math.Round(basePrice * (1 - discountPercent), 0);
+            }
+            else if (quantity >= 30)
+            {
+                discountPercent = 0.08m; // Giảm 8% cho đoàn 30 - 49 vé
+                focCount = quantity / 30; // Cứ 30 vé tặng 1 vé FOC
+                unitPrice = Math.Round(basePrice * (1 - discountPercent), 0);
+            }
+            else if (request.PromotionId.HasValue)
+            {
+                // Single / regular ticket promotion
                 var selectedPromo = await _unitOfWork.TicketPromotions
                     .GetActivePromotionByIdAndTicketTypeIdAsync(request.PromotionId.Value, request.TicketTypeId);
 
@@ -397,9 +418,10 @@ public class TicketingService : ITicketingService
                     return ResponseModel.BadRequest("Selected ticket promotion is invalid, paused, or expired.");
                 }
 
-                unitPrice = CalculateDiscountedPrice(selectedPromo, ticketType.Price);
-                totalAmount = unitPrice * request.Quantity;
+                unitPrice = CalculateDiscountedPrice(selectedPromo, basePrice);
             }
+
+            decimal totalAmount = unitPrice * quantity;
 
             string orderCode = $"ORD{now:yyMMddHHmmss}{Random.Shared.Next(10, 99)}";
 
@@ -417,7 +439,7 @@ public class TicketingService : ITicketingService
 
             // Pre-create tickets in Pending state with snapshot unit price
             string ticketRandomGroup = Random.Shared.Next(1000, 9999).ToString();
-            for (int i = 0; i < request.Quantity; i++)
+            for (int i = 0; i < quantity; i++)
             {
                 string ticketCode = $"TK-{now:yyMMdd}-{ticketRandomGroup}-{(i + 1):D2}";
                 transaction.Tickets.Add(new Ticket
@@ -426,6 +448,24 @@ public class TicketingService : ITicketingService
                     TicketTypeId = request.TicketTypeId,
                     TicketCode = ticketCode,
                     Price = unitPrice,
+                    PurchaseDate = now,
+                    ValidDate = initialValidDate,
+                    Status = "Pending",
+                    CreatedAt = now,
+                    UpdatedAt = now
+                });
+            }
+
+            // Create FOC tickets (Free of Charge for leaders/teachers)
+            for (int j = 0; j < focCount; j++)
+            {
+                string focTicketCode = $"TK-{now:yyMMdd}-{ticketRandomGroup}-FOC{(j + 1):D2}";
+                transaction.Tickets.Add(new Ticket
+                {
+                    VisitorId = visitorId,
+                    TicketTypeId = request.TicketTypeId,
+                    TicketCode = focTicketCode,
+                    Price = 0, // FOC = 0 VND
                     PurchaseDate = now,
                     ValidDate = initialValidDate,
                     Status = "Pending",
@@ -477,15 +517,21 @@ public class TicketingService : ITicketingService
 
         var tickets = await _unitOfWork.Tickets.GetTicketsByVisitorIdAsync(visitorId);
         // Return Paid, Used, Refund_Pending, and Refunded tickets to the user
-        var activeTickets = tickets.Where(t => t.Status == "Paid" || t.Status == "Used" || t.Status == "Refund_Pending" || t.Status == "Refunded");
+        var activeTickets = tickets.Where(t => t.Status == "Paid" || t.Status == "Used" || t.Status == "Refund_Pending" || t.Status == "Refunded").ToList();
         var dtos = _mapper.Map<IEnumerable<TicketDto>>(activeTickets).ToList();
         var en = string.Equals(lang, "en", StringComparison.OrdinalIgnoreCase);
-        if (en)
+
+        foreach (var dto in dtos)
         {
-            foreach (var dto in dtos)
+            var match = activeTickets.FirstOrDefault(t => t.Id == dto.Id);
+            if (en)
             {
-                var match = activeTickets.FirstOrDefault(t => t.Id == dto.Id)?.TicketType;
-                dto.TicketTypeName = ResolveTicketTypeName(match?.Name, match?.NameEn, en);
+                dto.TicketTypeName = ResolveTicketTypeName(match?.TicketType?.Name, match?.TicketType?.NameEn, en);
+            }
+            if (match != null)
+            {
+                dto.IsFoc = match.Price == 0;
+                dto.OrderCode = match.Transaction?.OrderCode;
             }
         }
         
@@ -528,6 +574,8 @@ public class TicketingService : ITicketingService
             en);
 
         decimal purchasedPrice = ticket.Price > 0 ? ticket.Price : (ticket.TicketType?.Price ?? 0);
+        bool isFoc = ticket.Price == 0;
+        bool isGroupOrder = isFoc || (ticket.TransactionId.HasValue && (await _unitOfWork.Tickets.FindAsync(t => t.TransactionId == ticket.TransactionId.Value)).Count() >= 30);
 
         var detailDto = new TicketDetailDto
         {
@@ -535,6 +583,8 @@ public class TicketingService : ITicketingService
             TicketCode = ticket.TicketCode,
             Price = purchasedPrice,
             Status = ticket.Status,
+            IsFoc = isFoc,
+            IsGroupOrder = isGroupOrder,
             PurchaseDate = ticket.PurchaseDate,
             ValidDate = ticket.ValidDate,
             TicketType = new TicketDetailTypeDto
@@ -604,13 +654,90 @@ public class TicketingService : ITicketingService
             return ResponseModel.BadRequest("Ticket code cannot be empty.");
         }
 
-        var ticket = await _unitOfWork.Tickets.GetTicketByCodeAsync(ticketCode.Trim());
+        var trimmedCode = ticketCode.Trim();
+
+        // Check if the code is an OrderCode (Master QR for Group or Individual Order)
+        var orderTransaction = (await _unitOfWork.Transactions.FindAsync(t => t.OrderCode == trimmedCode)).FirstOrDefault();
+        if (orderTransaction != null)
+        {
+            var orderTickets = (await _unitOfWork.Tickets.GetTicketsByTransactionIdAsync(orderTransaction.Id)).ToList();
+            if (orderTickets.Count == 0)
+            {
+                return ResponseModel.Success("Order validation completed.", new ValidateTicketResponseDto
+                {
+                    TicketId = 0,
+                    TicketCode = trimmedCode,
+                    OrderCode = trimmedCode,
+                    IsGroupOrder = true,
+                    Status = orderTransaction.PaymentStatus,
+                    IsValid = false,
+                    Message = "Đơn hàng này chưa có vé hợp lệ trong hệ thống!",
+                    TicketTypeName = "Vé tham quan đoàn",
+                    Price = orderTransaction.TotalAmount,
+                    VisitorName = orderTransaction.Visitor?.User?.FullName ?? orderTransaction.Visitor?.DisplayName ?? "Khách tham quan",
+                    PurchaseDate = orderTransaction.CreatedAt
+                });
+            }
+
+            var sampleTicket = orderTickets.First();
+            string groupVisitorName = sampleTicket.Visitor?.User?.FullName ?? sampleTicket.Visitor?.DisplayName ?? orderTransaction.Visitor?.User?.FullName ?? "Khách tham quan";
+            string? groupVisitorEmail = sampleTicket.Visitor?.Email ?? sampleTicket.Visitor?.User?.Email ?? orderTransaction.Visitor?.Email;
+            string groupTicketTypeName = sampleTicket.TicketType?.Name ?? "Vé tham quan";
+
+            int totalCount = orderTickets.Count;
+            int usedCount = orderTickets.Count(t => t.Status == "Used");
+            int remainingCount = orderTickets.Count(t => t.Status == "Paid" || t.Status == "Active");
+            int focCount = orderTickets.Count(t => t.Price == 0);
+
+            var now = DateTime.UtcNow.AddHours(7);
+            var exhibition = sampleTicket.TicketType?.Exhibition;
+            bool notStarted = exhibition?.StartDate.HasValue == true && now.Date < exhibition.StartDate.Value.Date;
+            bool isExpired = sampleTicket.ValidDate.HasValue && now > sampleTicket.ValidDate.Value;
+
+            bool isValid = remainingCount > 0 && !notStarted && !isExpired && (orderTransaction.PaymentStatus == "Completed" || orderTransaction.PaymentStatus == "Paid" || remainingCount > 0);
+
+            string message = notStarted
+                ? $"Triển lãm chưa bắt đầu (Bắt đầu từ ngày {exhibition!.StartDate:dd/MM/yyyy})!"
+                : isExpired
+                    ? $"Đơn vé đoàn này đã hết hạn sử dụng vào lúc {sampleTicket.ValidDate:dd/MM/yyyy HH:mm}!"
+                    : remainingCount == 0 && usedCount > 0
+                        ? $"Toàn bộ vé trong đơn ({totalCount} vé) đã được Check-in sử dụng trước đó!"
+                        : remainingCount > 0
+                            ? $"Đơn vé đoàn hợp lệ! Sẵn sàng Check-in cho {remainingCount}/{totalCount} vé (Bao gồm {focCount} vé FOC)."
+                            : $"Trạng thái đơn hàng: {orderTransaction.PaymentStatus}";
+
+            var groupResponseDto = new ValidateTicketResponseDto
+            {
+                TicketId = sampleTicket.Id,
+                TicketCode = trimmedCode,
+                OrderCode = orderTransaction.OrderCode,
+                IsGroupOrder = totalCount >= 30 || focCount > 0,
+                TotalTickets = totalCount,
+                UsedTickets = usedCount,
+                RemainingTickets = remainingCount,
+                FocTickets = focCount,
+                Status = remainingCount > 0 ? "Paid" : (usedCount == totalCount ? "Used" : orderTransaction.PaymentStatus),
+                IsValid = isValid,
+                Message = message,
+                TicketTypeName = groupTicketTypeName,
+                Price = orderTransaction.TotalAmount,
+                VisitorName = groupVisitorName,
+                VisitorEmail = groupVisitorEmail,
+                PurchaseDate = orderTransaction.CreatedAt,
+                ValidDate = sampleTicket.ValidDate,
+                UsedAt = usedCount > 0 ? orderTickets.Where(t => t.Status == "Used").Max(t => (DateTime?)t.UpdatedAt) : null
+            };
+
+            return ResponseModel.Success("Group order validated successfully.", groupResponseDto);
+        }
+
+        var ticket = await _unitOfWork.Tickets.GetTicketByCodeAsync(trimmedCode);
         if (ticket == null)
         {
             return ResponseModel.Success("Ticket validation completed.", new ValidateTicketResponseDto
             {
                 TicketId = 0,
-                TicketCode = ticketCode,
+                TicketCode = trimmedCode,
                 Status = "NotFound",
                 IsValid = false,
                 Message = "Mã vé không tồn tại trong hệ thống!",
@@ -628,20 +755,21 @@ public class TicketingService : ITicketingService
         string? visitorEmail = ticket.Visitor?.Email ?? ticket.Visitor?.User?.Email;
         string ticketTypeName = ticket.TicketType?.Name ?? "Vé tham quan";
         decimal price = ticket.Price > 0 ? ticket.Price : (ticket.TicketType?.Price ?? 0);
+        bool isFoc = ticket.Price == 0;
 
-        var now = DateTime.UtcNow.AddHours(7);
-        var exhibition = ticket.TicketType?.Exhibition;
-        bool notStartedYet = exhibition?.StartDate.HasValue == true && now.Date < exhibition.StartDate.Value.Date;
-        bool isExpired = ticket.ValidDate.HasValue && now > ticket.ValidDate.Value;
-        bool isValid = (ticket.Status == "Paid" || ticket.Status == "Active") && !isExpired && !notStartedYet;
+        var nowSingle = DateTime.UtcNow.AddHours(7);
+        var singleExhibition = ticket.TicketType?.Exhibition;
+        bool notStartedYet = singleExhibition?.StartDate.HasValue == true && nowSingle.Date < singleExhibition.StartDate.Value.Date;
+        bool isTicketExpired = ticket.ValidDate.HasValue && nowSingle > ticket.ValidDate.Value;
+        bool isTicketValid = (ticket.Status == "Paid" || ticket.Status == "Active") && !isTicketExpired && !notStartedYet;
 
-        string message = notStartedYet
-            ? $"Triển lãm chưa bắt đầu (Bắt đầu từ ngày {exhibition!.StartDate:dd/MM/yyyy})!"
-            : isExpired
+        string ticketMessage = notStartedYet
+            ? $"Triển lãm chưa bắt đầu (Bắt đầu từ ngày {singleExhibition!.StartDate:dd/MM/yyyy})!"
+            : isTicketExpired
                 ? $"Vé này đã hết hạn sử dụng vào lúc {ticket.ValidDate:dd/MM/yyyy HH:mm}!"
                 : ticket.Status switch
                 {
-                    "Paid" or "Active" => "Vé hợp lệ! Có thể thực hiện Check-in.",
+                    "Paid" or "Active" => isFoc ? "Vé FOC (Miễn phí dẫn đoàn) hợp lệ! Có thể Check-in." : "Vé hợp lệ! Có thể thực hiện Check-in.",
                     "Used" => $"Vé này đã được Check-in sử dụng trước đó vào lúc {ticket.UpdatedAt:dd/MM/yyyy HH:mm}!",
                     "Refund_Pending" => "Vé này đang trong quá trình yêu cầu hoàn tiền!",
                     "Refunded" => "Vé này đã được hoàn tiền và không còn hiệu lực!",
@@ -654,10 +782,12 @@ public class TicketingService : ITicketingService
         {
             TicketId = ticket.Id,
             TicketCode = ticket.TicketCode,
+            OrderCode = ticket.Transaction?.OrderCode,
             Status = ticket.Status,
-            IsValid = isValid,
-            Message = message,
-            TicketTypeName = ticketTypeName,
+            IsFoc = isFoc,
+            IsValid = isTicketValid,
+            Message = ticketMessage,
+            TicketTypeName = isFoc ? $"{ticketTypeName} (FOC - Dẫn đoàn)" : ticketTypeName,
             Price = price,
             VisitorName = visitorName,
             VisitorEmail = visitorEmail,
@@ -669,14 +799,104 @@ public class TicketingService : ITicketingService
         return ResponseModel.Success("Ticket validated successfully.", responseDto);
     }
 
-    public async Task<ResponseModel> CheckInTicketAsync(string ticketCode)
+    public async Task<ResponseModel> CheckInTicketAsync(string ticketCode, int? quantity = null)
     {
         if (string.IsNullOrWhiteSpace(ticketCode))
         {
             return ResponseModel.BadRequest("Ticket code cannot be empty.");
         }
 
-        var ticket = await _unitOfWork.Tickets.GetTicketByCodeAsync(ticketCode.Trim());
+        var trimmedCode = ticketCode.Trim();
+        var now = DateTime.UtcNow.AddHours(7);
+
+        // 1. Check if checking in via Master QR (OrderCode)
+        var orderTransaction = (await _unitOfWork.Transactions.FindAsync(t => t.OrderCode == trimmedCode)).FirstOrDefault();
+        if (orderTransaction != null)
+        {
+            var orderTickets = (await _unitOfWork.Tickets.GetTicketsByTransactionIdAsync(orderTransaction.Id)).ToList();
+            // Ưu tiên check-in vé FOC (trưởng đoàn/hướng dẫn viên) trước, sau đó đến vé khách để vé chừa lại luôn là vé khách
+            var validTickets = orderTickets
+                .Where(t => t.Status == "Paid" || t.Status == "Active")
+                .OrderByDescending(t => t.Price == 0)
+                .ThenBy(t => t.Id)
+                .ToList();
+
+            if (validTickets.Count == 0)
+            {
+                int usedTicketsCount = orderTickets.Count(t => t.Status == "Used");
+                if (usedTicketsCount > 0)
+                {
+                    return ResponseModel.BadRequest($"Toàn bộ các vé ({usedTicketsCount} vé) trong đơn đoàn này đã được Check-in trước đó!");
+                }
+                return ResponseModel.BadRequest($"Đơn hàng này không có vé nào ở trạng thái Đã thanh toán (Paid) để Check-in.");
+            }
+
+            var sample = validTickets.First();
+            var exhibition = sample.TicketType?.Exhibition;
+            if (exhibition?.StartDate.HasValue == true && now.Date < exhibition.StartDate.Value.Date)
+            {
+                return ResponseModel.BadRequest($"Triển lãm chưa bắt đầu (Bắt đầu từ ngày {exhibition.StartDate:dd/MM/yyyy})!");
+            }
+
+            if (sample.ValidDate.HasValue && now > sample.ValidDate.Value)
+            {
+                return ResponseModel.BadRequest($"Đơn vé đoàn này đã hết hạn sử dụng vào lúc {sample.ValidDate:dd/MM/yyyy HH:mm}!");
+            }
+
+            // Determine how many tickets to check in (Full or Partial)
+            int checkInCount = quantity.HasValue && quantity.Value > 0 && quantity.Value <= validTickets.Count
+                ? quantity.Value
+                : validTickets.Count;
+
+            var ticketsToCheckIn = validTickets.Take(checkInCount).ToList();
+
+            foreach (var t in ticketsToCheckIn)
+            {
+                t.Status = "Used";
+                t.UpdatedAt = now;
+                _unitOfWork.Tickets.Update(t);
+            }
+
+            await _unitOfWork.CompleteAsync();
+
+            int totalTickets = orderTickets.Count;
+            int usedTickets = orderTickets.Count(t => t.Status == "Used");
+            int remainingTickets = orderTickets.Count(t => t.Status == "Paid" || t.Status == "Active");
+            int focTickets = orderTickets.Count(t => t.Price == 0);
+            string visitorName = sample.Visitor?.User?.FullName ?? sample.Visitor?.DisplayName ?? orderTransaction.Visitor?.DisplayName ?? "Khách tham quan";
+            string ticketTypeName = sample.TicketType?.Name ?? "Vé tham quan";
+
+            string checkInMessage = checkInCount < validTickets.Count
+                ? $"Check-in trước thành công cho {checkInCount} người! Còn {remainingTickets} vé sẵn sàng cho các thành viên đến sau (quét vé con)."
+                : $"Check-in thành công cho toàn bộ {checkInCount} vé! Chúc đoàn có chuyến tham quan ý nghĩa.";
+
+            var groupCheckInResponse = new ValidateTicketResponseDto
+            {
+                TicketId = sample.Id,
+                TicketCode = trimmedCode,
+                OrderCode = orderTransaction.OrderCode,
+                IsGroupOrder = totalTickets >= 30 || focTickets > 0,
+                TotalTickets = totalTickets,
+                UsedTickets = usedTickets,
+                RemainingTickets = remainingTickets,
+                FocTickets = focTickets,
+                Status = remainingTickets == 0 ? "Used" : "Paid",
+                IsValid = true,
+                Message = checkInMessage,
+                TicketTypeName = ticketTypeName,
+                Price = orderTransaction.TotalAmount,
+                VisitorName = visitorName,
+                VisitorEmail = sample.Visitor?.Email ?? sample.Visitor?.User?.Email,
+                PurchaseDate = orderTransaction.CreatedAt,
+                ValidDate = sample.ValidDate,
+                UsedAt = now
+            };
+
+            return ResponseModel.Success($"Check-in thành công ({checkInCount} vé).", groupCheckInResponse);
+        }
+
+        // 2. Check-in single ticket
+        var ticket = await _unitOfWork.Tickets.GetTicketByCodeAsync(trimmedCode);
         if (ticket == null)
         {
             return ResponseModel.NotFound("Mã vé không tồn tại trong hệ thống!");
@@ -702,11 +922,10 @@ public class TicketingService : ITicketingService
             return ResponseModel.BadRequest($"Không thể check-in vé có trạng thái '{ticket.Status}'. Vé phải ở trạng thái Đã thanh toán (Paid).");
         }
 
-        var now = DateTime.UtcNow.AddHours(7);
-        var exhibition = ticket.TicketType?.Exhibition;
-        if (exhibition?.StartDate.HasValue == true && now.Date < exhibition.StartDate.Value.Date)
+        var singleEx = ticket.TicketType?.Exhibition;
+        if (singleEx?.StartDate.HasValue == true && now.Date < singleEx.StartDate.Value.Date)
         {
-            return ResponseModel.BadRequest($"Triển lãm chưa bắt đầu (Bắt đầu từ ngày {exhibition.StartDate:dd/MM/yyyy})!");
+            return ResponseModel.BadRequest($"Triển lãm chưa bắt đầu (Bắt đầu từ ngày {singleEx.StartDate:dd/MM/yyyy})!");
         }
 
         if (ticket.ValidDate.HasValue && now > ticket.ValidDate.Value)
@@ -719,27 +938,32 @@ public class TicketingService : ITicketingService
 
         await _unitOfWork.CompleteAsync();
 
-        string visitorName = ticket.Visitor?.User?.FullName ?? ticket.Visitor?.DisplayName ?? "Khách tham quan";
-        string ticketTypeName = ticket.TicketType?.Name ?? "Vé tham quan";
+        string singleVisitorName = ticket.Visitor?.User?.FullName ?? ticket.Visitor?.DisplayName ?? "Khách tham quan";
+        string singleTicketTypeName = ticket.TicketType?.Name ?? "Vé tham quan";
         decimal price = ticket.Price > 0 ? ticket.Price : (ticket.TicketType?.Price ?? 0);
+        bool isFocTicket = ticket.Price == 0;
 
-        var responseDto = new ValidateTicketResponseDto
+        var singleResponseDto = new ValidateTicketResponseDto
         {
             TicketId = ticket.Id,
             TicketCode = ticket.TicketCode,
+            OrderCode = ticket.Transaction?.OrderCode,
             Status = ticket.Status,
+            IsFoc = isFocTicket,
             IsValid = true,
-            Message = "Check-in thành công! Chúc quý khách có buổi tham quan vui vẻ.",
-            TicketTypeName = ticketTypeName,
+            Message = isFocTicket
+                ? "Check-in thành công vé FOC (Trưởng đoàn/Giáo viên)! Chúc quý khách có buổi tham quan vui vẻ."
+                : "Check-in thành công! Chúc quý khách có buổi tham quan vui vẻ.",
+            TicketTypeName = isFocTicket ? $"{singleTicketTypeName} (FOC - Dẫn đoàn)" : singleTicketTypeName,
             Price = price,
-            VisitorName = visitorName,
+            VisitorName = singleVisitorName,
             VisitorEmail = ticket.Visitor?.Email ?? ticket.Visitor?.User?.Email,
             PurchaseDate = ticket.PurchaseDate,
             ValidDate = ticket.ValidDate,
             UsedAt = now
         };
 
-        return ResponseModel.Success("Check-in ticket successfully.", responseDto);
+        return ResponseModel.Success("Check-in ticket successfully.", singleResponseDto);
     }
 
     public async Task<ResponseModel> RequestTicketRefundAsync(int visitorId, int ticketId, CreateTicketRefundRequestDto dto)
