@@ -19,6 +19,7 @@ public class OfflinePackageRepository : GenericRepository<Entities.OfflinePackag
         var query = _dbSet.AsNoTracking()
             .Include(p => p.Exhibition)
                 .ThenInclude(e => e!.ExhibitionTranslations)
+            .Include(p => p.OfflinePackageTranslations)
             .Where(p => p.MuseumId == museumId);
 
         if (exhibitionId.HasValue)

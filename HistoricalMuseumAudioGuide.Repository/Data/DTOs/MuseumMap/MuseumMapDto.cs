@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace HistoricalMuseumAudioGuide.Repository.Data.DTOs.MuseumMap;
 
 public class MuseumMapDto
@@ -6,6 +8,8 @@ public class MuseumMapDto
     public int MuseumId { get; set; }
     public int FloorNumber { get; set; }
     public string? MapName { get; set; }
+    public string? MapNameEn { get; set; }
     public string MapImageUrl { get; set; } = null!;
     public string MapType { get; set; } = null!;
+    public List<MuseumMapTranslationDto> Translations { get; set; } = new();
 }

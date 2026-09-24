@@ -171,7 +171,17 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
             CreateMap<CreateExhibitArassetDto, ExhibitArasset>();
 
             // Offline Package
+            CreateMap<OfflinePackageTranslation, OfflinePackageTranslationDto>().ReverseMap();
             CreateMap<OfflinePackage, OfflinePackageDto>()
+                .ForMember(dest => dest.Translations, opt => opt.MapFrom(src => src.OfflinePackageTranslations))
+                .ForMember(dest => dest.PackageName, opt => opt.MapFrom(src =>
+                    src.OfflinePackageTranslations != null && src.OfflinePackageTranslations.FirstOrDefault(t => t.LanguageCode == "vi") != null
+                        ? src.OfflinePackageTranslations.FirstOrDefault(t => t.LanguageCode == "vi")!.PackageName ?? src.PackageName
+                        : src.PackageName))
+                .ForMember(dest => dest.PackageNameEn, opt => opt.MapFrom(src =>
+                    src.OfflinePackageTranslations != null && src.OfflinePackageTranslations.FirstOrDefault(t => t.LanguageCode == "en") != null
+                        ? src.OfflinePackageTranslations.FirstOrDefault(t => t.LanguageCode == "en")!.PackageName
+                        : null))
                 .ForMember(dest => dest.ExhibitionTitle, opt => opt.MapFrom(src => 
                     src.Exhibition != null && src.Exhibition.ExhibitionTranslations.Any() 
                         ? src.Exhibition.ExhibitionTranslations.FirstOrDefault()!.Name 
@@ -202,9 +212,20 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
             CreateMap<VisitorSyncDto, Entities.Visitor>();
 
             // Maps & Routes
+            CreateMap<MuseumMapTranslation, MuseumMapTranslationDto>().ReverseMap();
             CreateMap<MuseumMap, MuseumMapDto>()
+                .ForMember(dest => dest.Translations, opt => opt.MapFrom(src => src.MuseumMapTranslations))
                 .ForMember(dest => dest.MapType, opt => opt.MapFrom(src => src.MapType ?? src.MapName ?? "floor"))
-                .ReverseMap();
+                .ForMember(dest => dest.MapName, opt => opt.MapFrom(src =>
+                    src.MuseumMapTranslations != null && src.MuseumMapTranslations.FirstOrDefault(t => t.LanguageCode == "vi") != null
+                        ? src.MuseumMapTranslations.FirstOrDefault(t => t.LanguageCode == "vi")!.MapName ?? src.MapName
+                        : src.MapName))
+                .ForMember(dest => dest.MapNameEn, opt => opt.MapFrom(src =>
+                    src.MuseumMapTranslations != null && src.MuseumMapTranslations.FirstOrDefault(t => t.LanguageCode == "en") != null
+                        ? src.MuseumMapTranslations.FirstOrDefault(t => t.LanguageCode == "en")!.MapName
+                        : null))
+                .ReverseMap()
+                .ForMember(dest => dest.MuseumMapTranslations, opt => opt.Ignore());
 
             CreateMap<MapPoi, MapPoiDto>()
                 .ForMember(dest => dest.PoiType, opt => opt.MapFrom(src => src.Poitype))
