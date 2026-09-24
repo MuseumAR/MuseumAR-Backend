@@ -1243,7 +1243,7 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
 
         // --- Tour Route Management ---
 
-        private const string TourRouteIncludes = "TourRouteExhibits.Exhibit.ExhibitTranslations,TourRouteExhibits.Exhibit.Room,TourRouteExhibits.Exhibit.Map,TourRouteTranslations,AgeGroup,Exhibition.ExhibitionTranslations";
+        private const string TourRouteIncludes = "TourRouteExhibits.Exhibit.ExhibitTranslations,TourRouteExhibits.Exhibit.Room.RoomTranslations,TourRouteExhibits.Exhibit.Map,TourRouteTranslations,AgeGroup,Exhibition.ExhibitionTranslations";
 
         public async Task<ResponseModel> GetTourRoutesAsync(int museumId)
         {
@@ -2258,11 +2258,11 @@ namespace HistoricalMuseumAudioGuide.Service.Services.Content
 
             var maps = (await _unitOfWork.MuseumMaps.FindAsync(m => m.MuseumId == museumId)).ToList();
             var tourRoutes = exhibitionId.HasValue
-                ? (await _unitOfWork.TourRoutes.FindAsync(r => r.MuseumId == museumId && (r.ExhibitionId == exhibitionId.Value || r.ExhibitionId == null), "TourRouteExhibits,TourRouteTranslations")).ToList()
-                : (await _unitOfWork.TourRoutes.FindAsync(r => r.MuseumId == museumId, "TourRouteExhibits,TourRouteTranslations")).ToList();
+                ? (await _unitOfWork.TourRoutes.FindAsync(r => r.MuseumId == museumId && (r.ExhibitionId == exhibitionId.Value || r.ExhibitionId == null), TourRouteIncludes)).ToList()
+                : (await _unitOfWork.TourRoutes.FindAsync(r => r.MuseumId == museumId, TourRouteIncludes)).ToList();
 
             var categories = (await _unitOfWork.Categories.FindAsync(c => c.MuseumId == museumId, "CategoryTranslations")).ToList();
-            var rooms = (await _unitOfWork.Rooms.FindAsync(r => r.MuseumId == museumId)).ToList();
+            var rooms = (await _unitOfWork.Rooms.FindAsync(r => r.MuseumId == museumId, "RoomTranslations")).ToList();
             var waypoints = (await _unitOfWork.Waypoints.FindAsync(w => w.MuseumId == museumId)).ToList();
             var edges = (await _unitOfWork.WaypointEdges.FindAsync(e => e.MuseumId == museumId)).ToList();
             

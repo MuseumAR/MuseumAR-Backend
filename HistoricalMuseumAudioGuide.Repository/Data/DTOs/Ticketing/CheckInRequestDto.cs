@@ -6,4 +6,6 @@ public class CheckInRequestDto
 {
     [Required]
     public string TicketCode { get; set; } = null!;
+
+    public int? Quantity { get; set; }
 }

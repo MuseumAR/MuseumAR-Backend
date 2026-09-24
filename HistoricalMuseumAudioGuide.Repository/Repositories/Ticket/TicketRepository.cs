@@ -15,7 +15,11 @@ public class TicketRepository : GenericRepository<Entities.Ticket>, ITicketRepos
 
     public async Task<IEnumerable<Entities.Ticket>> GetTicketsByVisitorIdAsync(int visitorId)
     {
-        return await _dbSet.AsNoTracking().Include(t => t.TicketType).Where(t => t.VisitorId == visitorId).ToListAsync();
+        return await _dbSet.AsNoTracking()
+            .Include(t => t.TicketType)
+            .Include(t => t.Transaction)
+            .Where(t => t.VisitorId == visitorId)
+            .ToListAsync();
     }
 
     public async Task<IEnumerable<Entities.Ticket>> GetTicketsByTransactionIdAsync(int transactionId)
