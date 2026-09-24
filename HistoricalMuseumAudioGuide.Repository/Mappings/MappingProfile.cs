@@ -181,7 +181,9 @@ namespace HistoricalMuseumAudioGuide.Repository.Mappings
                 .ForMember(dest => dest.PackageNameEn, opt => opt.MapFrom(src =>
                     src.OfflinePackageTranslations != null && src.OfflinePackageTranslations.FirstOrDefault(t => t.LanguageCode == "en") != null
                         ? src.OfflinePackageTranslations.FirstOrDefault(t => t.LanguageCode == "en")!.PackageName
-                        : null))
+                        : (src.Exhibition != null && src.Exhibition.ExhibitionTranslations.Any(t => t.LanguageCode == "en")
+                            ? src.Exhibition.ExhibitionTranslations.FirstOrDefault(t => t.LanguageCode == "en")!.Name
+                            : null)))
                 .ForMember(dest => dest.ExhibitionTitle, opt => opt.MapFrom(src => 
                     src.Exhibition != null && src.Exhibition.ExhibitionTranslations.Any() 
                         ? src.Exhibition.ExhibitionTranslations.FirstOrDefault()!.Name 
