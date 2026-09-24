@@ -4,8 +4,7 @@ namespace HistoricalMuseumAudioGuide.Repository.Data.DTOs.Auth;
 
 public class ChangePasswordRequestDto
 {
-    [Required]
-    public string OldPassword { get; set; } = null!;
+    public string? OldPassword { get; set; }
 
     [Required]
     [MinLength(6)]

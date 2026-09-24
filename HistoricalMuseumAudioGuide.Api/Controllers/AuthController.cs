@@ -83,17 +83,32 @@ public class AuthController : ControllerBase
     }
 
     [Authorize]
+    [HttpGet("has-password")]
+    public async Task<IActionResult> CheckHasPassword()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+        if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+        {
+            return Unauthorized();
+        }
+
+        var response = await _authService.CheckHasPasswordAsync(userId);
+        return ResponseParser.Result(response);
+    }
+
+    [Authorize]
     [HttpPost("change-password")]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequestDto request)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
         
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
-        if (userIdClaim == null) return Unauthorized();
+        if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+        {
+            return Unauthorized();
+        }
 
-        int userId = int.Parse(userIdClaim.Value);
         var response = await _authService.ChangePasswordAsync(userId, request);
-        
         return ResponseParser.Result(response);
     }
 

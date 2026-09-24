@@ -246,9 +246,26 @@ public class AuthService : IAuthService
         var user = await _unitOfWork.Users.GetByIdAsync(userId);
         if (user == null) return ResponseModel.NotFound("User not found.");
 
-        if (!BCrypt.Net.BCrypt.Verify(request.OldPassword, user.PasswordHash))
+        bool isOAuthUser = string.IsNullOrEmpty(user.PasswordHash) || user.PasswordHash == "GOOGLE_OAUTH_USER";
+
+        if (!isOAuthUser)
         {
-            return ResponseModel.BadRequest("Incorrect old password.");
+            if (string.IsNullOrWhiteSpace(request.OldPassword))
+            {
+                return ResponseModel.BadRequest("Vui lòng nhập mật khẩu hiện tại.");
+            }
+
+            try
+            {
+                if (!BCrypt.Net.BCrypt.Verify(request.OldPassword, user.PasswordHash))
+                {
+                    return ResponseModel.BadRequest("Mật khẩu cũ không chính xác.");
+                }
+            }
+            catch (Exception)
+            {
+                return ResponseModel.BadRequest("Mật khẩu hiện tại không hợp lệ.");
+            }
         }
 
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
@@ -257,7 +274,18 @@ public class AuthService : IAuthService
         _unitOfWork.Users.Update(user);
         await _unitOfWork.CompleteAsync();
 
-        return ResponseModel.Success("Password changed successfully.");
+        return ResponseModel.Success(isOAuthUser
+            ? "Đã thiết lập mật khẩu thành công. Bây giờ bạn có thể đăng nhập bằng mật khẩu hoặc Google."
+            : "Đổi mật khẩu thành công.");
+    }
+
+    public async Task<ResponseModel> CheckHasPasswordAsync(int userId)
+    {
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (user == null) return ResponseModel.NotFound("User not found.");
+
+        bool hasPassword = !string.IsNullOrEmpty(user.PasswordHash) && user.PasswordHash != "GOOGLE_OAUTH_USER";
+        return ResponseModel.Success("Success", new { hasPassword });
     }
 
     public async Task<ResponseModel> LoginWithGoogleAsync(string idToken)
