@@ -112,14 +112,21 @@ public class PaymentService : IPaymentService
 
     private static DateTime? CalculateTicketValidDate(Ticket ticket, DateTime now)
     {
+        // 1. Giữ nguyên ValidDate nếu đã được xác định trước đó (ví dụ ngày tham quan do khách chọn khi mua vé thường)
+        if (ticket.ValidDate.HasValue)
+        {
+            return ticket.ValidDate;
+        }
+
+        // 2. Vé chuyên đề triển lãm: Đến cuối ngày (23:59:59) của ngày kết thúc triển lãm
         var exhibition = ticket.TicketType?.Exhibition;
         if (exhibition?.EndDate.HasValue == true)
         {
-            // Đến cuối ngày (23:59:59) của ngày kết thúc triển lãm
             return exhibition.EndDate.Value.Date.AddDays(1).AddSeconds(-1);
         }
-        // Vé tham quan bảo tàng thông thường: Không có thời hạn (vô thời hạn cho đến khi check-in)
-        return null;
+
+        // 3. Vé thường nếu chưa được gán ValidDate (fallback): Cuối ngày thanh toán
+        return now.Date.AddDays(1).AddSeconds(-1);
     }
 
     // =========================================================================
