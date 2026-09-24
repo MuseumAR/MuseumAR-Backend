@@ -365,10 +365,11 @@ public class TicketingService : ITicketingService
                 return ResponseModel.BadRequest("Invalid or inactive ticket type.");
             }
 
-            // Nếu là vé triển lãm: kiểm tra triển lãm còn mở và chưa hết hạn
+            // Xác định thời hạn hiệu lực của vé:
             DateTime? initialValidDate = null;
             if (ticketType.ExhibitionId.HasValue)
             {
+                // 1. Vé chuyên đề triển lãm: Có giá trị trong suốt thời gian diễn ra triển lãm đến khi kết thúc
                 var exhibition = await _unitOfWork.Exhibitions.GetByIdAsync(ticketType.ExhibitionId.Value);
                 if (exhibition != null)
                 {
@@ -385,6 +386,25 @@ public class TicketingService : ITicketingService
                     {
                         initialValidDate = exhibition.EndDate.Value.Date.AddDays(1).AddSeconds(-1);
                     }
+                }
+            }
+            else
+            {
+                // 2. Vé tham quan thường (không thuộc triển lãm): Chọn ngày tham quan (tương tự vé xem phim)
+                // Vé chỉ có giá trị sử dụng trong ngày tham quan đã chọn (đến 23:59:59 của ngày đó), qua ngày này vé sẽ hết hạn (Expired)
+                if (request.VisitDate.HasValue)
+                {
+                    var selectedVisitDate = request.VisitDate.Value.Date;
+                    if (selectedVisitDate < now.Date)
+                    {
+                        return ResponseModel.BadRequest("Ngày tham quan không thể ở trong quá khứ.");
+                    }
+                    initialValidDate = selectedVisitDate.AddDays(1).AddSeconds(-1);
+                }
+                else
+                {
+                    // Nếu không chọn ngày tham quan: Mặc định là ngày hôm nay
+                    initialValidDate = now.Date.AddDays(1).AddSeconds(-1);
                 }
             }
 
@@ -515,9 +535,27 @@ public class TicketingService : ITicketingService
             Console.WriteLine($"[GetMyTickets Sync Warning]: {ex.Message}");
         }
 
-        var tickets = await _unitOfWork.Tickets.GetTicketsByVisitorIdAsync(visitorId);
-        // Return Paid, Used, Refund_Pending, and Refunded tickets to the user
-        var activeTickets = tickets.Where(t => t.Status == "Paid" || t.Status == "Used" || t.Status == "Refund_Pending" || t.Status == "Refunded").ToList();
+        var tickets = (await _unitOfWork.Tickets.GetTicketsByVisitorIdAsync(visitorId)).ToList();
+        var now = DateTime.UtcNow.AddHours(7);
+        bool hasExpiredUpdates = false;
+
+        foreach (var t in tickets)
+        {
+            if (t.Status == "Paid" && t.ValidDate.HasValue && now > t.ValidDate.Value)
+            {
+                t.Status = "Expired";
+                t.UpdatedAt = now;
+                _unitOfWork.Tickets.Update(t);
+                hasExpiredUpdates = true;
+            }
+        }
+        if (hasExpiredUpdates)
+        {
+            await _unitOfWork.CompleteAsync();
+        }
+
+        // Return Paid, Used, Expired, Refund_Pending, and Refunded tickets to the user
+        var activeTickets = tickets.Where(t => t.Status == "Paid" || t.Status == "Used" || t.Status == "Expired" || t.Status == "Refund_Pending" || t.Status == "Refunded").ToList();
         var dtos = _mapper.Map<IEnumerable<TicketDto>>(activeTickets).ToList();
         var en = string.Equals(lang, "en", StringComparison.OrdinalIgnoreCase);
 
@@ -544,6 +582,15 @@ public class TicketingService : ITicketingService
         if (ticket == null)
         {
             return ResponseModel.NotFound("Ticket not found.");
+        }
+
+        var now = DateTime.UtcNow.AddHours(7);
+        if (ticket.Status == "Paid" && ticket.ValidDate.HasValue && now > ticket.ValidDate.Value)
+        {
+            ticket.Status = "Expired";
+            ticket.UpdatedAt = now;
+            _unitOfWork.Tickets.Update(ticket);
+            await _unitOfWork.CompleteAsync();
         }
 
         var en = string.Equals(lang, "en", StringComparison.OrdinalIgnoreCase);
@@ -691,20 +738,40 @@ public class TicketingService : ITicketingService
 
             var now = DateTime.UtcNow.AddHours(7);
             var exhibition = sampleTicket.TicketType?.Exhibition;
-            bool notStarted = exhibition?.StartDate.HasValue == true && now.Date < exhibition.StartDate.Value.Date;
-            bool isExpired = sampleTicket.ValidDate.HasValue && now > sampleTicket.ValidDate.Value;
+            bool isExhibition = exhibition != null;
+
+            bool exhibitionNotStarted = isExhibition && exhibition?.StartDate.HasValue == true && now.Date < exhibition.StartDate.Value.Date;
+            bool regularNotStarted = !isExhibition && sampleTicket.ValidDate.HasValue && now.Date < sampleTicket.ValidDate.Value.Date;
+            bool notStarted = exhibitionNotStarted || regularNotStarted;
+            bool isExpired = (sampleTicket.Status == "Expired") || (sampleTicket.ValidDate.HasValue && now > sampleTicket.ValidDate.Value);
+
+            if (isExpired && remainingCount > 0)
+            {
+                foreach (var t in orderTickets.Where(t => t.Status == "Paid" || t.Status == "Active"))
+                {
+                    t.Status = "Expired";
+                    t.UpdatedAt = now;
+                    _unitOfWork.Tickets.Update(t);
+                }
+                await _unitOfWork.CompleteAsync();
+                remainingCount = 0;
+            }
 
             bool isValid = remainingCount > 0 && !notStarted && !isExpired && (orderTransaction.PaymentStatus == "Completed" || orderTransaction.PaymentStatus == "Paid" || remainingCount > 0);
 
-            string message = notStarted
-                ? $"Triển lãm chưa bắt đầu (Bắt đầu từ ngày {exhibition!.StartDate:dd/MM/yyyy})!"
-                : isExpired
-                    ? $"Đơn vé đoàn này đã hết hạn sử dụng vào lúc {sampleTicket.ValidDate:dd/MM/yyyy HH:mm}!"
-                    : remainingCount == 0 && usedCount > 0
-                        ? $"Toàn bộ vé trong đơn ({totalCount} vé) đã được Check-in sử dụng trước đó!"
-                        : remainingCount > 0
-                            ? $"Đơn vé đoàn hợp lệ! Sẵn sàng Check-in cho {remainingCount}/{totalCount} vé (Bao gồm {focCount} vé FOC)."
-                            : $"Trạng thái đơn hàng: {orderTransaction.PaymentStatus}";
+            string message = regularNotStarted
+                ? $"Đơn vé đoàn chưa đến ngày sử dụng! Ngày tham quan đã đặt: {sampleTicket.ValidDate:dd/MM/yyyy}. Quý khách vui lòng quay lại đúng ngày."
+                : exhibitionNotStarted
+                    ? $"Triển lãm chưa bắt đầu (Bắt đầu từ ngày {exhibition!.StartDate:dd/MM/yyyy})!"
+                    : isExpired
+                        ? (isExhibition
+                            ? $"Đơn vé đoàn triển lãm này đã hết hạn sử dụng vào lúc {sampleTicket.ValidDate:dd/MM/yyyy HH:mm}!"
+                            : $"Đơn vé đoàn này đã hết hạn sử dụng (Ngày tham quan đã đặt: {sampleTicket.ValidDate:dd/MM/yyyy})!")
+                        : remainingCount == 0 && usedCount > 0
+                            ? $"Toàn bộ vé trong đơn ({totalCount} vé) đã được Check-in sử dụng trước đó!"
+                            : remainingCount > 0
+                                ? $"Đơn vé đoàn hợp lệ! Sẵn sàng Check-in cho {remainingCount}/{totalCount} vé (Bao gồm {focCount} vé FOC)."
+                                : $"Trạng thái đơn hàng: {orderTransaction.PaymentStatus}";
 
             var groupResponseDto = new ValidateTicketResponseDto
             {
@@ -759,24 +826,44 @@ public class TicketingService : ITicketingService
 
         var nowSingle = DateTime.UtcNow.AddHours(7);
         var singleExhibition = ticket.TicketType?.Exhibition;
-        bool notStartedYet = singleExhibition?.StartDate.HasValue == true && nowSingle.Date < singleExhibition.StartDate.Value.Date;
-        bool isTicketExpired = ticket.ValidDate.HasValue && nowSingle > ticket.ValidDate.Value;
+        bool isSingleExhibition = singleExhibition != null;
+
+        bool exhibitionNotStartedYet = isSingleExhibition && singleExhibition?.StartDate.HasValue == true && nowSingle.Date < singleExhibition.StartDate.Value.Date;
+        bool regularTicketNotStartedYet = !isSingleExhibition && ticket.ValidDate.HasValue && nowSingle.Date < ticket.ValidDate.Value.Date;
+        bool notStartedYet = exhibitionNotStartedYet || regularTicketNotStartedYet;
+
+        bool isTicketExpired = (ticket.Status == "Expired") || (ticket.ValidDate.HasValue && nowSingle > ticket.ValidDate.Value);
         bool isTicketValid = (ticket.Status == "Paid" || ticket.Status == "Active") && !isTicketExpired && !notStartedYet;
 
-        string ticketMessage = notStartedYet
-            ? $"Triển lãm chưa bắt đầu (Bắt đầu từ ngày {singleExhibition!.StartDate:dd/MM/yyyy})!"
-            : isTicketExpired
-                ? $"Vé này đã hết hạn sử dụng vào lúc {ticket.ValidDate:dd/MM/yyyy HH:mm}!"
-                : ticket.Status switch
-                {
-                    "Paid" or "Active" => isFoc ? "Vé FOC (Miễn phí dẫn đoàn) hợp lệ! Có thể Check-in." : "Vé hợp lệ! Có thể thực hiện Check-in.",
-                    "Used" => $"Vé này đã được Check-in sử dụng trước đó vào lúc {ticket.UpdatedAt:dd/MM/yyyy HH:mm}!",
-                    "Refund_Pending" => "Vé này đang trong quá trình yêu cầu hoàn tiền!",
-                    "Refunded" => "Vé này đã được hoàn tiền và không còn hiệu lực!",
-                    "Cancelled" => "Vé này đã bị hủy hoặc hết hạn thanh toán!",
-                    "Pending" => "Vé này chưa được xác nhận thanh toán!",
-                    _ => $"Trạng thái vé: {ticket.Status}"
-                };
+        if (ticket.Status == "Paid" && isTicketExpired)
+        {
+            ticket.Status = "Expired";
+            ticket.UpdatedAt = nowSingle;
+            _unitOfWork.Tickets.Update(ticket);
+            await _unitOfWork.CompleteAsync();
+        }
+
+        string ticketMessage = regularTicketNotStartedYet
+            ? $"Vé chưa đến ngày sử dụng! Ngày tham quan đã đặt: {ticket.ValidDate:dd/MM/yyyy}. Quý khách vui lòng quay lại đúng ngày."
+            : exhibitionNotStartedYet
+                ? $"Triển lãm chưa bắt đầu (Bắt đầu từ ngày {singleExhibition!.StartDate:dd/MM/yyyy})!"
+                : isTicketExpired
+                    ? (isSingleExhibition
+                        ? $"Vé triển lãm này đã hết hạn sử dụng vào lúc {ticket.ValidDate:dd/MM/yyyy HH:mm}!"
+                        : $"Vé tham quan này đã hết hạn sử dụng (Ngày tham quan đã đặt: {ticket.ValidDate:dd/MM/yyyy})!")
+                    : ticket.Status switch
+                    {
+                        "Paid" or "Active" => isFoc ? "Vé FOC (Miễn phí dẫn đoàn) hợp lệ! Có thể Check-in." : "Vé hợp lệ! Có thể thực hiện Check-in.",
+                        "Used" => $"Vé này đã được Check-in sử dụng trước đó vào lúc {ticket.UpdatedAt:dd/MM/yyyy HH:mm}!",
+                        "Expired" => isSingleExhibition
+                            ? $"Vé triển lãm này đã hết hạn sử dụng vào lúc {ticket.ValidDate:dd/MM/yyyy HH:mm}!"
+                            : $"Vé tham quan này đã hết hạn sử dụng (Ngày tham quan đã đặt: {ticket.ValidDate:dd/MM/yyyy})!",
+                        "Refund_Pending" => "Vé này đang trong quá trình yêu cầu hoàn tiền!",
+                        "Refunded" => "Vé này đã được hoàn tiền và không còn hiệu lực!",
+                        "Cancelled" => "Vé này đã bị hủy hoặc hết hạn thanh toán!",
+                        "Pending" => "Vé này chưa được xác nhận thanh toán!",
+                        _ => $"Trạng thái vé: {ticket.Status}"
+                    };
 
         var responseDto = new ValidateTicketResponseDto
         {
@@ -833,14 +920,30 @@ public class TicketingService : ITicketingService
 
             var sample = validTickets.First();
             var exhibition = sample.TicketType?.Exhibition;
-            if (exhibition?.StartDate.HasValue == true && now.Date < exhibition.StartDate.Value.Date)
+            bool isExhibition = exhibition != null;
+
+            if (isExhibition && exhibition?.StartDate.HasValue == true && now.Date < exhibition.StartDate.Value.Date)
             {
                 return ResponseModel.BadRequest($"Triển lãm chưa bắt đầu (Bắt đầu từ ngày {exhibition.StartDate:dd/MM/yyyy})!");
             }
 
+            if (!isExhibition && sample.ValidDate.HasValue && now.Date < sample.ValidDate.Value.Date)
+            {
+                return ResponseModel.BadRequest($"Vé đoàn chưa đến ngày sử dụng! Ngày tham quan đã đặt: {sample.ValidDate:dd/MM/yyyy}.");
+            }
+
             if (sample.ValidDate.HasValue && now > sample.ValidDate.Value)
             {
-                return ResponseModel.BadRequest($"Đơn vé đoàn này đã hết hạn sử dụng vào lúc {sample.ValidDate:dd/MM/yyyy HH:mm}!");
+                foreach (var t in validTickets)
+                {
+                    t.Status = "Expired";
+                    t.UpdatedAt = now;
+                    _unitOfWork.Tickets.Update(t);
+                }
+                await _unitOfWork.CompleteAsync();
+                return ResponseModel.BadRequest(isExhibition
+                    ? $"Đơn vé đoàn triển lãm này đã hết hạn sử dụng vào lúc {sample.ValidDate:dd/MM/yyyy HH:mm}!"
+                    : $"Đơn vé đoàn này đã hết hạn sử dụng (Ngày tham quan đã đặt: {sample.ValidDate:dd/MM/yyyy})!");
             }
 
             // Determine how many tickets to check in (Full or Partial)
@@ -922,15 +1025,35 @@ public class TicketingService : ITicketingService
             return ResponseModel.BadRequest($"Không thể check-in vé có trạng thái '{ticket.Status}'. Vé phải ở trạng thái Đã thanh toán (Paid).");
         }
 
+        if (ticket.Status == "Expired")
+        {
+            return ResponseModel.BadRequest(ticket.TicketType?.ExhibitionId.HasValue == true
+                ? $"Vé triển lãm này đã hết hạn sử dụng vào lúc {ticket.ValidDate:dd/MM/yyyy HH:mm}!"
+                : $"Vé tham quan này đã hết hạn sử dụng (Ngày tham quan đã đặt: {ticket.ValidDate:dd/MM/yyyy})!");
+        }
+
         var singleEx = ticket.TicketType?.Exhibition;
-        if (singleEx?.StartDate.HasValue == true && now.Date < singleEx.StartDate.Value.Date)
+        bool isSingleEx = singleEx != null;
+
+        if (isSingleEx && singleEx?.StartDate.HasValue == true && now.Date < singleEx.StartDate.Value.Date)
         {
             return ResponseModel.BadRequest($"Triển lãm chưa bắt đầu (Bắt đầu từ ngày {singleEx.StartDate:dd/MM/yyyy})!");
         }
 
+        if (!isSingleEx && ticket.ValidDate.HasValue && now.Date < ticket.ValidDate.Value.Date)
+        {
+            return ResponseModel.BadRequest($"Vé chưa đến ngày sử dụng! Ngày tham quan đã đặt: {ticket.ValidDate:dd/MM/yyyy}.");
+        }
+
         if (ticket.ValidDate.HasValue && now > ticket.ValidDate.Value)
         {
-            return ResponseModel.BadRequest($"Vé này đã hết hạn sử dụng vào lúc {ticket.ValidDate:dd/MM/yyyy HH:mm}!");
+            ticket.Status = "Expired";
+            ticket.UpdatedAt = now;
+            _unitOfWork.Tickets.Update(ticket);
+            await _unitOfWork.CompleteAsync();
+            return ResponseModel.BadRequest(isSingleEx
+                ? $"Vé triển lãm này đã hết hạn sử dụng vào lúc {ticket.ValidDate:dd/MM/yyyy HH:mm}!"
+                : $"Vé tham quan này đã hết hạn sử dụng (Ngày tham quan đã đặt: {ticket.ValidDate:dd/MM/yyyy})!");
         }
 
         ticket.Status = "Used";
