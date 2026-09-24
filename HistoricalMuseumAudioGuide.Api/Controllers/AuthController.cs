@@ -97,6 +97,20 @@ public class AuthController : ControllerBase
     }
 
     [Authorize]
+    [HttpPost("send-password-otp")]
+    public async Task<IActionResult> SendPasswordOtp()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+        if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+        {
+            return Unauthorized();
+        }
+
+        var response = await _authService.SendPasswordOtpAsync(userId);
+        return ResponseParser.Result(response);
+    }
+
+    [Authorize]
     [HttpPost("change-password")]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequestDto request)
     {
